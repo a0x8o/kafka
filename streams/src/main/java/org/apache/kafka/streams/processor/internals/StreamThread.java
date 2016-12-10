@@ -198,7 +198,7 @@ public class StreamThread extends Thread {
     final StateDirectory stateDirectory;
 
     private StreamPartitionAssignor partitionAssignor = null;
-
+    private boolean cleanRun = false;
     private long timerStartedMs;
     private long lastCleanMs;
     private long lastCommitMs;
@@ -343,6 +343,7 @@ public class StreamThread extends Thread {
 
         try {
             runLoop();
+            cleanRun = true;
         } catch (KafkaException e) {
             // just re-throw the exception as it should be logged already
             throw e;
@@ -367,6 +368,7 @@ public class StreamThread extends Thread {
     public Map<TaskId, StreamTask> tasks() {
         return Collections.unmodifiableMap(activeTasks);
     }
+
 
     private void shutdown() {
         log.info("{} Shutting down", logPrefix);
@@ -414,8 +416,11 @@ public class StreamThread extends Thread {
         log.debug("{} shutdownTasksAndState: shutting down all active tasks [{}] and standby tasks [{}]", logPrefix,
             activeTasks.keySet(), standbyTasks.keySet());
 
-        // Commit first as there may be cached records that have not been flushed yet.
-        commitOffsets(rethrowExceptions);
+        // only commit under clean exit
+        if (cleanRun) {
+            // Commit first as there may be cached records that have not been flushed yet.
+            commitOffsets(rethrowExceptions);
+        }
         // Close all processors in topology order
         closeAllTasks();
         // flush state
@@ -549,10 +554,12 @@ public class StreamThread extends Thread {
                     throw new StreamsException(logPrefix + " Failed to rebalance", rebalanceException);
 
                 if (!records.isEmpty()) {
+                    int numAddedRecords = 0;
                     for (TopicPartition partition : records.partitions()) {
                         StreamTask task = activeTasksByPartition.get(partition);
-                        task.addRecords(partition, records.records(partition));
+                        numAddedRecords += task.addRecords(partition, records.records(partition));
                     }
+                    sensors.skippedRecordsSensor.record(records.count() - numAddedRecords, timerStartedMs);
                     polledRecords = true;
                 } else {
                     polledRecords = false;
@@ -1020,6 +1027,7 @@ public class StreamThread extends Thread {
         final Sensor punctuateTimeSensor;
         final Sensor taskCreationSensor;
         final Sensor taskDestructionSensor;
+        final Sensor skippedRecordsSensor;
 
         public StreamsMetricsImpl(Metrics metrics) {
             this.metrics = metrics;
@@ -1052,6 +1060,9 @@ public class StreamThread extends Thread {
 
             this.taskDestructionSensor = metrics.sensor(sensorNamePrefix + ".task-destruction");
             this.taskDestructionSensor.add(metrics.metricName("task-destruction-rate", metricGrpName, "The average per-second number of destructed tasks", metricTags), new Rate(new Count()));
+
+            this.skippedRecordsSensor = metrics.sensor(sensorNamePrefix + ".skipped-records");
+            this.skippedRecordsSensor.add(metrics.metricName("skipped-records-count", metricGrpName, "The average per-second number of skipped records.", metricTags), new Rate(new Count()));
         }
 
         @Override
