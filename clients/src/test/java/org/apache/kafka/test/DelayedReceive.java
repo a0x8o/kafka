@@ -14,6 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.common.network;
+package org.apache.kafka.test;
 
-public enum Mode { CLIENT, SERVER }
+import org.apache.kafka.common.network.NetworkReceive;
+
+/**
+ * Used by MockSelector to allow clients to add responses whose associated requests are added later.
+ */
+public class DelayedReceive {
+    private final String source;
+    private final NetworkReceive receive;
+
+    public DelayedReceive(String source, NetworkReceive receive) {
+        this.source = source;
+        this.receive = receive;
+    }
+
+    public String source() {
+        return source;
+    }
+
+    public NetworkReceive receive() {
+        return receive;
+    }
+}
