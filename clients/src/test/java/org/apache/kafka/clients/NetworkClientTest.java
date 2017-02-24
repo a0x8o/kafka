@@ -21,10 +21,8 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.network.NetworkReceive;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ProtoUtils;
 import org.apache.kafka.common.protocol.types.Struct;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.requests.AbstractRequestResponse;
 import org.apache.kafka.common.requests.ApiVersionsResponse;
 import org.apache.kafka.common.requests.MetadataRequest;
 import org.apache.kafka.common.requests.ProduceRequest;
@@ -135,11 +133,12 @@ public class NetworkClientTest {
         networkClient.poll(1, time.milliseconds());
         assertEquals(1, networkClient.inFlightRequestCount());
         ResponseHeader respHeader = new ResponseHeader(request.correlationId());
-        Struct resp = new Struct(ProtoUtils.currentResponseSchema(ApiKeys.PRODUCE.id));
+        Struct resp = new Struct(ApiKeys.PRODUCE.responseSchema(ApiKeys.PRODUCE.latestVersion()));
         resp.set("responses", new Object[0]);
-        int size = respHeader.sizeOf() + resp.sizeOf();
+        Struct responseHeaderStruct = respHeader.toStruct();
+        int size = responseHeaderStruct.sizeOf() + resp.sizeOf();
         ByteBuffer buffer = ByteBuffer.allocate(size);
-        respHeader.writeTo(buffer);
+        responseHeaderStruct.writeTo(buffer);
         resp.writeTo(buffer);
         buffer.flip();
         selector.completeReceive(new NetworkReceive(node.idString(), buffer));
@@ -152,9 +151,7 @@ public class NetworkClientTest {
     }
 
     private void maybeSetExpectedApiVersionsResponse() {
-        ResponseHeader responseHeader = new ResponseHeader(0);
-        ByteBuffer buffer = AbstractRequestResponse.serialize(responseHeader,
-                ApiVersionsResponse.API_VERSIONS_RESPONSE);
+        ByteBuffer buffer = ApiVersionsResponse.API_VERSIONS_RESPONSE.serialize((short) 0, new ResponseHeader(0));
         selector.delayedReceive(new DelayedReceive(node.idString(), new NetworkReceive(node.idString(), buffer)));
     }
 

@@ -14,8 +14,6 @@ package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.ProtoUtils;
-import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
@@ -26,8 +24,6 @@ import java.util.List;
 import java.util.Map;
 
 public class DescribeGroupsResponse extends AbstractResponse {
-
-    private static final Schema CURRENT_SCHEMA = ProtoUtils.currentResponseSchema(ApiKeys.DESCRIBE_GROUPS.id);
 
     private static final String GROUPS_KEY_NAME = "groups";
 
@@ -60,36 +56,10 @@ public class DescribeGroupsResponse extends AbstractResponse {
     private final Map<String, GroupMetadata> groups;
 
     public DescribeGroupsResponse(Map<String, GroupMetadata> groups) {
-        super(new Struct(CURRENT_SCHEMA));
-
-        List<Struct> groupStructs = new ArrayList<>();
-        for (Map.Entry<String, GroupMetadata> groupEntry : groups.entrySet()) {
-            Struct groupStruct = struct.instance(GROUPS_KEY_NAME);
-            GroupMetadata group = groupEntry.getValue();
-            groupStruct.set(GROUP_ID_KEY_NAME, groupEntry.getKey());
-            groupStruct.set(ERROR_CODE_KEY_NAME, group.error.code());
-            groupStruct.set(GROUP_STATE_KEY_NAME, group.state);
-            groupStruct.set(PROTOCOL_TYPE_KEY_NAME, group.protocolType);
-            groupStruct.set(PROTOCOL_KEY_NAME, group.protocol);
-            List<Struct> membersList = new ArrayList<>();
-            for (GroupMember member : group.members) {
-                Struct memberStruct = groupStruct.instance(MEMBERS_KEY_NAME);
-                memberStruct.set(MEMBER_ID_KEY_NAME, member.memberId);
-                memberStruct.set(CLIENT_ID_KEY_NAME, member.clientId);
-                memberStruct.set(CLIENT_HOST_KEY_NAME, member.clientHost);
-                memberStruct.set(MEMBER_METADATA_KEY_NAME, member.memberMetadata);
-                memberStruct.set(MEMBER_ASSIGNMENT_KEY_NAME, member.memberAssignment);
-                membersList.add(memberStruct);
-            }
-            groupStruct.set(MEMBERS_KEY_NAME, membersList.toArray());
-            groupStructs.add(groupStruct);
-        }
-        struct.set(GROUPS_KEY_NAME, groupStructs.toArray());
         this.groups = groups;
     }
 
     public DescribeGroupsResponse(Struct struct) {
-        super(struct);
         this.groups = new HashMap<>();
         for (Object groupObj : struct.getArray(GROUPS_KEY_NAME)) {
             Struct groupStruct = (Struct) groupObj;
@@ -209,10 +179,6 @@ public class DescribeGroupsResponse extends AbstractResponse {
         }
     }
 
-    public static DescribeGroupsResponse parse(ByteBuffer buffer) {
-        return new DescribeGroupsResponse(CURRENT_SCHEMA.read(buffer));
-    }
-
     public static DescribeGroupsResponse fromError(Errors error, List<String> groupIds) {
         GroupMetadata errorMetadata = GroupMetadata.forError(error);
         Map<String, GroupMetadata> groups = new HashMap<>();
@@ -221,4 +187,38 @@ public class DescribeGroupsResponse extends AbstractResponse {
         return new DescribeGroupsResponse(groups);
     }
 
+    @Override
+    protected Struct toStruct(short version) {
+        Struct struct = new Struct(ApiKeys.DESCRIBE_GROUPS.responseSchema(version));
+
+        List<Struct> groupStructs = new ArrayList<>();
+        for (Map.Entry<String, GroupMetadata> groupEntry : groups.entrySet()) {
+            Struct groupStruct = struct.instance(GROUPS_KEY_NAME);
+            GroupMetadata group = groupEntry.getValue();
+            groupStruct.set(GROUP_ID_KEY_NAME, groupEntry.getKey());
+            groupStruct.set(ERROR_CODE_KEY_NAME, group.error.code());
+            groupStruct.set(GROUP_STATE_KEY_NAME, group.state);
+            groupStruct.set(PROTOCOL_TYPE_KEY_NAME, group.protocolType);
+            groupStruct.set(PROTOCOL_KEY_NAME, group.protocol);
+            List<Struct> membersList = new ArrayList<>();
+            for (GroupMember member : group.members) {
+                Struct memberStruct = groupStruct.instance(MEMBERS_KEY_NAME);
+                memberStruct.set(MEMBER_ID_KEY_NAME, member.memberId);
+                memberStruct.set(CLIENT_ID_KEY_NAME, member.clientId);
+                memberStruct.set(CLIENT_HOST_KEY_NAME, member.clientHost);
+                memberStruct.set(MEMBER_METADATA_KEY_NAME, member.memberMetadata);
+                memberStruct.set(MEMBER_ASSIGNMENT_KEY_NAME, member.memberAssignment);
+                membersList.add(memberStruct);
+            }
+            groupStruct.set(MEMBERS_KEY_NAME, membersList.toArray());
+            groupStructs.add(groupStruct);
+        }
+        struct.set(GROUPS_KEY_NAME, groupStructs.toArray());
+
+        return struct;
+    }
+
+    public static DescribeGroupsResponse parse(ByteBuffer buffer, short version) {
+        return new DescribeGroupsResponse(ApiKeys.DESCRIBE_GROUPS.parseResponse(version, buffer));
+    }
 }

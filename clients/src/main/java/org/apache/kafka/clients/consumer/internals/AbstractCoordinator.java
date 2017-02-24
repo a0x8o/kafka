@@ -315,6 +315,19 @@ public abstract class AbstractCoordinator implements Closeable {
             heartbeatThread.disable();
     }
 
+    private void closeHeartbeatThread() {
+        if (heartbeatThread != null) {
+            heartbeatThread.close();
+
+            try {
+                heartbeatThread.join();
+            } catch (InterruptedException e) {
+                log.warn("Interrupted while waiting for consumer heartbeat thread to close");
+                throw new InterruptException(e);
+            }
+        }
+    }
+
     // visible for testing. Joins the group without starting the heartbeat thread.
     void joinGroupIfNeeded() {
         while (needRejoin() || rejoinIncomplete()) {
@@ -652,19 +665,26 @@ public abstract class AbstractCoordinator implements Closeable {
         close(0);
     }
 
-    protected synchronized void close(long timeoutMs) {
-        if (heartbeatThread != null)
-            heartbeatThread.close();
-        maybeLeaveGroup();
+    protected void close(long timeoutMs) {
+        try {
+            closeHeartbeatThread();
+        } finally {
 
-        // At this point, there may be pending commits (async commits or sync commits that were
-        // interrupted using wakeup) and the leave group request which have been queued, but not
-        // yet sent to the broker. Wait up to close timeout for these pending requests to be processed.
-        // If coordinator is not known, requests are aborted.
-        Node coordinator = coordinator();
-        if (coordinator != null && !client.awaitPendingRequests(coordinator, timeoutMs))
-            log.warn("Close timed out with {} pending requests to coordinator, terminating client connections for group {}.",
-                    client.pendingRequestCount(coordinator), groupId);
+            // Synchronize after closing the heartbeat thread since heartbeat thread
+            // needs this lock to complete and terminate after close flag is set.
+            synchronized (this) {
+                maybeLeaveGroup();
+
+                // At this point, there may be pending commits (async commits or sync commits that were
+                // interrupted using wakeup) and the leave group request which have been queued, but not
+                // yet sent to the broker. Wait up to close timeout for these pending requests to be processed.
+                // If coordinator is not known, requests are aborted.
+                Node coordinator = coordinator();
+                if (coordinator != null && !client.awaitPendingRequests(coordinator, timeoutMs))
+                    log.warn("Close timed out with {} pending requests to coordinator, terminating client connections for group {}.",
+                            client.pendingRequestCount(coordinator), groupId);
+            }
+        }
     }
 
     /**
@@ -888,9 +908,9 @@ public abstract class AbstractCoordinator implements Closeable {
                         long now = time.milliseconds();
 
                         if (coordinatorUnknown()) {
-                            if (findCoordinatorFuture == null)
-                                lookupCoordinator();
-                            else
+                            if (findCoordinatorFuture != null || lookupCoordinator().failed())
+                                // the immediate future check ensures that we backoff properly in the case that no
+                                // brokers are available to connect to.
                                 AbstractCoordinator.this.wait(retryBackoffMs);
                         } else if (heartbeat.sessionTimeoutExpired(now)) {
                             // the session timeout has expired without seeing a successful heartbeat, so we should
@@ -941,7 +961,7 @@ public abstract class AbstractCoordinator implements Closeable {
                 log.error("Unexpected interrupt received in heartbeat thread for group {}", groupId, e);
                 this.failed.set(new RuntimeException(e));
             } catch (RuntimeException e) {
-                log.error("Heartbeat thread for group {} failed due to unexpected error" , groupId, e);
+                log.error("Heartbeat thread for group {} failed due to unexpected error", groupId, e);
                 this.failed.set(e);
             } finally {
                 log.debug("Heartbeat thread for group {} has closed", groupId);

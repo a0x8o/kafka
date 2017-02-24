@@ -15,15 +15,11 @@ package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.ProtoUtils;
-import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
 public class UpdateMetadataResponse extends AbstractResponse {
-
-    private static final Schema CURRENT_SCHEMA = ProtoUtils.currentResponseSchema(ApiKeys.UPDATE_METADATA_KEY.id);
 
     private static final String ERROR_CODE_KEY_NAME = "error_code";
 
@@ -35,13 +31,10 @@ public class UpdateMetadataResponse extends AbstractResponse {
     private final Errors error;
 
     public UpdateMetadataResponse(Errors error) {
-        super(new Struct(CURRENT_SCHEMA));
-        struct.set(ERROR_CODE_KEY_NAME, error.code());
         this.error = error;
     }
 
     public UpdateMetadataResponse(Struct struct) {
-        super(struct);
         error = Errors.forCode(struct.getShort(ERROR_CODE_KEY_NAME));
     }
 
@@ -49,12 +42,14 @@ public class UpdateMetadataResponse extends AbstractResponse {
         return error;
     }
 
-    public static UpdateMetadataResponse parse(ByteBuffer buffer) {
-        return new UpdateMetadataResponse(CURRENT_SCHEMA.read(buffer));
+    public static UpdateMetadataResponse parse(ByteBuffer buffer, short version) {
+        return new UpdateMetadataResponse(ApiKeys.UPDATE_METADATA_KEY.parseResponse(version, buffer));
     }
 
-    public static UpdateMetadataResponse parse(ByteBuffer buffer, int version) {
-        return new UpdateMetadataResponse(ProtoUtils.parseResponse(ApiKeys.UPDATE_METADATA_KEY.id, version, buffer));
+    @Override
+    protected Struct toStruct(short version) {
+        Struct struct = new Struct(ApiKeys.UPDATE_METADATA_KEY.responseSchema(version));
+        struct.set(ERROR_CODE_KEY_NAME, error.code());
+        return struct;
     }
-
 }

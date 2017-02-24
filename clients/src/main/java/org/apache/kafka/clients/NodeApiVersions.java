@@ -14,7 +14,6 @@ package org.apache.kafka.clients;
 
 import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ProtoUtils;
 import org.apache.kafka.common.requests.ApiVersionsResponse.ApiVersion;
 import org.apache.kafka.common.utils.Utils;
 
@@ -31,7 +30,6 @@ import java.util.TreeMap;
  * An internal class which represents the API versions supported by a particular node.
  */
 public class NodeApiVersions {
-    private static final Short API_NOT_ON_NODE = null;
     private static final short NODE_TOO_OLD = (short) -1;
     private static final short NODE_TOO_NEW = (short) -2;
     private final Collection<ApiVersion> nodeApiVersions;
@@ -47,7 +45,7 @@ public class NodeApiVersions {
      * @return A new NodeApiVersions object.
      */
     public static NodeApiVersions create() {
-        return create(Collections.EMPTY_LIST);
+        return create(Collections.<ApiVersion>emptyList());
     }
 
     /**
@@ -68,8 +66,7 @@ public class NodeApiVersions {
                 }
             }
             if (!exists) {
-                apiVersions.add(new ApiVersion(apiKey.id, ProtoUtils.oldestVersion(apiKey.id),
-                    ProtoUtils.latestVersion(apiKey.id)));
+                apiVersions.add(new ApiVersion(apiKey));
             }
         }
         return new NodeApiVersions(apiVersions);
@@ -78,16 +75,16 @@ public class NodeApiVersions {
     public NodeApiVersions(Collection<ApiVersion> nodeApiVersions) {
         this.nodeApiVersions = nodeApiVersions;
         for (ApiVersion nodeApiVersion : nodeApiVersions) {
-            int nodeApiKey = nodeApiVersion.apiKey;
             // Newer brokers may support ApiKeys we don't know about, ignore them
-            if (ApiKeys.hasId(nodeApiKey)) {
-                short v = Utils.min(ProtoUtils.latestVersion(nodeApiKey), nodeApiVersion.maxVersion);
+            if (ApiKeys.hasId(nodeApiVersion.apiKey)) {
+                ApiKeys nodeApiKey = ApiKeys.forId(nodeApiVersion.apiKey);
+                short v = Utils.min(nodeApiKey.latestVersion(), nodeApiVersion.maxVersion);
                 if (v < nodeApiVersion.minVersion) {
-                    usableVersions.put(ApiKeys.forId(nodeApiKey), NODE_TOO_NEW);
-                } else if (v < ProtoUtils.oldestVersion(nodeApiKey)) {
-                    usableVersions.put(ApiKeys.forId(nodeApiKey), NODE_TOO_OLD);
+                    usableVersions.put(nodeApiKey, NODE_TOO_NEW);
+                } else if (v < nodeApiKey.oldestVersion()) {
+                    usableVersions.put(nodeApiKey, NODE_TOO_OLD);
                 } else {
-                    usableVersions.put(ApiKeys.forId(nodeApiKey), v);
+                    usableVersions.put(nodeApiKey, v);
                 }
             }
         }
@@ -98,14 +95,14 @@ public class NodeApiVersions {
      */
     public short usableVersion(ApiKeys apiKey) {
         Short usableVersion = usableVersions.get(apiKey);
-        if (usableVersion == API_NOT_ON_NODE)
+        if (usableVersion == null)
             throw new UnsupportedVersionException("The broker does not support " + apiKey);
         else if (usableVersion == NODE_TOO_OLD)
             throw new UnsupportedVersionException("The broker is too old to support " + apiKey +
-                " version " + ProtoUtils.oldestVersion(apiKey.id));
+                " version " + apiKey.oldestVersion());
         else if (usableVersion == NODE_TOO_NEW)
             throw new UnsupportedVersionException("The broker is too new to support " + apiKey +
-                " version " + ProtoUtils.latestVersion(apiKey.id));
+                " version " + apiKey.latestVersion());
         else
             return usableVersion;
     }
@@ -160,17 +157,17 @@ public class NodeApiVersions {
         ApiKeys apiKey = null;
         if (ApiKeys.hasId(apiVersion.apiKey)) {
             apiKey = ApiKeys.forId(apiVersion.apiKey);
-        }
-        if (apiKey != null) {
             bld.append(apiKey.name).append("(").append(apiKey.id).append("): ");
         } else {
-            bld.append("UNKNOWN(").append(apiKey.id).append("): ");
+            bld.append("UNKNOWN(").append(apiVersion.apiKey).append("): ");
         }
+
         if (apiVersion.minVersion == apiVersion.maxVersion) {
             bld.append(apiVersion.minVersion);
         } else {
             bld.append(apiVersion.minVersion).append(" to ").append(apiVersion.maxVersion);
         }
+
         if (apiKey != null) {
             Short usableVersion = usableVersions.get(apiKey);
             if (usableVersion == NODE_TOO_OLD)

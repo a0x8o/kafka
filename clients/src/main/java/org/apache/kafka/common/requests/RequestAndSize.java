@@ -14,26 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.kafka.common.requests;
 
-package org.apache.kafka.common.protocol;
+public class RequestAndSize {
+    public final AbstractRequest request;
+    public final int size;
 
-import org.junit.Test;
-
-public class ApiKeysTest {
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testForIdWithInvalidIdLow() {
-        ApiKeys.forId(-1);
+    public RequestAndSize(AbstractRequest request, int size) {
+        this.request = request;
+        this.size = size;
     }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testForIdWithInvalidIdHigh() {
-        ApiKeys.forId(10000);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void schemaVersionOutOfRange() {
-        ApiKeys.PRODUCE.requestSchema((short) Protocol.REQUESTS[ApiKeys.PRODUCE.id].length);
-    }
-
 }
