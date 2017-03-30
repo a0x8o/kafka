@@ -16,37 +16,30 @@
  */
 package org.apache.kafka.common.utils;
 
+import org.apache.kafka.common.Os;
+import org.junit.Rule;
 import org.junit.Test;
-
-import java.util.zip.Checksum;
+import org.junit.rules.Timeout;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
-public class Crc32Test {
+public class ShellTest {
+    @Rule
+    public final Timeout globalTimeout = Timeout.seconds(180);
 
     @Test
-    public void testUpdate() {
-        final byte[] bytes = "Any String you want".getBytes();
-        final int len = bytes.length;
-
-        Checksum crc1 = Crc32C.create();
-        Checksum crc2 = Crc32C.create();
-        Checksum crc3 = Crc32C.create();
-
-        crc1.update(bytes, 0, len);
-        for (int i = 0; i < len; i++)
-            crc2.update(bytes[i]);
-        crc3.update(bytes, 0, len / 2);
-        crc3.update(bytes, len / 2, len - len / 2);
-
-        assertEquals("Crc values should be the same", crc1.getValue(), crc2.getValue());
-        assertEquals("Crc values should be the same", crc1.getValue(), crc3.getValue());
+    public void testEchoHello() throws Exception {
+        assumeTrue(!Os.IS_WINDOWS);
+        String output = Shell.execCommand("echo", "hello");
+        assertEquals("hello\n", output);
     }
 
     @Test
-    public void testValue() {
-        final byte[] bytes = "Some String".getBytes();
-        assertEquals(2021503672, Crc32.crc32(bytes));
+    public void testHeadDevZero() throws Exception {
+        assumeTrue(!Os.IS_WINDOWS);
+        final int length = 100000;
+        String output = Shell.execCommand("head", "-c", Integer.toString(length), "/dev/zero");
+        assertEquals(length, output.length());
     }
-
 }

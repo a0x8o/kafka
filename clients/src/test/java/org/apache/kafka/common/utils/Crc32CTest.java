@@ -22,7 +22,7 @@ import java.util.zip.Checksum;
 
 import static org.junit.Assert.assertEquals;
 
-public class Crc32Test {
+public class Crc32CTest {
 
     @Test
     public void testUpdate() {
@@ -46,7 +46,7 @@ public class Crc32Test {
     @Test
     public void testValue() {
         final byte[] bytes = "Some String".getBytes();
-        assertEquals(2021503672, Crc32.crc32(bytes));
+        assertEquals(608512271, Crc32C.compute(bytes, 0, bytes.length));
     }
 
 }
