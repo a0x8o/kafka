@@ -233,20 +233,26 @@ public final class RecordAccumulator {
             throw new UnsupportedVersionException("Attempting to use idempotence with a broker which does not " +
                     "support the required message format (v2). The broker must be version 0.11 or later.");
         }
-        return MemoryRecords.builder(buffer, maxUsableMagic, compression, TimestampType.CREATE_TIME, this.batchSize);
+        return MemoryRecords.builder(buffer, maxUsableMagic, compression, TimestampType.CREATE_TIME, 0L);
     }
 
     /**
-     *  Try to append to a ProducerBatch. If it is full, we return null and a new batch is created. If the existing batch is
-     *  full, it will be closed right before send, or if it is expired, or when the producer is closed, whichever
-     *  comes first.
+     *  Try to append to a ProducerBatch.
+     *
+     *  If it is full, we return null and a new batch is created. We also close the batch for record appends to free up
+     *  resources like compression buffers. The batch will be fully closed (ie. the record batch headers will be written
+     *  and memory records built) in one of the following cases (whichever comes first): right before send,
+     *  if it is expired, or when the producer is closed.
      */
     private RecordAppendResult tryAppend(long timestamp, byte[] key, byte[] value, Callback callback, Deque<ProducerBatch> deque) {
         ProducerBatch last = deque.peekLast();
         if (last != null) {
             FutureRecordMetadata future = last.tryAppend(timestamp, key, value, callback, time.milliseconds());
-            if (future != null)
+            if (future == null)
+                last.closeForRecordAppends();
+            else
                 return new RecordAppendResult(future, deque.size() > 1 || last.isFull(), false);
+
         }
         return null;
     }
