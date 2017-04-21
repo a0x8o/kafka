@@ -14,26 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.streams.processor.internals;
+package org.apache.kafka.streams.errors;
 
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.streams.processor.StateRestoreCallback;
-import org.apache.kafka.streams.processor.StateStore;
+import org.apache.kafka.common.annotation.InterfaceStability;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Map;
+/**
+ * Indicates that none of the specified {@link org.apache.kafka.streams.StreamsConfig#BOOTSTRAP_SERVERS_CONFIG brokers}
+ * could be found.
+ *
+ * @see org.apache.kafka.streams.StreamsConfig
+ */
+@InterfaceStability.Unstable
+public class BrokerNotFoundException extends StreamsException {
 
-interface StateManager extends Checkpointable {
-    File baseDir();
+    private final static long serialVersionUID = 1L;
 
-    void register(final StateStore store, final boolean loggingEnabled, final StateRestoreCallback stateRestoreCallback);
+    public BrokerNotFoundException(final String message) {
+        super(message);
+    }
 
-    void flush();
+    public BrokerNotFoundException(final String message, final Throwable throwable) {
+        super(message, throwable);
+    }
 
-    void close(Map<TopicPartition, Long> offsets) throws IOException;
+    public BrokerNotFoundException(final Throwable throwable) {
+        super(throwable);
+    }
 
-    StateStore getGlobalStore(final String name);
-
-    StateStore getStore(final String name);
 }
