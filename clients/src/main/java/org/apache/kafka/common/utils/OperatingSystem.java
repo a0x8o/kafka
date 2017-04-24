@@ -16,29 +16,19 @@
  */
 package org.apache.kafka.common.utils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import java.util.Locale;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeTrue;
+public final class OperatingSystem {
 
-public class ShellTest {
-    @Rule
-    public final Timeout globalTimeout = Timeout.seconds(180);
-
-    @Test
-    public void testEchoHello() throws Exception {
-        assumeTrue(!OperatingSystem.IS_WINDOWS);
-        String output = Shell.execCommand("echo", "hello");
-        assertEquals("hello\n", output);
+    private OperatingSystem() {
     }
+    
+    public static final String NAME;
 
-    @Test
-    public void testHeadDevZero() throws Exception {
-        assumeTrue(!OperatingSystem.IS_WINDOWS);
-        final int length = 100000;
-        String output = Shell.execCommand("head", "-c", Integer.toString(length), "/dev/zero");
-        assertEquals(length, output.length());
+    public static final boolean IS_WINDOWS;
+
+    static {
+        NAME = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+        IS_WINDOWS = NAME.startsWith("windows");
     }
 }
