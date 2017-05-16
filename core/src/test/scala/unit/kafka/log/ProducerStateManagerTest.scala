@@ -23,6 +23,7 @@ import kafka.server.LogOffsetMetadata
 import kafka.utils.TestUtils
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors._
+import org.apache.kafka.common.internals.Topic
 import org.apache.kafka.common.record.{ControlRecordType, EndTransactionMarker, RecordBatch}
 import org.apache.kafka.common.utils.{MockTime, Utils}
 import org.junit.Assert._
@@ -128,7 +129,8 @@ class ProducerStateManagerTest extends JUnitSuite {
     val offset = 992342L
     val seq = 0
     val producerAppendInfo = new ProducerAppendInfo(pid, None, false)
-    producerAppendInfo.append(producerEpoch, seq, seq, time.milliseconds(), offset, isTransactional = true)
+    producerAppendInfo.append(producerEpoch, seq, seq, time.milliseconds(), offset, isTransactional = true,
+      shouldValidateSequenceNumbers = true)
 
     val logOffsetMetadata = new LogOffsetMetadata(messageOffset = offset, segmentBaseOffset = 990000L,
       relativePositionInSegment = 234224)
@@ -144,7 +146,8 @@ class ProducerStateManagerTest extends JUnitSuite {
     val offset = 992342L
     val seq = 0
     val producerAppendInfo = new ProducerAppendInfo(pid, None, false)
-    producerAppendInfo.append(producerEpoch, seq, seq, time.milliseconds(), offset, isTransactional = true)
+    producerAppendInfo.append(producerEpoch, seq, seq, time.milliseconds(), offset, isTransactional = true,
+      shouldValidateSequenceNumbers = true)
 
     // use some other offset to simulate a follower append where the log offset metadata won't typically
     // match any of the transaction first offsets
@@ -164,7 +167,8 @@ class ProducerStateManagerTest extends JUnitSuite {
     append(idMapping, pid, 0, producerEpoch, offset)
 
     val appendInfo = new ProducerAppendInfo(pid, idMapping.lastEntry(pid), loadingFromLog = false)
-    appendInfo.append(producerEpoch, 1, 5, time.milliseconds(), 20L, isTransactional = true)
+    appendInfo.append(producerEpoch, 1, 5, time.milliseconds(), 20L, isTransactional = true,
+      shouldValidateSequenceNumbers = true)
     var lastEntry = appendInfo.lastEntry
     assertEquals(producerEpoch, lastEntry.producerEpoch)
     assertEquals(1, lastEntry.firstSeq)
@@ -174,7 +178,8 @@ class ProducerStateManagerTest extends JUnitSuite {
     assertEquals(Some(16L), lastEntry.currentTxnFirstOffset)
     assertEquals(List(new TxnMetadata(pid, 16L)), appendInfo.startedTransactions)
 
-    appendInfo.append(producerEpoch, 6, 10, time.milliseconds(), 30L, isTransactional = true)
+    appendInfo.append(producerEpoch, 6, 10, time.milliseconds(), 30L, isTransactional = true,
+      shouldValidateSequenceNumbers = true)
     lastEntry = appendInfo.lastEntry
     assertEquals(producerEpoch, lastEntry.producerEpoch)
     assertEquals(6, lastEntry.firstSeq)
@@ -220,6 +225,26 @@ class ProducerStateManagerTest extends JUnitSuite {
     val epoch = 0.toShort
     append(idMapping, pid, 0, epoch, 0L, isTransactional = true)
     append(idMapping, pid, 1, epoch, 1L, isTransactional = false)
+  }
+
+  @Test
+  def testTruncateAndReloadRemovesOutOfRangeSnapshots(): Unit = {
+    val epoch = 0.toShort
+    append(idMapping, pid, epoch, 0, 0L)
+    idMapping.takeSnapshot()
+    append(idMapping, pid, epoch, 1, 1L)
+    idMapping.takeSnapshot()
+    append(idMapping, pid, epoch, 2, 2L)
+    idMapping.takeSnapshot()
+    append(idMapping, pid, epoch, 3, 3L)
+    idMapping.takeSnapshot()
+    append(idMapping, pid, epoch, 4, 4L)
+    idMapping.takeSnapshot()
+
+    idMapping.truncateAndReload(1L, 3L, time.milliseconds())
+
+    assertEquals(Some(2L), idMapping.oldestSnapshotOffset)
+    assertEquals(Some(3L), idMapping.latestSnapshotOffset)
   }
 
   @Test
@@ -551,7 +576,7 @@ class ProducerStateManagerTest extends JUnitSuite {
                      isTransactional: Boolean = false,
                      isLoadingFromLog: Boolean = false): Unit = {
     val producerAppendInfo = new ProducerAppendInfo(pid, mapping.lastEntry(pid), isLoadingFromLog)
-    producerAppendInfo.append(epoch, seq, seq, timestamp, offset, isTransactional)
+    producerAppendInfo.append(epoch, seq, seq, timestamp, offset, isTransactional, shouldValidateSequenceNumbers = true)
     mapping.update(producerAppendInfo)
     mapping.updateMapEndOffset(offset + 1)
   }

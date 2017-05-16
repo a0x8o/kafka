@@ -22,14 +22,14 @@ import java.nio._
 import java.nio.channels._
 import java.nio.charset.Charset
 import java.security.cert.X509Certificate
-import java.util.Properties
+import java.util.{ArrayList, Collections, Properties}
 import java.util.concurrent.{Callable, Executors, TimeUnit}
 import javax.net.ssl.X509TrustManager
 
 import kafka.admin.AdminUtils
 import kafka.api._
 import kafka.cluster.{Broker, EndPoint}
-import kafka.common.{Topic, TopicAndPartition}
+import kafka.common.TopicAndPartition
 import kafka.consumer.{ConsumerConfig, ConsumerTimeoutException, KafkaStream}
 import kafka.log._
 import kafka.message._
@@ -40,9 +40,10 @@ import kafka.server._
 import kafka.server.checkpoints.OffsetCheckpointFile
 import kafka.utils.ZkUtils._
 import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.consumer.{KafkaConsumer, RangeAssignor}
+import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, RangeAssignor}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.internals.Topic
 import org.apache.kafka.common.network.{ListenerName, Mode}
 import org.apache.kafka.common.protocol.SecurityProtocol
 import org.apache.kafka.common.record._
@@ -174,6 +175,16 @@ object TestUtils extends Logging {
   }
 
   /**
+    * Shutdown `servers` and delete their log directories.
+    */
+  def shutdownServers(servers: Seq[KafkaServer]) {
+    servers.par.foreach { s =>
+      s.shutdown()
+      CoreUtils.delete(s.config.logDirs)
+    }
+  }
+
+  /**
     * Create a test config for the provided parameters.
     *
     * Note that if `interBrokerSecurityProtocol` is defined, the listener for the `SecurityProtocol` will be enabled.
@@ -217,6 +228,7 @@ object TestUtils extends Logging {
     props.put(KafkaConfig.ControllerSocketTimeoutMsProp, "1500")
     props.put(KafkaConfig.ControlledShutdownEnableProp, enableControlledShutdown.toString)
     props.put(KafkaConfig.DeleteTopicEnableProp, enableDeleteTopic.toString)
+    props.put(KafkaConfig.LogDeleteDelayMsProp, "1000")
     props.put(KafkaConfig.ControlledShutdownRetryBackoffMsProp, "100")
     props.put(KafkaConfig.LogCleanerDedupeBufferSizeProp, "2097152")
     props.put(KafkaConfig.LogMessageTimestampDifferenceMaxMsProp, Long.MaxValue.toString)
@@ -226,7 +238,7 @@ object TestUtils extends Logging {
     if (protocolAndPorts.exists { case (protocol, _) => usesSslTransportLayer(protocol) })
       props.putAll(sslConfigs(Mode.SERVER, false, trustStoreFile, s"server$nodeId"))
 
-    if (protocolAndPorts.exists { case (protocol, _) => usesSaslTransportLayer(protocol) })
+    if (protocolAndPorts.exists { case (protocol, _) => usesSaslAuthentication(protocol) })
       props.putAll(saslConfigs(saslProperties))
 
     interBrokerSecurityProtocol.foreach { protocol =>
@@ -246,7 +258,7 @@ object TestUtils extends Logging {
                   numPartitions: Int = 1,
                   replicationFactor: Int = 1,
                   servers: Seq[KafkaServer],
-                  topicConfig: Properties = new Properties) : scala.collection.immutable.Map[Int, Option[Int]] = {
+                  topicConfig: Properties = new Properties): scala.collection.immutable.Map[Int, Int] = {
     // create topic
     AdminUtils.createTopic(zkUtils, topic, numPartitions, replicationFactor, topicConfig)
     // wait until the update metadata request for new topic reaches all servers
@@ -262,7 +274,7 @@ object TestUtils extends Logging {
    * Return the leader for each partition.
    */
   def createTopic(zkUtils: ZkUtils, topic: String, partitionReplicaAssignment: collection.Map[Int, Seq[Int]],
-                  servers: Seq[KafkaServer]) : scala.collection.immutable.Map[Int, Option[Int]] = {
+                  servers: Seq[KafkaServer]): scala.collection.immutable.Map[Int, Int] = {
     // create topic
     AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkUtils, topic, partitionReplicaAssignment)
     // wait until the update metadata request for new topic reaches all servers
@@ -278,7 +290,7 @@ object TestUtils extends Logging {
     */
   def createOffsetsTopic(zkUtils: ZkUtils, servers: Seq[KafkaServer]): Unit = {
     val server = servers.head
-    createTopic(zkUtils, Topic.GroupMetadataTopicName,
+    createTopic(zkUtils, Topic.GROUP_METADATA_TOPIC_NAME,
       server.config.getInt(KafkaConfig.OffsetsTopicPartitionsProp),
       server.config.getShort(KafkaConfig.OffsetsTopicReplicationFactorProp).toInt,
       servers,
@@ -491,7 +503,7 @@ object TestUtils extends Logging {
     val props = new Properties
     if (usesSslTransportLayer(securityProtocol))
       props.putAll(sslConfigs(mode, securityProtocol == SecurityProtocol.SSL, trustStoreFile, certAlias))
-    if (usesSaslTransportLayer(securityProtocol))
+    if (usesSaslAuthentication(securityProtocol))
       props.putAll(saslConfigs(saslProperties))
     props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol.name)
     props
@@ -548,12 +560,12 @@ object TestUtils extends Logging {
     new KafkaProducer[K, V](producerProps, keySerializer, valueSerializer)
   }
 
-  private def usesSslTransportLayer(securityProtocol: SecurityProtocol): Boolean = securityProtocol match {
+  def usesSslTransportLayer(securityProtocol: SecurityProtocol): Boolean = securityProtocol match {
     case SecurityProtocol.SSL | SecurityProtocol.SASL_SSL => true
     case _ => false
   }
 
-  private def usesSaslTransportLayer(securityProtocol: SecurityProtocol): Boolean = securityProtocol match {
+  def usesSaslAuthentication(securityProtocol: SecurityProtocol): Boolean = securityProtocol match {
     case SecurityProtocol.SASL_PLAINTEXT | SecurityProtocol.SASL_SSL => true
     case _ => false
   }
@@ -732,46 +744,55 @@ object TestUtils extends Logging {
    *  If oldLeaderOpt is defined, it waits until the new leader is different from the old leader.
    *  If newLeaderOpt is defined, it waits until the new leader becomes the expected new leader.
    *
-   * @return The new leader or assertion failure if timeout is reached.
+   * @return The new leader (note that negative values are used to indicate conditions like NoLeader and
+   *         LeaderDuringDelete).
+   * @throws AssertionError if the expected condition is not true within the timeout.
    */
-  def waitUntilLeaderIsElectedOrChanged(zkUtils: ZkUtils, topic: String, partition: Int,
-                                        timeoutMs: Long = 30000,
-                                        oldLeaderOpt: Option[Int] = None, newLeaderOpt: Option[Int] = None): Option[Int] = {
+  def waitUntilLeaderIsElectedOrChanged(zkUtils: ZkUtils, topic: String, partition: Int, timeoutMs: Long = 30000L,
+                                        oldLeaderOpt: Option[Int] = None, newLeaderOpt: Option[Int] = None): Int = {
     require(!(oldLeaderOpt.isDefined && newLeaderOpt.isDefined), "Can't define both the old and the new leader")
     val startTime = System.currentTimeMillis()
-    var isLeaderElectedOrChanged = false
+    val topicPartition = new TopicPartition(topic, partition)
 
-    trace("Waiting for leader to be elected or changed for partition [%s,%d], older leader is %s, new leader is %s"
-          .format(topic, partition, oldLeaderOpt, newLeaderOpt))
+    trace(s"Waiting for leader to be elected or changed for partition $topicPartition, old leader is $oldLeaderOpt, " +
+      s"new leader is $newLeaderOpt")
 
     var leader: Option[Int] = None
-    while (!isLeaderElectedOrChanged && System.currentTimeMillis() < startTime + timeoutMs) {
+    var electedOrChangedLeader: Option[Int] = None
+    while (electedOrChangedLeader.isEmpty && System.currentTimeMillis() < startTime + timeoutMs) {
       // check if leader is elected
       leader = zkUtils.getLeaderForPartition(topic, partition)
       leader match {
-        case Some(l) =>
-          if (newLeaderOpt.isDefined && newLeaderOpt.get == l) {
-            trace("Expected new leader %d is elected for partition [%s,%d]".format(l, topic, partition))
-            isLeaderElectedOrChanged = true
-          } else if (oldLeaderOpt.isDefined && oldLeaderOpt.get != l) {
-            trace("Leader for partition [%s,%d] is changed from %d to %d".format(topic, partition, oldLeaderOpt.get, l))
-            isLeaderElectedOrChanged = true
-          } else if (oldLeaderOpt.isEmpty) {
-            trace("Leader %d is elected for partition [%s,%d]".format(l, topic, partition))
-            isLeaderElectedOrChanged = true
-          } else {
-            trace("Current leader for partition [%s,%d] is %d".format(topic, partition, l))
-          }
+        case Some(l) => (newLeaderOpt, oldLeaderOpt) match {
+          case (Some(newLeader), _) if newLeader == l =>
+            trace(s"Expected new leader $l is elected for partition $topicPartition")
+            electedOrChangedLeader = leader
+          case (_, Some(oldLeader)) if oldLeader != l =>
+            trace(s"Leader for partition $topicPartition is changed from $oldLeader to $l")
+            electedOrChangedLeader = leader
+          case (None, None) =>
+            trace(s"Leader $l is elected for partition $topicPartition")
+            electedOrChangedLeader = leader
+          case _ =>
+            trace(s"Current leader for partition $topicPartition is $l")
+        }
         case None =>
-          trace("Leader for partition [%s,%d] is not elected yet".format(topic, partition))
+          trace(s"Leader for partition $topicPartition is not elected yet")
       }
-      Thread.sleep(timeoutMs.min(100L))
+      Thread.sleep(math.min(timeoutMs, 100L))
     }
-    if (!isLeaderElectedOrChanged)
-      fail("Timing out after %d ms since leader is not elected or changed for partition [%s,%d]"
-           .format(timeoutMs, topic, partition))
-
-    leader
+    electedOrChangedLeader.getOrElse {
+      val errorMessage = (newLeaderOpt, oldLeaderOpt) match {
+        case (Some(newLeader), _) =>
+          s"Timing out after $timeoutMs ms since expected new leader $newLeader was not elected for partition $topicPartition, leader is $leader"
+        case (_, Some(oldLeader)) =>
+          s"Timing out after $timeoutMs ms since a new leader that is different from $oldLeader was not elected for partition $topicPartition, " +
+            s"leader is $leader"
+        case _ =>
+          s"Timing out after $timeoutMs ms since a leader was not elected for partition $topicPartition"
+      }
+      fail(errorMessage)
+    }
   }
 
   /**
@@ -938,9 +959,10 @@ object TestUtils extends Logging {
   }
 
   def verifyNonDaemonThreadsStatus(threadNamePrefix: String) {
-    assertEquals(0, Thread.getAllStackTraces.keySet().toArray
-      .map(_.asInstanceOf[Thread])
-      .count(t => !t.isDaemon && t.isAlive && t.getName.startsWith(threadNamePrefix)))
+    val threadCount = Thread.getAllStackTraces.keySet.asScala.count { t =>
+      !t.isDaemon && t.isAlive && t.getName.startsWith(threadNamePrefix)
+    }
+    assertEquals(0, threadCount)
   }
 
   /**
@@ -962,7 +984,8 @@ object TestUtils extends Logging {
                    maxPidExpirationMs = 60 * 60 * 1000,
                    scheduler = time.scheduler,
                    time = time,
-                   brokerState = BrokerState())
+                   brokerState = BrokerState(),
+                   brokerTopicStats = new BrokerTopicStats)
   }
 
   @deprecated("This method has been deprecated and it will be removed in a future release.", "0.10.0.0")
@@ -1105,6 +1128,24 @@ object TestUtils extends Logging {
       }
       checkpoints.forall(checkpointsPerLogDir => !checkpointsPerLogDir.contains(tp))
     }), "Cleaner offset for deleted partition should have been removed")
+    import scala.collection.JavaConverters._
+    TestUtils.waitUntilTrue(() => servers.forall(server =>
+      server.config.logDirs.forall { logDir =>
+        topicPartitions.forall { tp =>
+          !new File(logDir, tp.topic + "-" + tp.partition).exists()
+        }
+      }
+    ), "Failed to soft-delete the data to a delete directory")
+    TestUtils.waitUntilTrue(() => servers.forall(server =>
+      server.config.logDirs.forall { logDir =>
+        topicPartitions.forall { tp =>
+          !java.util.Arrays.asList(new File(logDir).list()).asScala.exists { partitionDirectoryName =>
+            partitionDirectoryName.startsWith(tp.topic + "-" + tp.partition) &&
+              partitionDirectoryName.endsWith(Log.DeleteDirSuffix)
+          }
+        }
+      }
+    ), "Failed to hard-delete the delete directory")
   }
 
   /**
@@ -1267,6 +1308,27 @@ object TestUtils extends Logging {
     }
     assertTrue(s"$message failed with exception(s) $exceptions", exceptions.isEmpty)
 
+  }
+
+  def consumeTopicRecords[K, V](servers: Seq[KafkaServer], topic: String, numMessages: Int,
+                                waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS): Seq[ConsumerRecord[Array[Byte], Array[Byte]]] = {
+    val consumer = createNewConsumer(TestUtils.getBrokerListStrFromServers(servers),
+      securityProtocol = SecurityProtocol.PLAINTEXT)
+    try {
+      consumer.subscribe(Collections.singleton(topic))
+      consumeRecords(consumer, numMessages, waitTime)
+    } finally consumer.close()
+  }
+
+  def consumeRecords[K, V](consumer: KafkaConsumer[K, V], numMessages: Int,
+                           waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS): Seq[ConsumerRecord[K, V]] = {
+    val records = new ArrayBuffer[ConsumerRecord[K, V]]()
+    waitUntilTrue(() => {
+      records ++= consumer.poll(50).asScala
+      records.size >= numMessages
+    }, s"Consumed ${records.size} records until timeout instead of the expected $numMessages records", waitTime)
+    assertEquals("Consumed more records than expected", numMessages, records.size)
+    records
   }
 }
 
