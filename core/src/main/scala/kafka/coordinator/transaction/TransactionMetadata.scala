@@ -135,16 +135,26 @@ private[transaction] class TransactionMetadata(val producerId: Long,
   }
 
   def removePartition(topicPartition: TopicPartition): Unit = {
-    if (pendingState.isDefined || (state != PrepareCommit && state != PrepareAbort))
-      throw new IllegalStateException(s"Transation metadata's current state is $state, and its pending state is $state " +
+    if (state != PrepareCommit && state != PrepareAbort)
+      throw new IllegalStateException(s"Transaction metadata's current state is $state, and its pending state is $pendingState " +
         s"while trying to remove partitions whose txn marker has been sent, this is not expected")
 
     topicPartitions -= topicPartition
   }
 
-  def prepareNoTransit(): TransactionMetadataTransition =
-    // do not call transitTo as it will set the pending state
+  // this is visible for test only
+  def prepareNoTransit(): TransactionMetadataTransition = {
+    // do not call transitTo as it will set the pending state, a follow-up call to abort the transaction will set its pending state
     TransactionMetadataTransition(producerId, producerEpoch, txnTimeoutMs, state, topicPartitions.toSet, txnStartTimestamp, txnLastUpdateTimestamp)
+  }
+
+  def prepareFenceProducerEpoch(): TransactionMetadataTransition = {
+    // bump up the epoch to let the txn markers be able to override the current producer epoch
+    producerEpoch = (producerEpoch + 1).toShort
+
+    // do not call transitTo as it will set the pending state, a follow-up call to abort the transaction will set its pending state
+    TransactionMetadataTransition(producerId, producerEpoch, txnTimeoutMs, state, topicPartitions.toSet, txnStartTimestamp, txnLastUpdateTimestamp)
+  }
 
   def prepareIncrementProducerEpoch(newTxnTimeoutMs: Int,
                                     updateTimestamp: Long): TransactionMetadataTransition = {
@@ -175,7 +185,7 @@ private[transaction] class TransactionMetadata(val producerId: Long,
 
   def prepareComplete(updateTimestamp: Long): TransactionMetadataTransition = {
     val newState = if (state == PrepareCommit) CompleteCommit else CompleteAbort
-    prepareTransitionTo(newState, producerEpoch, txnTimeoutMs, topicPartitions.toSet, txnStartTimestamp, updateTimestamp)
+    prepareTransitionTo(newState, producerEpoch, txnTimeoutMs, Set.empty[TopicPartition], txnStartTimestamp, updateTimestamp)
   }
 
   // visible for testing only

@@ -21,6 +21,7 @@ import org.apache.kafka.clients.ClientRequest;
 import org.apache.kafka.clients.ClientResponse;
 import org.apache.kafka.clients.KafkaClient;
 import org.apache.kafka.clients.Metadata;
+import org.apache.kafka.clients.NetworkClientUtils;
 import org.apache.kafka.clients.RequestCompletionHandler;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.KafkaException;
@@ -39,13 +40,14 @@ import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
 import org.apache.kafka.common.metrics.stats.Max;
 import org.apache.kafka.common.metrics.stats.Rate;
-import org.apache.kafka.clients.NetworkClientUtils;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.requests.InitProducerIdRequest;
 import org.apache.kafka.common.requests.InitProducerIdResponse;
 import org.apache.kafka.common.requests.ProduceRequest;
 import org.apache.kafka.common.requests.ProduceResponse;
+import org.apache.kafka.common.requests.RequestHeader;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
@@ -187,10 +189,12 @@ public class Sender implements Runnable {
      * @param now The current POSIX time in milliseconds
      */
     void run(long now) {
-        long pollTimeout = 0;
-        if (!maybeSendTransactionalRequest(now))
+        long pollTimeout = retryBackoffMs;
+        if (!maybeSendTransactionalRequest(now)) {
             pollTimeout = sendProducerData(now);
+        }
 
+        log.trace("waiting {}ms in poll", pollTimeout);
         this.client.poll(pollTimeout, now);
     }
 
@@ -203,6 +207,7 @@ public class Sender implements Runnable {
             final KafkaException exception = transactionManager.lastError() instanceof KafkaException
                     ? (KafkaException) transactionManager.lastError()
                     : new KafkaException(transactionManager.lastError());
+            log.error("aborting producer batches because the transaction manager is in an error state.", exception);
             this.accumulator.abortBatches(exception);
             return Long.MAX_VALUE;
         }
@@ -281,25 +286,35 @@ public class Sender implements Runnable {
     }
 
     private boolean maybeSendTransactionalRequest(long now) {
-        if (transactionManager != null && transactionManager.hasInflightRequest())
-            return true;
-
-        if (transactionManager == null || !transactionManager.hasPendingTransactionalRequests())
+        if (transactionManager == null || !transactionManager.isTransactional())
             return false;
+
+        if (transactionManager.hasInflightRequest()) {
+            log.trace("TransactionalId: {} -- There is already an inflight transactional request. Going to wait for the response.",
+                    transactionManager.transactionalId());
+            return true;
+        }
+
+        if (!transactionManager.hasPendingTransactionalRequests()) {
+            log.trace("TransactionalId: {} -- There are no pending transactional requests to send", transactionManager.transactionalId());
+            return false;
+        }
 
         TransactionManager.TxnRequestHandler nextRequestHandler = transactionManager.nextRequestHandler();
 
-        if (nextRequestHandler.isEndTxn()) {
-            if (transactionManager.isCompletingTransaction() && accumulator.hasUnflushedBatches()) {
-                if (!accumulator.flushInProgress())
-                    accumulator.beginFlush();
-                transactionManager.reenqueue(nextRequestHandler);
-                return false;
-            } else if (transactionManager.isInErrorState()) {
-                nextRequestHandler.fatal(new KafkaException("Cannot commit transaction when there are " +
-                        "request errors. Please check your logs for the details of the errors encountered."));
-                return false;
-            }
+        if (nextRequestHandler.isEndTxn() && transactionManager.isCompletingTransaction() && accumulator.hasUnflushedBatches()) {
+            if (!accumulator.flushInProgress())
+                accumulator.beginFlush();
+            transactionManager.reenqueue(nextRequestHandler);
+            log.trace("TransactionalId: {} -- Going to wait for pending ProducerBatches to flush before sending an " +
+                    "end transaction request", transactionManager.transactionalId());
+            return false;
+        }
+
+        if (transactionManager.maybeTerminateRequestWithError(nextRequestHandler)) {
+            log.trace("TransactionalId: {} -- Not sending a transactional request because we are in an error state",
+                    transactionManager.transactionalId());
+            return false;
         }
 
         Node targetNode = null;
@@ -314,7 +329,6 @@ public class Sender implements Runnable {
                     }
                     if (!NetworkClientUtils.awaitReady(client, targetNode, time, requestTimeout)) {
                         transactionManager.lookupCoordinator(nextRequestHandler);
-                        targetNode = null;
                         break;
                     }
                 } else {
@@ -322,23 +336,30 @@ public class Sender implements Runnable {
                 }
                 if (targetNode != null) {
                     if (nextRequestHandler.isRetry()) {
+                        log.trace("TransactionalId: {} -- Waiting {}ms before resending a transactional request {}",
+                                transactionManager.transactionalId(), retryBackoffMs, nextRequestHandler.requestBuilder());
                         time.sleep(retryBackoffMs);
                     }
                     ClientRequest clientRequest = client.newClientRequest(targetNode.idString(), nextRequestHandler.requestBuilder(),
                             now, true, nextRequestHandler);
                     transactionManager.setInFlightRequestCorrelationId(clientRequest.correlationId());
+                    log.trace("TransactionalId: {} -- Sending transactional request {} to node {}", transactionManager.transactionalId(),
+                            nextRequestHandler.requestBuilder(), clientRequest.destination());
                     client.send(clientRequest, now);
                     return true;
                 }
             } catch (IOException e) {
-                log.warn("Got an exception when trying to find a node to send a transactional request to. Going to back off and retry", e);
+                targetNode = null;
+                log.warn("TransactionalId: " + transactionManager.transactionalId() + " -- Got an exception when trying " +
+                        "to find a node to send transactional request " + nextRequestHandler.requestBuilder() + ". Going to back off and retry", e);
             }
+            log.trace("TransactionalId: {}. About to wait for {}ms before trying to send another transactional request.",
+                    transactionManager.transactionalId(), retryBackoffMs);
             time.sleep(retryBackoffMs);
             metadata.requestUpdate();
         }
 
-        if (targetNode == null)
-            transactionManager.retry(nextRequestHandler);
+        transactionManager.retry(nextRequestHandler);
 
         return true;
     }
@@ -421,9 +442,11 @@ public class Sender implements Runnable {
      * Handle a produce response
      */
     private void handleProduceResponse(ClientResponse response, Map<TopicPartition, ProducerBatch> batches, long now) {
-        int correlationId = response.requestHeader().correlationId();
+        RequestHeader requestHeader = response.requestHeader();
+        int correlationId = requestHeader.correlationId();
         if (response.wasDisconnected()) {
-            log.trace("Cancelled request {} due to node {} being disconnected", response, response.destination());
+            ApiKeys api = ApiKeys.forId(requestHeader.apiKey());
+            log.trace("Cancelled {} request {} with correlation id {}  due to node {} being disconnected", api, requestHeader, correlationId, response.destination());
             for (ProducerBatch batch : batches.values())
                 completeBatch(batch, new ProduceResponse.PartitionResponse(Errors.NETWORK_EXCEPTION), correlationId, now);
         } else if (response.versionMismatch() != null) {

@@ -68,6 +68,7 @@ object TransactionMarkerChannelManager {
       s"broker-${config.brokerId}-txn-marker-sender",
       1,
       50,
+      50,
       Selectable.USE_DEFAULT_BUFFER_SIZE,
       config.socketReceiveBufferBytes,
       config.requestTimeoutMs,
@@ -230,8 +231,8 @@ class TransactionMarkerChannelManager(config: KafkaConfig,
             case None =>
               // this transactional id no longer exists, maybe the corresponding partition has already been migrated out.
               // we will stop appending the completed log entry to transaction topic as the new leader should be doing it.
-              info(s"Updating $transactionalId's transaction state to $txnMetadata with coordinator epoch $coordinatorEpoch for $transactionalId failed after the transaction message " +
-                s"has been appended to the log. The partition ${txnStateManager.partitionFor(transactionalId)} may have migrated as the metadata is no longer in the cache")
+              info(s"Updating $transactionalId's transaction state (txn topic partition ${txnStateManager.partitionFor(transactionalId)}) to $newMetadata with coordinator epoch $coordinatorEpoch for $transactionalId " +
+                s"failed after the transaction message has been appended to the log since the corresponding metadata does not exist in the cache anymore")
           }
 
         case other =>
@@ -295,6 +296,8 @@ class TransactionMarkerChannelManager(config: KafkaConfig,
     txnMarkerPurgatory.cancelForKey(transactionalId)
   }
 
+  // FIXME: Currently, operations registered under partition in txnMarkerPurgatory
+  // are only cleaned during coordinator immigration, which happens rarely. This means potential memory leak
   def completeSendMarkersForTxnId(transactionalId: String): Unit = {
     txnMarkerPurgatory.checkAndComplete(transactionalId)
   }
