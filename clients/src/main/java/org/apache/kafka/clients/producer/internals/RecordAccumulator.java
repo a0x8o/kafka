@@ -531,7 +531,7 @@ public final class RecordAccumulator {
      */
     public void deallocate(ProducerBatch batch) {
         incomplete.remove(batch);
-        // Only deallocate the batch if it is not a split batch because split batch are allocated aside the
+        // Only deallocate the batch if it is not a split batch because split batch are allocated outside the
         // buffer pool.
         if (!batch.isSplitBatch())
             free.deallocate(batch.buffer(), batch.initialCapacity());
@@ -621,13 +621,30 @@ public final class RecordAccumulator {
     void abortBatches(final RuntimeException reason) {
         for (ProducerBatch batch : incomplete.all()) {
             Deque<ProducerBatch> dq = getDeque(batch.topicPartition);
-            // Close the batch before aborting
             synchronized (dq) {
                 batch.abort();
                 dq.remove(batch);
             }
             batch.done(-1L, RecordBatch.NO_TIMESTAMP, reason);
             deallocate(batch);
+        }
+    }
+
+    void abortUnclosedBatches(RuntimeException reason) {
+        for (ProducerBatch batch : incomplete.all()) {
+            Deque<ProducerBatch> dq = getDeque(batch.topicPartition);
+            boolean aborted = false;
+            synchronized (dq) {
+                if (!batch.isClosed()) {
+                    aborted = true;
+                    batch.abort();
+                    dq.remove(batch);
+                }
+            }
+            if (aborted) {
+                batch.done(-1L, RecordBatch.NO_TIMESTAMP, reason);
+                deallocate(batch);
+            }
         }
     }
 
