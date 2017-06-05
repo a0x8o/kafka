@@ -508,19 +508,24 @@ class KafkaApis(val requestChannel: RequestChannel,
       // know it must be supported. However, if the magic version is changed from a higher version back to a
       // lower version, this check will no longer be valid and we will fail to down-convert the messages
       // which were written in the new format prior to the version downgrade.
-      replicaManager.getMagic(tp) match {
-        case Some(magic) if magic > 0 && versionId <= 1 && !data.records.hasCompatibleMagic(RecordBatch.MAGIC_VALUE_V0) =>
-          trace(s"Down converting message to V0 for fetch request from $clientId")
-          new FetchResponse.PartitionData(data.error, data.highWatermark, FetchResponse.INVALID_LAST_STABLE_OFFSET,
-              data.logStartOffset, data.abortedTransactions, data.records.downConvert(RecordBatch.MAGIC_VALUE_V0))
+      replicaManager.getMagic(tp).flatMap { magic =>
+        val downConvertMagic = {
+          if (magic > RecordBatch.MAGIC_VALUE_V0 && versionId <= 1 && !data.records.hasCompatibleMagic(RecordBatch.MAGIC_VALUE_V0))
+            Some(RecordBatch.MAGIC_VALUE_V0)
+          else if (magic > RecordBatch.MAGIC_VALUE_V1 && versionId <= 3 && !data.records.hasCompatibleMagic(RecordBatch.MAGIC_VALUE_V1))
+            Some(RecordBatch.MAGIC_VALUE_V1)
+          else
+            None
+        }
 
-        case Some(magic) if magic > 1 && versionId <= 3 && !data.records.hasCompatibleMagic(RecordBatch.MAGIC_VALUE_V1) =>
-          trace(s"Down converting message to V1 for fetch request from $clientId")
+        downConvertMagic.map { magic =>
+          trace(s"Down converting records from partition $tp to message format version $magic for fetch request from $clientId")
+          val converted = data.records.downConvert(magic, fetchRequest.fetchData.get(tp).fetchOffset)
           new FetchResponse.PartitionData(data.error, data.highWatermark, FetchResponse.INVALID_LAST_STABLE_OFFSET,
-              data.logStartOffset, data.abortedTransactions, data.records.downConvert(RecordBatch.MAGIC_VALUE_V1))
+            data.logStartOffset, data.abortedTransactions, converted)
+        }
 
-        case _ => data
-      }
+      }.getOrElse(data)
     }
 
     // the callback for process a fetch response, invoked before throttling
@@ -549,7 +554,9 @@ class KafkaApis(val requestChannel: RequestChannel,
       def fetchResponseCallback(bandwidthThrottleTimeMs: Int) {
         def createResponse(requestThrottleTimeMs: Int): RequestChannel.Response = {
           val convertedData = new util.LinkedHashMap[TopicPartition, FetchResponse.PartitionData]
-          fetchedPartitionData.asScala.foreach(e => convertedData.put(e._1, convertedPartitionData(e._1, e._2)))
+          fetchedPartitionData.asScala.foreach { case (tp, partitionData) =>
+            convertedData.put(tp, convertedPartitionData(tp, partitionData))
+          }
           val response = new FetchResponse(convertedData, 0)
           val responseStruct = response.toStruct(versionId)
 
@@ -1591,7 +1598,7 @@ class KafkaApis(val requestChannel: RequestChannel,
           authorize(request.session, Describe, new Resource(Topic, tp.topic)) && metadataCache.contains(tp)
         }
 
-      val unauthorizedForWriteRequestInfo = existingAndAuthorizedForDescribeTopics.filterNot { tp =>
+      val (authorizedPartitions, unauthorizedForWriteRequestInfo) = existingAndAuthorizedForDescribeTopics.partition { tp =>
         authorize(request.session, Write, new Resource(Topic, tp.topic))
       }
 
@@ -1599,12 +1606,13 @@ class KafkaApis(val requestChannel: RequestChannel,
         || unauthorizedForWriteRequestInfo.nonEmpty
         || internalTopics.nonEmpty) {
 
-        // Any failed partition check causes the entire request to fail. We only send back error responses
-        // for the partitions that failed to avoid needing to send an ambiguous error code for the partitions
-        // which succeeded.
+        // Any failed partition check causes the entire request to fail. We send the appropriate error codes for the
+        // partitions which failed, and an 'OPERATION_NOT_ATTEMPTED' error code for the partitions which succeeded
+        // the authorization check to indicate that they were not added to the transaction.
         val partitionErrors = (unauthorizedForWriteRequestInfo.map(_ -> Errors.TOPIC_AUTHORIZATION_FAILED) ++
           nonExistingOrUnauthorizedForDescribeTopics.map(_ -> Errors.UNKNOWN_TOPIC_OR_PARTITION) ++
-          internalTopics.map(_ ->Errors.TOPIC_AUTHORIZATION_FAILED)).toMap
+          internalTopics.map(_ -> Errors.TOPIC_AUTHORIZATION_FAILED) ++
+          authorizedPartitions.map(_ -> Errors.OPERATION_NOT_ATTEMPTED)).toMap
 
         sendResponseMaybeThrottle(request, requestThrottleMs =>
           new AddPartitionsToTxnResponse(requestThrottleMs, partitionErrors.asJava))

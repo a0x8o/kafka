@@ -85,6 +85,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Collections.emptyList;
+import static org.apache.kafka.common.serialization.ExtendedDeserializer.Wrapper.ensureExtended;
 
 /**
  * This class manage the fetching process with the brokers.
@@ -150,10 +151,6 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
         subscriptions.addListener(this);
     }
 
-    private <T> ExtendedDeserializer<T> ensureExtended(Deserializer<T> deserializer) {
-        return deserializer instanceof ExtendedDeserializer ? (ExtendedDeserializer<T>) deserializer : new ExtendedDeserializer.Wrapper<>(deserializer);
-    }
-
     /**
      * Represents data about an offset returned by a broker.
      */
@@ -201,7 +198,8 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
             final FetchRequest.Builder request = fetchEntry.getValue();
             final Node fetchTarget = fetchEntry.getKey();
 
-            log.debug("Sending fetch for partitions {} to broker {}", request.fetchData().keySet(), fetchTarget);
+            log.debug("Sending {} fetch for partitions {} to broker {}", isolationLevel, request.fetchData().keySet(),
+                    fetchTarget);
             client.send(fetchTarget, request)
                     .addListener(new RequestFutureListener<ClientResponse>() {
                         @Override
@@ -223,6 +221,9 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
                                 TopicPartition partition = entry.getKey();
                                 long fetchOffset = request.fetchData().get(partition).fetchOffset;
                                 FetchResponse.PartitionData fetchData = entry.getValue();
+
+                                log.debug("Fetch {} at offset {} for partition {} returned fetch data {}",
+                                        isolationLevel, fetchOffset, partition, fetchData);
                                 completedFetches.add(new CompletedFetch(partition, fetchOffset, fetchData, metricAggregator,
                                         resp.requestHeader().apiVersion()));
                             }
@@ -232,7 +233,7 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
 
                         @Override
                         public void onFailure(RuntimeException e) {
-                            log.debug("Fetch request to {} for partitions {} failed", fetchTarget, request.fetchData().keySet(), e);
+                            log.debug("Fetch request {} to {} failed", request.fetchData(), fetchTarget, e);
                         }
                     });
         }
@@ -781,8 +782,10 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
                 }
 
                 long position = this.subscriptions.position(partition);
-                fetch.put(partition, new FetchRequest.PartitionData(position, FetchRequest.INVALID_LOG_START_OFFSET, this.fetchSize));
-                log.debug("Added fetch request for partition {} at offset {} to node {}", partition, position, node);
+                fetch.put(partition, new FetchRequest.PartitionData(position, FetchRequest.INVALID_LOG_START_OFFSET,
+                        this.fetchSize));
+                log.debug("Added {} fetch request for partition {} at offset {} to node {}", isolationLevel,
+                        partition, position, node);
             } else {
                 log.trace("Skipping fetch for partition {} because there is an in-flight request to {}", partition, node);
             }
@@ -792,8 +795,9 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
         Map<Node, FetchRequest.Builder> requests = new HashMap<>();
         for (Map.Entry<Node, LinkedHashMap<TopicPartition, FetchRequest.PartitionData>> entry : fetchable.entrySet()) {
             Node node = entry.getKey();
-            FetchRequest.Builder fetch = FetchRequest.Builder.forConsumer(this.maxWaitMs, this.minBytes, entry.getValue(), isolationLevel).
-                    setMaxBytes(this.maxBytes);
+            FetchRequest.Builder fetch = FetchRequest.Builder.forConsumer(this.maxWaitMs, this.minBytes,
+                    entry.getValue(), isolationLevel)
+                    .setMaxBytes(this.maxBytes);
             requests.put(node, fetch);
         }
         return requests;
@@ -1036,8 +1040,9 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
                         if (containsAbortMarker(currentBatch)) {
                             abortedProducerIds.remove(producerId);
                         } else if (isBatchAborted(currentBatch)) {
-                            log.trace("Skipping aborted record batch with producerId {} and base offset {}, partition {}",
-                                    producerId, currentBatch.baseOffset(), partition);
+                            log.debug("Skipping aborted record batch from partition {} with producerId {} and " +
+                                            "offsets {} to {}",
+                                    partition, producerId, currentBatch.baseOffset(), currentBatch.lastOffset());
                             nextFetchOffset = currentBatch.nextOffset();
                             continue;
                         }

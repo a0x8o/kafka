@@ -38,7 +38,6 @@ import static org.apache.kafka.common.utils.Utils.wrapNullable;
  */
 public class MemoryRecordsBuilder {
     private static final float COMPRESSION_RATE_ESTIMATION_FACTOR = 1.05f;
-    private static final int COMPRESSION_DEFAULT_BUFFER_SIZE = 1024;
 
     private final TimestampType timestampType;
     private final CompressionType compressionType;
@@ -52,7 +51,6 @@ public class MemoryRecordsBuilder {
     private final int initialPosition;
     private final long baseOffset;
     private final long logAppendTime;
-    private final boolean isTransactional;
     private final boolean isControlBatch;
     private final int partitionLeaderEpoch;
     private final int writeLimit;
@@ -60,6 +58,7 @@ public class MemoryRecordsBuilder {
     private volatile float estimatedCompressionRatio;
 
     private boolean appendStreamIsClosed = false;
+    private boolean isTransactional;
     private long producerId;
     private short producerEpoch;
     private int baseSequence;
@@ -124,8 +123,7 @@ public class MemoryRecordsBuilder {
         }
 
         this.bufferStream = bufferStream;
-        this.appendStream = new DataOutputStream(compressionType.wrapForOutput(this.bufferStream, magic,
-                COMPRESSION_DEFAULT_BUFFER_SIZE));
+        this.appendStream = new DataOutputStream(compressionType.wrapForOutput(this.bufferStream, magic));
     }
 
     /**
@@ -196,7 +194,7 @@ public class MemoryRecordsBuilder {
      */
     public MemoryRecords build() {
         if (aborted) {
-            throw new KafkaException("Attempting to build an aborted record batch");
+            throw new IllegalStateException("Attempting to build an aborted record batch");
         }
         close();
         return builtRecords;
@@ -235,7 +233,7 @@ public class MemoryRecordsBuilder {
         }
     }
 
-    public void setProducerState(long producerId, short producerEpoch, int baseSequence) {
+    public void setProducerState(long producerId, short producerEpoch, int baseSequence, boolean isTransactional) {
         if (isClosed()) {
             // Sequence numbers are assigned when the batch is closed while the accumulator is being drained.
             // If the resulting ProduceRequest to the partition leader failed for a retriable error, the batch will
@@ -246,6 +244,7 @@ public class MemoryRecordsBuilder {
         this.producerId = producerId;
         this.producerEpoch = producerEpoch;
         this.baseSequence = baseSequence;
+        this.isTransactional = isTransactional;
     }
 
     public void overrideLastOffset(long lastOffset) {

@@ -42,7 +42,7 @@ class TransactionMarkerRequestCompletionHandler(brokerId: Int,
         val transactionalId = txnIdAndMarker.txnId
         val txnMarker = txnIdAndMarker.txnMarkerEntry
 
-        txnStateManager.getAndMaybeAddTransactionState(transactionalId) match {
+        txnStateManager.getTransactionState(transactionalId) match {
 
           case Left(Errors.NOT_COORDINATOR) =>
             info(s"I am no longer the coordinator for $transactionalId; cancel sending transaction markers $txnMarker to the brokers")
@@ -93,7 +93,7 @@ class TransactionMarkerRequestCompletionHandler(brokerId: Int,
         if (errors == null)
           throw new IllegalStateException(s"WriteTxnMarkerResponse does not contain expected error map for producer id ${txnMarker.producerId}")
 
-        txnStateManager.getAndMaybeAddTransactionState(transactionalId) match {
+        txnStateManager.getTransactionState(transactionalId) match {
           case Left(Errors.NOT_COORDINATOR) =>
             info(s"I am no longer the coordinator for $transactionalId; cancel sending transaction markers $txnMarker to the brokers")
 
@@ -139,7 +139,8 @@ class TransactionMarkerRequestCompletionHandler(brokerId: Int,
                     case Errors.UNKNOWN_TOPIC_OR_PARTITION |
                          Errors.NOT_LEADER_FOR_PARTITION |
                          Errors.NOT_ENOUGH_REPLICAS |
-                         Errors.NOT_ENOUGH_REPLICAS_AFTER_APPEND => // these are retriable errors
+                         Errors.NOT_ENOUGH_REPLICAS_AFTER_APPEND |
+                         Errors.REQUEST_TIMED_OUT => // these are retriable errors
 
                       info(s"Sending $transactionalId's transaction marker for partition $topicPartition has failed with error ${error.exceptionName}, retrying " +
                         s"with current coordinator epoch ${epochAndMetadata.coordinatorEpoch}")

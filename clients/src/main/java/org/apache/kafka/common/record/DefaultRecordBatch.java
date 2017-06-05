@@ -185,7 +185,9 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
         int baseSequence = baseSequence();
         if (baseSequence == RecordBatch.NO_SEQUENCE)
             return RecordBatch.NO_SEQUENCE;
-        return baseSequence() + lastOffsetDelta();
+
+        int delta = lastOffsetDelta();
+        return incrementSequence(baseSequence, delta);
     }
 
     @Override
@@ -287,7 +289,6 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
             return records.iterator();
         }
     }
-
 
     @Override
     public CloseableIterator<Record> streamingIterator(BufferSupplier bufferSupplier) {
@@ -460,6 +461,12 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
      */
     static int batchSizeUpperBound(ByteBuffer key, ByteBuffer value, Header[] headers) {
         return RECORD_BATCH_OVERHEAD + DefaultRecord.recordSizeUpperBound(key, value, headers);
+    }
+
+    static int incrementSequence(int baseSequence, int increment) {
+        if (baseSequence > Integer.MAX_VALUE - increment)
+            return increment - (Integer.MAX_VALUE - baseSequence) - 1;
+        return baseSequence + increment;
     }
 
     private abstract class RecordIterator implements CloseableIterator<Record> {

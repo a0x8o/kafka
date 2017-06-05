@@ -24,6 +24,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.GroupAuthorizationException;
 import org.apache.kafka.common.errors.OutOfOrderSequenceException;
@@ -60,11 +61,15 @@ import org.apache.kafka.test.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -87,8 +92,9 @@ public class TransactionManagerTest {
     private final String transactionalId = "foobar";
     private final int transactionTimeoutMs = 1121;
 
-    private TopicPartition tp0 = new TopicPartition("test", 0);
-    private TopicPartition tp1 = new TopicPartition("test", 1);
+    private final String topic = "test";
+    private TopicPartition tp0 = new TopicPartition(topic, 0);
+    private TopicPartition tp1 = new TopicPartition(topic, 1);
     private MockTime time = new MockTime();
     private MockClient client = new MockClient(time);
 
@@ -160,9 +166,11 @@ public class TransactionManagerTest {
 
         prepareProduceResponse(Errors.NONE, pid, epoch);
         assertFalse(transactionManager.transactionContainsPartition(tp0));
+        assertFalse(transactionManager.ensurePartitionAdded(tp0));
         sender.run(time.milliseconds());  // send addPartitions.
         // Check that only addPartitions was sent.
         assertTrue(transactionManager.transactionContainsPartition(tp0));
+        assertTrue(transactionManager.ensurePartitionAdded(tp0));
         assertFalse(responseFuture.isDone());
 
         sender.run(time.milliseconds());  // send produce request.
@@ -419,21 +427,26 @@ public class TransactionManagerTest {
     public void testTopicAuthorizationFailureInAddPartitions() {
         final long pid = 13131L;
         final short epoch = 1;
-        final TopicPartition tp = new TopicPartition("foo", 0);
+        final TopicPartition tp0 = new TopicPartition("foo", 0);
+        final TopicPartition tp1 = new TopicPartition("bar", 0);
 
         doInitTransactions(pid, epoch);
 
         transactionManager.beginTransaction();
-        transactionManager.maybeAddPartitionToTransaction(tp);
+        transactionManager.maybeAddPartitionToTransaction(tp0);
+        transactionManager.maybeAddPartitionToTransaction(tp1);
+        Map<TopicPartition, Errors> errors = new HashMap<>();
+        errors.put(tp0, Errors.TOPIC_AUTHORIZATION_FAILED);
+        errors.put(tp1, Errors.OPERATION_NOT_ATTEMPTED);
 
-        prepareAddPartitionsToTxn(tp, Errors.TOPIC_AUTHORIZATION_FAILED);
+        prepareAddPartitionsToTxn(errors);
         sender.run(time.milliseconds());
 
         assertTrue(transactionManager.hasError());
         assertTrue(transactionManager.lastError() instanceof TopicAuthorizationException);
 
         TopicAuthorizationException exception = (TopicAuthorizationException) transactionManager.lastError();
-        assertEquals(singleton(tp.topic()), exception.unauthorizedTopics());
+        assertEquals(singleton(tp0.topic()), exception.unauthorizedTopics());
 
         assertAbortableError(TopicAuthorizationException.class);
     }
@@ -884,6 +897,105 @@ public class TransactionManagerTest {
         assertTrue(abortResult.isSuccessful());
     }
 
+    @Test
+    public void testNoDrainWhenPartitionsPending() throws InterruptedException {
+        final long pid = 13131L;
+        final short epoch = 1;
+        doInitTransactions(pid, epoch);
+        transactionManager.beginTransaction();
+        transactionManager.maybeAddPartitionToTransaction(tp0);
+        accumulator.append(tp0, time.milliseconds(), "key".getBytes(),
+                "value".getBytes(), Record.EMPTY_HEADERS, null, MAX_BLOCK_TIMEOUT);
+        transactionManager.maybeAddPartitionToTransaction(tp1);
+        accumulator.append(tp1, time.milliseconds(), "key".getBytes(),
+                "value".getBytes(), Record.EMPTY_HEADERS, null, MAX_BLOCK_TIMEOUT);
+
+        assertFalse(transactionManager.ensurePartitionAdded(tp0));
+        assertFalse(transactionManager.ensurePartitionAdded(tp1));
+
+        Node node1 = new Node(0, "localhost", 1111);
+        Node node2 = new Node(1, "localhost", 1112);
+        PartitionInfo part1 = new PartitionInfo(topic, 0, node1, null, null);
+        PartitionInfo part2 = new PartitionInfo(topic, 1, node2, null, null);
+
+        Cluster cluster = new Cluster(null, Arrays.asList(node1, node2), Arrays.asList(part1, part2),
+                Collections.<String>emptySet(), Collections.<String>emptySet());
+        Set<Node> nodes = new HashSet<>();
+        nodes.add(node1);
+        nodes.add(node2);
+        Map<Integer, List<ProducerBatch>> drainedBatches = accumulator.drain(cluster, nodes, Integer.MAX_VALUE,
+                time.milliseconds());
+
+        // We shouldn't drain batches which haven't been added to the transaction yet.
+        assertTrue(drainedBatches.containsKey(node1.id()));
+        assertTrue(drainedBatches.get(node1.id()).isEmpty());
+        assertTrue(drainedBatches.containsKey(node2.id()));
+        assertTrue(drainedBatches.get(node2.id()).isEmpty());
+        assertFalse(transactionManager.hasError());
+    }
+
+    @Test
+    public void testAllowDrainInAbortableErrorState() throws InterruptedException {
+        final long pid = 13131L;
+        final short epoch = 1;
+        doInitTransactions(pid, epoch);
+        transactionManager.beginTransaction();
+        transactionManager.maybeAddPartitionToTransaction(tp1);
+        prepareAddPartitionsToTxn(tp1, Errors.NONE);
+        sender.run(time.milliseconds());  // Send AddPartitions, tp1 should be in the transaction now.
+
+        assertTrue(transactionManager.transactionContainsPartition(tp1));
+
+        transactionManager.maybeAddPartitionToTransaction(tp0);
+        prepareAddPartitionsToTxn(tp0, Errors.TOPIC_AUTHORIZATION_FAILED);
+        sender.run(time.milliseconds());  // Send AddPartitions, should be in abortable state.
+
+        assertTrue(transactionManager.hasAbortableError());
+        assertTrue(transactionManager.ensurePartitionAdded(tp1));
+
+        // Try to drain a message destined for tp1, it should get drained.
+        Node node1 = new Node(1, "localhost", 1112);
+        PartitionInfo part1 = new PartitionInfo(topic, 1, node1, null, null);
+        Cluster cluster = new Cluster(null, Arrays.asList(node1), Arrays.asList(part1),
+                Collections.<String>emptySet(), Collections.<String>emptySet());
+        accumulator.append(tp1, time.milliseconds(), "key".getBytes(),
+                "value".getBytes(), Record.EMPTY_HEADERS, null, MAX_BLOCK_TIMEOUT);
+        Map<Integer, List<ProducerBatch>> drainedBatches = accumulator.drain(cluster, Collections.singleton(node1),
+                Integer.MAX_VALUE,
+                time.milliseconds());
+
+        // We should drain the appended record since we are in abortable state and the partition has already been
+        // added to the transaction.
+        assertTrue(drainedBatches.containsKey(node1.id()));
+        assertEquals(1, drainedBatches.get(node1.id()).size());
+        assertTrue(transactionManager.hasAbortableError());
+    }
+
+    @Test
+    public void testRaiseErrorWhenNoPartitionsPendingOnDrain() throws InterruptedException {
+        final long pid = 13131L;
+        final short epoch = 1;
+        doInitTransactions(pid, epoch);
+        transactionManager.beginTransaction();
+        // Don't execute transactionManager.maybeAddPartitionToTransaction(tp0). This should result in an error on drain.
+        accumulator.append(tp0, time.milliseconds(), "key".getBytes(),
+                "value".getBytes(), Record.EMPTY_HEADERS, null, MAX_BLOCK_TIMEOUT);
+        Node node1 = new Node(0, "localhost", 1111);
+        PartitionInfo part1 = new PartitionInfo(topic, 0, node1, null, null);
+
+        Cluster cluster = new Cluster(null, Arrays.asList(node1), Arrays.asList(part1),
+                Collections.<String>emptySet(), Collections.<String>emptySet());
+        Set<Node> nodes = new HashSet<>();
+        nodes.add(node1);
+        Map<Integer, List<ProducerBatch>> drainedBatches = accumulator.drain(cluster, nodes, Integer.MAX_VALUE,
+                time.milliseconds());
+
+        // We shouldn't drain batches which haven't been added to the transaction yet.
+        assertTrue(drainedBatches.containsKey(node1.id()));
+        assertTrue(drainedBatches.get(node1.id()).isEmpty());
+        assertTrue(transactionManager.hasFatalError());
+    }
+
     private void verifyAddPartitionsFailsWithPartitionLevelError(final Errors error) throws InterruptedException {
         final long pid = 1L;
         final short epoch = 1;
@@ -902,14 +1014,19 @@ public class TransactionManagerTest {
         assertFalse(transactionManager.transactionContainsPartition(tp0));
     }
 
-    private void prepareAddPartitionsToTxn(final TopicPartition tp, final Errors error) {
+    private void prepareAddPartitionsToTxn(final Map<TopicPartition, Errors> errors) {
         client.prepareResponse(new MockClient.RequestMatcher() {
             @Override
             public boolean matches(AbstractRequest body) {
-                return body instanceof AddPartitionsToTxnRequest &&
-                        ((AddPartitionsToTxnRequest) body).partitions().contains(tp);
+                AddPartitionsToTxnRequest request = (AddPartitionsToTxnRequest) body;
+                assertEquals(new HashSet<>(request.partitions()), new HashSet<>(errors.keySet()));
+                return true;
             }
-        }, new AddPartitionsToTxnResponse(0, singletonMap(tp, error)));
+        }, new AddPartitionsToTxnResponse(0, errors));
+    }
+
+    private void prepareAddPartitionsToTxn(final TopicPartition tp, final Errors error) {
+        prepareAddPartitionsToTxn(Collections.singletonMap(tp, error));
     }
 
     private void prepareFindCoordinatorResponse(Errors error, boolean shouldDisconnect,

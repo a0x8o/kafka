@@ -674,13 +674,18 @@ class Log(@volatile var dir: File,
   }
 
   private def updateFirstUnstableOffset(): Unit = lock synchronized {
-    this.firstUnstableOffset = producerStateManager.firstUnstableOffset match {
+    val updatedFirstStableOffset = producerStateManager.firstUnstableOffset match {
       case Some(logOffsetMetadata) if logOffsetMetadata.messageOffsetOnly =>
         val offset = logOffsetMetadata.messageOffset
         val segment = segments.floorEntry(offset).getValue
         val position  = segment.translateOffset(offset)
         Some(LogOffsetMetadata(offset, segment.baseOffset, position.position))
       case other => other
+    }
+
+    if (updatedFirstStableOffset != this.firstUnstableOffset) {
+      debug(s"First unstable offset for ${this.name} updated to $updatedFirstStableOffset")
+      this.firstUnstableOffset = updatedFirstStableOffset
     }
   }
 
@@ -825,6 +830,11 @@ class Log(@volatile var dir: File,
     }
   }
 
+  private[log] def readUncommitted(startOffset: Long, maxLength: Int, maxOffset: Option[Long] = None,
+                                   minOneMessage: Boolean = false): FetchDataInfo = {
+    read(startOffset, maxLength, maxOffset, minOneMessage, isolationLevel = IsolationLevel.READ_UNCOMMITTED)
+  }
+
   /**
    * Read messages from the log.
    *
@@ -844,7 +854,7 @@ class Log(@volatile var dir: File,
    * @return The fetch data information including fetch starting offset metadata and messages read.
    */
   def read(startOffset: Long, maxLength: Int, maxOffset: Option[Long] = None, minOneMessage: Boolean = false,
-           isolationLevel: IsolationLevel = IsolationLevel.READ_UNCOMMITTED): FetchDataInfo = {
+           isolationLevel: IsolationLevel): FetchDataInfo = {
     trace("Reading %d bytes from offset %d in log %s of length %d bytes".format(maxLength, startOffset, name, size))
 
     // Because we don't use lock for reading, the synchronization is a little bit tricky.
@@ -996,7 +1006,7 @@ class Log(@volatile var dir: File,
    */
   def convertToOffsetMetadata(offset: Long): LogOffsetMetadata = {
     try {
-      val fetchDataInfo = read(offset, 1)
+      val fetchDataInfo = readUncommitted(offset, 1)
       fetchDataInfo.fetchOffsetMetadata
     } catch {
       case _: OffsetOutOfRangeException => LogOffsetMetadata.UnknownOffsetMetadata
