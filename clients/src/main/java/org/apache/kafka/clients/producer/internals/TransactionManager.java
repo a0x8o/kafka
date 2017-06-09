@@ -235,7 +235,7 @@ public class TransactionManager {
         return lastError;
     }
 
-    public synchronized void failIfUnreadyForSend() {
+    public synchronized void failIfNotReadyForSend() {
         if (hasError())
             throw new KafkaException("Cannot perform send because at least one previous transactional or " +
                     "idempotent request has failed with errors.", lastError);
@@ -250,7 +250,7 @@ public class TransactionManager {
         }
     }
 
-    synchronized boolean sendToPartitionAllowed(TopicPartition tp) {
+    synchronized boolean isSendToPartitionAllowed(TopicPartition tp) {
         if (hasFatalError())
             return false;
         return !isTransactional() || partitionsInTransaction.contains(tp);
@@ -396,7 +396,6 @@ public class TransactionManager {
             }
             nextRequestHandler = pendingRequests.poll();
         }
-
 
         if (nextRequestHandler != null)
             log.trace("{}Request {} dequeued for sending", logPrefix, nextRequestHandler.requestBuilder());
@@ -610,7 +609,9 @@ public class TransactionManager {
             } else {
                 clearInFlightRequestCorrelationId();
                 if (response.wasDisconnected()) {
-                    log.trace("{}Disconnected from {}. Will retry.", logPrefix, response.destination());
+                    log.debug("{}Disconnected from {}. Will retry.", logPrefix, response.destination());
+                    if (this.needsCoordinator())
+                        lookupCoordinator(this.coordinatorType(), this.coordinatorKey());
                     reenqueue();
                 } else if (response.versionMismatch() != null) {
                     fatalError(response.versionMismatch());
@@ -1004,5 +1005,4 @@ public class TransactionManager {
                 reenqueue();
         }
     }
-
 }
