@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * The Kafka Streams metrics interface for adding metric sensors and collecting metric values.
  */
-@InterfaceStability.Evolving
+@InterfaceStability.Unstable
 public interface StreamsMetrics {
 
     /**

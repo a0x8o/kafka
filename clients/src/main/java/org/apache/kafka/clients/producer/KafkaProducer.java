@@ -73,8 +73,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.kafka.common.serialization.ExtendedSerializer.Wrapper.ensureExtended;
-
 /**
  * A Kafka client that publishes records to the Kafka cluster.
  * <P>
@@ -267,8 +265,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                     ProducerInterceptor.class);
             this.interceptors = interceptorList.isEmpty() ? null : new ProducerInterceptors<>(interceptorList);
             ClusterResourceListeners clusterResourceListeners = configureClusterResourceListeners(keySerializer, valueSerializer, interceptorList, reporters);
-            this.metadata = new Metadata(retryBackoffMs, config.getLong(ProducerConfig.METADATA_MAX_AGE_CONFIG),
-                    true, true, clusterResourceListeners);
+            this.metadata = new Metadata(retryBackoffMs, config.getLong(ProducerConfig.METADATA_MAX_AGE_CONFIG), true, clusterResourceListeners);
             this.maxRequestSize = config.getInt(ProducerConfig.MAX_REQUEST_SIZE_CONFIG);
             this.totalMemorySize = config.getLong(ProducerConfig.BUFFER_MEMORY_CONFIG);
             this.compressionType = CompressionType.forName(config.getString(ProducerConfig.COMPRESSION_TYPE_CONFIG));
@@ -335,6 +332,10 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             // now propagate the exception
             throw new KafkaException("Failed to construct kafka producer", t);
         }
+    }
+
+    private <T> ExtendedSerializer<T> ensureExtended(Serializer<T> serializer) {
+        return serializer instanceof ExtendedSerializer ? (ExtendedSerializer<T>) serializer : new ExtendedSerializer.Wrapper<>(serializer);
     }
 
     private static TransactionManager configureTransactionState(ProducerConfig config) {
@@ -608,7 +609,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      */
     private Future<RecordMetadata> doSend(ProducerRecord<K, V> record, Callback callback) {
         if (transactionManager != null)
-            transactionManager.failIfNotReadyForSend();
+            ensureProperTransactionalState();
 
         TopicPartition tp = null;
         try {
@@ -689,6 +690,20 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                 this.interceptors.onSendError(record, tp, e);
             throw e;
         }
+    }
+
+    private void ensureProperTransactionalState() {
+        if (transactionManager.isTransactional() && !transactionManager.hasProducerId())
+            throw new IllegalStateException("Cannot perform a 'send' before completing a call to initTransactions " +
+                    "when transactions are enabled.");
+
+        if (transactionManager.isInErrorState()) {
+            Exception lastError = transactionManager.lastError();
+            throw new KafkaException("Cannot perform send because at least one previous transactional or " +
+                    "idempotent request has failed with errors.", lastError);
+        }
+        if (transactionManager.isCompletingTransaction())
+            throw new IllegalStateException("Cannot call send while a commit or abort is in progress.");
     }
 
     private void setReadOnly(Headers headers) {

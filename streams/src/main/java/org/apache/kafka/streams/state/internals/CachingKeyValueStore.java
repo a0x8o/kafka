@@ -30,7 +30,6 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StateSerdes;
 
 import java.util.List;
-import java.util.Objects;
 
 class CachingKeyValueStore<K, V> extends WrappedStateStore.AbstractStateStore implements KeyValueStore<K, V>, CachedStateStore<K, V> {
 
@@ -129,8 +128,9 @@ class CachingKeyValueStore<K, V> extends WrappedStateStore.AbstractStateStore im
     @Override
     public synchronized V get(final K key) {
         validateStoreOpen();
-        Objects.requireNonNull(key);
-
+        if (key == null) {
+            return null;
+        }
         final byte[] rawKey = serdes.rawKey(key);
         return get(rawKey);
     }
@@ -215,7 +215,6 @@ class CachingKeyValueStore<K, V> extends WrappedStateStore.AbstractStateStore im
     @Override
     public synchronized V delete(final K key) {
         validateStoreOpen();
-        Objects.requireNonNull(key);
         final byte[] rawKey = serdes.rawKey(key);
         final Bytes bytesKey = Bytes.wrap(rawKey);
         final V v = get(rawKey);

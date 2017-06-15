@@ -25,7 +25,6 @@ import kafka.utils.{Logging, nonthreadsafe}
 import org.apache.kafka.common.network.NetworkReceive
 
 
-@deprecated("This object has been deprecated and will be removed in a future release.", "0.11.0.0")
 object BlockingChannel{
   val UseDefaultBufferSize = -1
 }
@@ -35,7 +34,6 @@ object BlockingChannel{
  *
  */
 @nonthreadsafe
-@deprecated("This class has been deprecated and will be removed in a future release.", "0.11.0.0")
 class BlockingChannel( val host: String, 
                        val port: Int, 
                        val readBufferSize: Int, 

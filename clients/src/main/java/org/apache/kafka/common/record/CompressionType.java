@@ -25,7 +25,6 @@ import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.nio.ByteBuffer;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -35,31 +34,30 @@ import java.util.zip.GZIPOutputStream;
 public enum CompressionType {
     NONE(0, "none", 1.0f) {
         @Override
-        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion) {
+        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion, int bufferSize) {
             return buffer;
         }
 
         @Override
-        public InputStream wrapForInput(ByteBuffer buffer, byte messageVersion, BufferSupplier decompressionBufferSupplier) {
-            return new ByteBufferInputStream(buffer);
+        public InputStream wrapForInput(ByteBufferInputStream buffer, byte messageVersion) {
+            return buffer;
         }
     },
 
     GZIP(1, "gzip", 1.0f) {
         @Override
-        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion) {
+        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion, int bufferSize) {
             try {
-                // GZIPOutputStream has a default buffer size of 512 bytes, which is too small
-                return new GZIPOutputStream(buffer, 8 * 1024);
+                return new GZIPOutputStream(buffer, bufferSize);
             } catch (Exception e) {
                 throw new KafkaException(e);
             }
         }
 
         @Override
-        public InputStream wrapForInput(ByteBuffer buffer, byte messageVersion, BufferSupplier decompressionBufferSupplier) {
+        public InputStream wrapForInput(ByteBufferInputStream buffer, byte messageVersion) {
             try {
-                return new GZIPInputStream(new ByteBufferInputStream(buffer));
+                return new GZIPInputStream(buffer);
             } catch (Exception e) {
                 throw new KafkaException(e);
             }
@@ -68,18 +66,18 @@ public enum CompressionType {
 
     SNAPPY(2, "snappy", 1.0f) {
         @Override
-        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion) {
+        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion, int bufferSize) {
             try {
-                return (OutputStream) SnappyConstructors.OUTPUT.invoke(buffer);
+                return (OutputStream) SnappyConstructors.OUTPUT.invoke(buffer, bufferSize);
             } catch (Throwable e) {
                 throw new KafkaException(e);
             }
         }
 
         @Override
-        public InputStream wrapForInput(ByteBuffer buffer, byte messageVersion, BufferSupplier decompressionBufferSupplier) {
+        public InputStream wrapForInput(ByteBufferInputStream buffer, byte messageVersion) {
             try {
-                return (InputStream) SnappyConstructors.INPUT.invoke(new ByteBufferInputStream(buffer));
+                return (InputStream) SnappyConstructors.INPUT.invoke(buffer);
             } catch (Throwable e) {
                 throw new KafkaException(e);
             }
@@ -88,19 +86,20 @@ public enum CompressionType {
 
     LZ4(3, "lz4", 1.0f) {
         @Override
-        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion) {
+        public OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion, int bufferSize) {
             try {
-                return new KafkaLZ4BlockOutputStream(buffer, messageVersion == RecordBatch.MAGIC_VALUE_V0);
+                return (OutputStream) LZ4Constructors.OUTPUT.invoke(buffer,
+                        messageVersion == RecordBatch.MAGIC_VALUE_V0);
             } catch (Throwable e) {
                 throw new KafkaException(e);
             }
         }
 
         @Override
-        public InputStream wrapForInput(ByteBuffer inputBuffer, byte messageVersion, BufferSupplier decompressionBufferSupplier) {
+        public InputStream wrapForInput(ByteBufferInputStream buffer, byte messageVersion) {
             try {
-                return new KafkaLZ4BlockInputStream(inputBuffer, decompressionBufferSupplier,
-                                                    messageVersion == RecordBatch.MAGIC_VALUE_V0);
+                return (InputStream) LZ4Constructors.INPUT.invoke(buffer,
+                        messageVersion == RecordBatch.MAGIC_VALUE_V0);
             } catch (Throwable e) {
                 throw new KafkaException(e);
             }
@@ -117,26 +116,9 @@ public enum CompressionType {
         this.rate = rate;
     }
 
-    /**
-     * Wrap bufferStream with an OutputStream that will compress data with this CompressionType.
-     *
-     * Note: Unlike {@link #wrapForInput}, {@link #wrapForOutput} cannot take {@#link ByteBuffer}s directly.
-     * Currently, {@link MemoryRecordsBuilder#writeDefaultBatchHeader()} and {@link MemoryRecordsBuilder#writeLegacyCompressedWrapperHeader()}
-     * write to the underlying buffer in the given {@link ByteBufferOutputStream} after the compressed data has been written.
-     * In the event that the buffer needs to be expanded while writing the data, access to the underlying buffer needs to be preserved.
-     */
-    public abstract OutputStream wrapForOutput(ByteBufferOutputStream bufferStream, byte messageVersion);
+    public abstract OutputStream wrapForOutput(ByteBufferOutputStream buffer, byte messageVersion, int bufferSize);
 
-    /**
-     * Wrap buffer with an InputStream that will decompress data with this CompressionType.
-     *
-     * @param decompressionBufferSupplier The supplier of ByteBuffer(s) used for decompression if supported.
-     *                                    For small record batches, allocating a potentially large buffer (64 KB for LZ4)
-     *                                    will dominate the cost of decompressing and iterating over the records in the
-     *                                    batch. As such, a supplier that reuses buffers will have a significant
-     *                                    performance impact.
-     */
-    public abstract InputStream wrapForInput(ByteBuffer buffer, byte messageVersion, BufferSupplier decompressionBufferSupplier);
+    public abstract InputStream wrapForInput(ByteBufferInputStream buffer, byte messageVersion);
 
     public static CompressionType forId(int id) {
         switch (id) {
@@ -166,20 +148,27 @@ public enum CompressionType {
             throw new IllegalArgumentException("Unknown compression name: " + name);
     }
 
-    // We should only have a runtime dependency on compression algorithms in case the native libraries don't support
-    // some platforms.
-    //
-    // For Snappy, we dynamically load the classes and rely on the initialization-on-demand holder idiom to ensure
-    // they're only loaded if used.
-    //
-    // For LZ4 we are using org.apache.kafka classes, which should always be in the classpath, and would not trigger
-    // an error until KafkaLZ4BlockInputStream is initialized, which only happens if LZ4 is actually used.
+    // Dynamically load the Snappy and LZ4 classes so that we only have a runtime dependency on compression algorithms
+    // that are used. This is important for platforms that are not supported by the underlying libraries.
+    // Note that we are using the initialization-on-demand holder idiom, so it's important that the initialisation
+    // is done in separate classes (one per compression type).
+
+    private static class LZ4Constructors {
+        static final MethodHandle INPUT = findConstructor(
+                "org.apache.kafka.common.record.KafkaLZ4BlockInputStream",
+                MethodType.methodType(void.class, InputStream.class, Boolean.TYPE));
+
+        static final MethodHandle OUTPUT = findConstructor(
+                "org.apache.kafka.common.record.KafkaLZ4BlockOutputStream",
+                MethodType.methodType(void.class, OutputStream.class, Boolean.TYPE));
+
+    }
 
     private static class SnappyConstructors {
         static final MethodHandle INPUT = findConstructor("org.xerial.snappy.SnappyInputStream",
                 MethodType.methodType(void.class, InputStream.class));
         static final MethodHandle OUTPUT = findConstructor("org.xerial.snappy.SnappyOutputStream",
-                MethodType.methodType(void.class, OutputStream.class));
+                MethodType.methodType(void.class, OutputStream.class, Integer.TYPE));
     }
 
     private static MethodHandle findConstructor(String className, MethodType methodType) {

@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.connect.runtime;
 
-import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -179,11 +178,6 @@ public class WorkerConfig extends AbstractConfig {
                         Importance.LOW,
                         PLUGIN_PATH_DOC
                 );
-    }
-
-    @Override
-    protected Map<String, Object> postProcessParsedConfig(final Map<String, Object> parsedValues) {
-        return CommonClientConfigs.postProcessReconnectBackoffConfigs(this, parsedValues);
     }
 
     public static List<String> pluginLocations(Map<String, String> props) {

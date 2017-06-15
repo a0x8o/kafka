@@ -54,8 +54,7 @@ public class AddOffsetsToTxnRequest extends AbstractRequest {
         @Override
         public String toString() {
             StringBuilder bld = new StringBuilder();
-            bld.append("(type=AddOffsetsToTxnRequest").
-                    append(", transactionalId=").append(transactionalId).
+            bld.append("(transactionalId=").append(transactionalId).
                     append(", producerId=").append(producerId).
                     append(", producerEpoch=").append(producerEpoch).
                     append(", consumerGroupId=").append(consumerGroupId).

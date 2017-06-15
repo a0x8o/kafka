@@ -115,7 +115,7 @@ import static org.apache.kafka.streams.StreamsConfig.PROCESSING_GUARANTEE_CONFIG
  * @see KStreamBuilder
  * @see TopologyBuilder
  */
-@InterfaceStability.Evolving
+@InterfaceStability.Unstable
 public class KafkaStreams {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaStreams.class);

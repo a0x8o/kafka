@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.state;
 
+import org.apache.kafka.common.annotation.InterfaceStability;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.processor.StateStore;
 
@@ -27,14 +28,15 @@ import java.util.List;
  * @param <K> The key type
  * @param <V> The value type
  */
+@InterfaceStability.Unstable
 public interface KeyValueStore<K, V> extends StateStore, ReadOnlyKeyValueStore<K, V> {
 
     /**
      * Update the value associated with this key
      *
      * @param key The key to associate the value to
-     * @param value The value, it can be null.
-     * @throws NullPointerException If null is used for key.
+     * @param value The value
+     * @throws NullPointerException If null is used for key or value.
      */
     void put(K key, V value);
 
@@ -43,9 +45,9 @@ public interface KeyValueStore<K, V> extends StateStore, ReadOnlyKeyValueStore<K
      * is already associated with the key
      *
      * @param key The key to associate the value to
-     * @param value The value, it can be null
+     * @param value The value
      * @return The old value or null if there is no such key.
-     * @throws NullPointerException If null is used for key.
+     * @throws NullPointerException If null is used for key or value.
      */
     V putIfAbsent(K key, V value);
 
@@ -53,7 +55,7 @@ public interface KeyValueStore<K, V> extends StateStore, ReadOnlyKeyValueStore<K
      * Update all the given key/value pairs
      *
      * @param entries A list of entries to put into the store.
-     * @throws NullPointerException If null is used for key.
+     * @throws NullPointerException If null is used for any key or value.
      */
     void putAll(List<KeyValue<K, V>> entries);
 

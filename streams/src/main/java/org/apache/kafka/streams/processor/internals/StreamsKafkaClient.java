@@ -101,8 +101,7 @@ public class StreamsKafkaClient {
 
         final Metadata metadata = new Metadata(streamsConfig.getLong(
             StreamsConfig.RETRY_BACKOFF_MS_CONFIG),
-            streamsConfig.getLong(StreamsConfig.METADATA_MAX_AGE_CONFIG),
-            false
+            streamsConfig.getLong(StreamsConfig.METADATA_MAX_AGE_CONFIG)
         );
         final List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(streamsConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
         metadata.update(Cluster.bootstrap(addresses), Collections.<String>emptySet(), time.milliseconds());
@@ -141,12 +140,8 @@ public class StreamsKafkaClient {
     }
 
     public void close() throws IOException {
-        try {
-            kafkaClient.close();
-        } finally {
-            for (MetricsReporter metricsReporter: this.reporters) {
-                metricsReporter.close();
-            }
+        for (MetricsReporter metricsReporter: this.reporters) {
+            metricsReporter.close();
         }
     }
 
@@ -246,8 +241,7 @@ public class StreamsKafkaClient {
     private String getAnyReadyBrokerId() {
         final Metadata metadata = new Metadata(
             streamsConfig.getLong(StreamsConfig.RETRY_BACKOFF_MS_CONFIG),
-            streamsConfig.getLong(StreamsConfig.METADATA_MAX_AGE_CONFIG),
-            false);
+            streamsConfig.getLong(StreamsConfig.METADATA_MAX_AGE_CONFIG));
         final List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(streamsConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
         metadata.update(Cluster.bootstrap(addresses), Collections.<String>emptySet(), Time.SYSTEM.milliseconds());
 
@@ -295,7 +289,7 @@ public class StreamsKafkaClient {
 
         final ClientRequest clientRequest = kafkaClient.newClientRequest(
             getAnyReadyBrokerId(),
-            MetadataRequest.Builder.allTopics(),
+            new MetadataRequest.Builder(null),
             Time.SYSTEM.milliseconds(),
             true);
         final ClientResponse clientResponse = sendRequest(clientRequest);

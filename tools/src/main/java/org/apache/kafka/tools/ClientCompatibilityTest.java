@@ -20,8 +20,6 @@ import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -33,8 +31,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.ClusterResource;
 import org.apache.kafka.common.ClusterResourceListener;
-import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.RecordTooLargeException;
@@ -48,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -74,7 +69,6 @@ public class ClientCompatibilityTest {
         final boolean offsetsForTimesSupported;
         final boolean expectClusterId;
         final boolean expectRecordTooLargeException;
-        final int numClusterNodes;
 
         TestConfig(Namespace res) {
             this.bootstrapServer = res.getString("bootstrapServer");
@@ -82,7 +76,6 @@ public class ClientCompatibilityTest {
             this.offsetsForTimesSupported = res.getBoolean("offsetsForTimesSupported");
             this.expectClusterId = res.getBoolean("clusterIdSupported");
             this.expectRecordTooLargeException = res.getBoolean("expectRecordTooLargeException");
-            this.numClusterNodes = res.getInt("numClusterNodes");
         }
     }
 
@@ -128,14 +121,6 @@ public class ClientCompatibilityTest {
             .help("True if we should expect a RecordTooLargeException when trying to read from a topic " +
                   "that contains a message that is bigger than " + ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG +
                   ".  This is pre-KIP-74 behavior.");
-        parser.addArgument("--num-cluster-nodes")
-            .action(store())
-            .required(true)
-            .type(Integer.class)
-            .dest("numClusterNodes")
-            .metavar("NUM_CLUSTER_NODES")
-            .help("The number of cluster nodes we should expect to see from the AdminClient.");
-
         Namespace res = null;
         try {
             res = parser.parseArgs(args);
@@ -198,7 +183,6 @@ public class ClientCompatibilityTest {
 
     void run() throws Exception {
         long prodTimeMs = Time.SYSTEM.milliseconds();
-        testAdminClient();
         testProduce();
         testConsume(prodTimeMs);
     }
@@ -216,25 +200,6 @@ public class ClientCompatibilityTest {
         future1.get();
         future2.get();
         producer.close();
-    }
-
-    void testAdminClient() throws Exception {
-        Properties adminProps = new Properties();
-        adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, testConfig.bootstrapServer);
-        try (AdminClient client = AdminClient.create(adminProps)) {
-            while (true) {
-                Collection<Node> nodes = client.describeCluster().nodes().get();
-                if (nodes.size() == testConfig.numClusterNodes) {
-                    break;
-                } else if (nodes.size() > testConfig.numClusterNodes) {
-                    throw new KafkaException("Expected to see " + testConfig.numClusterNodes +
-                        " nodes, but saw " + nodes.size());
-                }
-                Thread.sleep(1);
-                log.info("Saw only {} cluster nodes.  Waiting to see {}.",
-                    nodes.size(), testConfig.numClusterNodes);
-            }
-        }
     }
 
     private static class OffsetsForTime {

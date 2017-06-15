@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.kstream;
 
+import org.apache.kafka.common.annotation.InterfaceStability;
 import org.apache.kafka.streams.KeyValue;
 
 /**
@@ -31,6 +32,7 @@ import org.apache.kafka.streams.KeyValue;
  * @see KTable#filter(Predicate)
  * @see KTable#filterNot(Predicate)
  */
+@InterfaceStability.Unstable
 public interface Predicate<K, V> {
 
     /**

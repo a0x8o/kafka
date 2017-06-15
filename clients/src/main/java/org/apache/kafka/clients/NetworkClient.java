@@ -227,39 +227,7 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
-     * Disconnects the connection to a particular node, if there is one.
-     * Any pending ClientRequests for this connection will receive disconnections.
-     *
-     * @param nodeId The id of the node
-     */
-    @Override
-    public void disconnect(String nodeId) {
-        selector.close(nodeId);
-        List<ApiKeys> requestTypes = new ArrayList<>();
-        long now = time.milliseconds();
-        for (InFlightRequest request : inFlightRequests.clearAll(nodeId)) {
-            if (request.isInternalRequest) {
-                if (request.header.apiKey() == ApiKeys.METADATA.id) {
-                    metadataUpdater.handleDisconnection(request.destination);
-                }
-            } else {
-                requestTypes.add(ApiKeys.forId(request.header.apiKey()));
-                abortedSends.add(new ClientResponse(request.header,
-                        request.callback, request.destination, request.createdTimeMs, now,
-                        true, null, null));
-            }
-        }
-        connectionStates.remove(nodeId);
-        if (log.isDebugEnabled()) {
-            log.debug("Manually disconnected from {}.  Removed requests: {}.", nodeId,
-                Utils.join(requestTypes, ", "));
-        }
-    }
-
-    /**
      * Closes the connection to a particular node (if there is one).
-     * All requests on the connection will be cleared.  ClientRequest callbacks will not be invoked
-     * for the cleared requests, nor will they be returned from poll().
      *
      * @param nodeId The id of the node
      */
@@ -418,15 +386,6 @@ public class NetworkClient implements KafkaClient {
      */
     @Override
     public List<ClientResponse> poll(long timeout, long now) {
-        if (!abortedSends.isEmpty()) {
-            // If there are aborted sends because of unsupported version exceptions or disconnects,
-            // handle them immediately without waiting for Selector#poll.
-            List<ClientResponse> responses = new ArrayList<>();
-            handleAbortedSends(responses);
-            completeResponses(responses);
-            return responses;
-        }
-
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
             this.selector.poll(Utils.min(timeout, metadataTimeout, requestTimeoutMs));
@@ -437,18 +396,15 @@ public class NetworkClient implements KafkaClient {
         // process completed actions
         long updatedNow = this.time.milliseconds();
         List<ClientResponse> responses = new ArrayList<>();
+        handleAbortedSends(responses);
         handleCompletedSends(responses, updatedNow);
         handleCompletedReceives(responses, updatedNow);
         handleDisconnections(responses, updatedNow);
         handleConnections();
         handleInitiateApiVersionRequests(updatedNow);
         handleTimedOutRequests(responses, updatedNow);
-        completeResponses(responses);
 
-        return responses;
-    }
-
-    private void completeResponses(List<ClientResponse> responses) {
+        // invoke callbacks
         for (ClientResponse response : responses) {
             try {
                 response.onComplete();
@@ -456,6 +412,8 @@ public class NetworkClient implements KafkaClient {
                 log.error("Uncaught error in request completion:", e);
             }
         }
+
+        return responses;
     }
 
     /**
@@ -547,12 +505,11 @@ public class NetworkClient implements KafkaClient {
     }
 
     public static AbstractResponse parseResponse(ByteBuffer responseBuffer, RequestHeader requestHeader) {
-        return createResponse(parseStructMaybeUpdateThrottleTimeMetrics(responseBuffer, requestHeader,
-                null, 0), requestHeader);
+        return parseResponseMaybeUpdateThrottleTimeMetrics(responseBuffer, requestHeader, null, 0);
     }
 
-    private static Struct parseStructMaybeUpdateThrottleTimeMetrics(ByteBuffer responseBuffer, RequestHeader requestHeader,
-                                                                    Sensor throttleTimeSensor, long now) {
+    private static AbstractResponse parseResponseMaybeUpdateThrottleTimeMetrics(ByteBuffer responseBuffer, RequestHeader requestHeader,
+            Sensor throttleTimeSensor, long now) {
         ResponseHeader responseHeader = ResponseHeader.parse(responseBuffer);
         // Always expect the response version id to be the same as the request version id
         ApiKeys apiKey = ApiKeys.forId(requestHeader.apiKey());
@@ -560,12 +517,7 @@ public class NetworkClient implements KafkaClient {
         correlate(requestHeader, responseHeader);
         if (throttleTimeSensor != null && responseBody.hasField(AbstractResponse.THROTTLE_TIME_KEY_NAME))
             throttleTimeSensor.record(responseBody.getInt(AbstractResponse.THROTTLE_TIME_KEY_NAME), now);
-        return responseBody;
-    }
-
-    private static AbstractResponse createResponse(Struct responseStruct, RequestHeader requestHeader) {
-        ApiKeys apiKey = ApiKeys.forId(requestHeader.apiKey());
-        return AbstractResponse.getResponse(apiKey, responseStruct);
+        return AbstractResponse.getResponse(apiKey, responseBody);
     }
 
     /**
@@ -652,13 +604,8 @@ public class NetworkClient implements KafkaClient {
         for (NetworkReceive receive : this.selector.completedReceives()) {
             String source = receive.source();
             InFlightRequest req = inFlightRequests.completeNext(source);
-            Struct responseStruct = parseStructMaybeUpdateThrottleTimeMetrics(receive.payload(), req.header,
-                throttleTimeSensor, now);
-            if (log.isTraceEnabled()) {
-                log.trace("Completed receive from node {}, for key {}, received {}", req.destination,
-                    req.header.apiKey(), responseStruct.toString());
-            }
-            AbstractResponse body = createResponse(responseStruct, req.header);
+            AbstractResponse body = parseResponseMaybeUpdateThrottleTimeMetrics(receive.payload(), req.header, throttleTimeSensor, now);
+            log.trace("Completed receive from node {}, for key {}, received {}", req.destination, req.header.apiKey(), body);
             if (req.isInternalRequest && body instanceof MetadataResponse)
                 metadataUpdater.handleCompletedMetadataResponse(req.header, now, (MetadataResponse) body);
             else if (req.isInternalRequest && body instanceof ApiVersionsResponse)
@@ -882,8 +829,7 @@ public class NetworkClient implements KafkaClient {
                 if (metadata.needMetadataForAllTopics())
                     metadataRequest = MetadataRequest.Builder.allTopics();
                 else
-                    metadataRequest = new MetadataRequest.Builder(new ArrayList<>(metadata.topics()),
-                            metadata.allowAutoTopicCreation());
+                    metadataRequest = new MetadataRequest.Builder(new ArrayList<>(metadata.topics()));
 
 
                 log.debug("Sending metadata request {} to node {}", metadataRequest, node.id());

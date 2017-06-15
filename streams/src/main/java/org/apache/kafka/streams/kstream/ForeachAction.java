@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.kstream;
 
+import org.apache.kafka.common.annotation.InterfaceStability;
 
 /**
  * The {@code ForeachAction} interface for performing an action on a {@link org.apache.kafka.streams.KeyValue key-value
@@ -30,6 +31,7 @@ package org.apache.kafka.streams.kstream;
  * @see KStream#foreach(ForeachAction)
  * @see KTable#foreach(ForeachAction)
  */
+@InterfaceStability.Unstable
 public interface ForeachAction<K, V> {
 
     /**

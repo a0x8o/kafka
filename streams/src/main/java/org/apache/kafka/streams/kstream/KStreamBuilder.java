@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.streams.kstream;
 
-import org.apache.kafka.common.annotation.InterfaceStability;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.KafkaStreams;
@@ -48,7 +47,6 @@ import java.util.regex.Pattern;
  * @see KTable
  * @see GlobalKTable
  */
-@InterfaceStability.Evolving
 public class KStreamBuilder extends TopologyBuilder {
 
     private final AtomicInteger index = new AtomicInteger(0);

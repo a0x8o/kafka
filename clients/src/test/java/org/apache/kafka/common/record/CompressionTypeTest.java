@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.common.record;
 
+import org.apache.kafka.common.utils.ByteBufferInputStream;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.Test;
 
@@ -30,13 +31,13 @@ public class CompressionTypeTest {
     public void testLZ4FramingMagicV0() {
         ByteBuffer buffer = ByteBuffer.allocate(256);
         KafkaLZ4BlockOutputStream out = (KafkaLZ4BlockOutputStream) CompressionType.LZ4.wrapForOutput(
-                new ByteBufferOutputStream(buffer), RecordBatch.MAGIC_VALUE_V0);
+                new ByteBufferOutputStream(buffer), RecordBatch.MAGIC_VALUE_V0, 256);
         assertTrue(out.useBrokenFlagDescriptorChecksum());
 
         buffer.rewind();
 
         KafkaLZ4BlockInputStream in = (KafkaLZ4BlockInputStream) CompressionType.LZ4.wrapForInput(
-                buffer, RecordBatch.MAGIC_VALUE_V0, BufferSupplier.NO_CACHING);
+                new ByteBufferInputStream(buffer), RecordBatch.MAGIC_VALUE_V0);
         assertTrue(in.ignoreFlagDescriptorChecksum());
     }
 
@@ -44,13 +45,13 @@ public class CompressionTypeTest {
     public void testLZ4FramingMagicV1() {
         ByteBuffer buffer = ByteBuffer.allocate(256);
         KafkaLZ4BlockOutputStream out = (KafkaLZ4BlockOutputStream) CompressionType.LZ4.wrapForOutput(
-                new ByteBufferOutputStream(buffer), RecordBatch.MAGIC_VALUE_V1);
+                new ByteBufferOutputStream(buffer), RecordBatch.MAGIC_VALUE_V1, 256);
         assertFalse(out.useBrokenFlagDescriptorChecksum());
 
         buffer.rewind();
 
         KafkaLZ4BlockInputStream in = (KafkaLZ4BlockInputStream) CompressionType.LZ4.wrapForInput(
-                buffer, RecordBatch.MAGIC_VALUE_V1, BufferSupplier.create());
+                new ByteBufferInputStream(buffer), RecordBatch.MAGIC_VALUE_V1);
         assertFalse(in.ignoreFlagDescriptorChecksum());
     }
 }

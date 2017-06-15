@@ -67,13 +67,4 @@ public class AddOffsetsToTxnResponse extends AbstractResponse {
     public static AddOffsetsToTxnResponse parse(ByteBuffer buffer, short version) {
         return new AddOffsetsToTxnResponse(ApiKeys.ADD_OFFSETS_TO_TXN.parseResponse(version, buffer));
     }
-
-    @Override
-    public String toString() {
-        return "AddOffsetsToTxnResponse(" +
-                "error=" + error +
-                ", throttleTimeMs=" + throttleTimeMs +
-                ')';
-    }
-
 }

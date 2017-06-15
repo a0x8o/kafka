@@ -22,7 +22,7 @@ import java.nio._
 import java.nio.channels._
 import java.nio.charset.{Charset, StandardCharsets}
 import java.security.cert.X509Certificate
-import java.util.{Collections, Properties}
+import java.util.{ArrayList, Collections, Properties}
 import java.util.concurrent.{Callable, Executors, TimeUnit}
 import javax.net.ssl.X509TrustManager
 
@@ -239,10 +239,6 @@ object TestUtils extends Logging {
     props.put(KafkaConfig.LogCleanerDedupeBufferSizeProp, "2097152")
     props.put(KafkaConfig.LogMessageTimestampDifferenceMaxMsProp, Long.MaxValue.toString)
     props.put(KafkaConfig.OffsetsTopicReplicationFactorProp, "1")
-    if (!props.containsKey(KafkaConfig.OffsetsTopicPartitionsProp))
-      props.put(KafkaConfig.OffsetsTopicPartitionsProp, "5")
-    if (!props.containsKey(KafkaConfig.GroupInitialRebalanceDelayMsProp))
-      props.put(KafkaConfig.GroupInitialRebalanceDelayMsProp, "0")
     rack.foreach(props.put(KafkaConfig.RackProp, _))
 
     if (protocolAndPorts.exists { case (protocol, _) => usesSslTransportLayer(protocol) })
@@ -647,19 +643,16 @@ object TestUtils extends Logging {
     props
   }
 
-  @deprecated("This method has been deprecated and will be removed in a future release", "0.11.0.0")
   def getSyncProducerConfig(port: Int): Properties = {
     val props = new Properties()
     props.put("host", "localhost")
     props.put("port", port.toString)
-    props.put("request.timeout.ms", "10000")
+    props.put("request.timeout.ms", "500")
     props.put("request.required.acks", "1")
     props.put("serializer.class", classOf[StringEncoder].getName)
     props
   }
 
-
-  @deprecated("This method has been deprecated and will be removed in a future release.", "0.11.0.0")
   def updateConsumerOffset(config : ConsumerConfig, path : String, offset : Long) = {
     val zkUtils = ZkUtils(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs, false)
     zkUtils.updatePersistentPath(path, offset.toString)
@@ -837,36 +830,13 @@ object TestUtils extends Logging {
   /**
    * Wait until the given condition is true or throw an exception if the given wait time elapses.
    */
-  def waitUntilTrue(condition: () => Boolean, msg: => String,
-                    waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L): Unit = {
+  def waitUntilTrue(condition: () => Boolean, msg: String, waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L): Boolean = {
     val startTime = System.currentTimeMillis()
     while (true) {
       if (condition())
-        return
+        return true
       if (System.currentTimeMillis() > startTime + waitTime)
         fail(msg)
-      Thread.sleep(waitTime.min(pause))
-    }
-    // should never hit here
-    throw new RuntimeException("unexpected error")
-  }
-
-  /**
-    * Invoke `compute` until `predicate` is true or `waitTime` elapses.
-    *
-    * Return the last `compute` result and a boolean indicating whether `predicate` succeeded for that value.
-    *
-    * This method is useful in cases where `waitUntilTrue` makes it awkward to provide good error messages.
-    */
-  def computeUntilTrue[T](compute: => T, waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L)(
-                    predicate: T => Boolean): (T, Boolean) = {
-    val startTime = System.currentTimeMillis()
-    while (true) {
-      val result = compute
-      if (predicate(result))
-        return result -> true
-      if (System.currentTimeMillis() > startTime + waitTime)
-        return result -> false
       Thread.sleep(waitTime.min(pause))
     }
     // should never hit here
@@ -1081,7 +1051,7 @@ object TestUtils extends Logging {
       case -1 => s"test-$x".getBytes
       case _ => new Array[Byte](valueBytes)
     })
-
+    
     val futures = values.map { value =>
       producer.send(new ProducerRecord(topic, value))
     }
@@ -1112,7 +1082,6 @@ object TestUtils extends Logging {
    *                           If not specified, then all available messages will be consumed, and no exception is thrown.
    * @return the list of messages consumed.
    */
-  @deprecated("This method has been deprecated and will be removed in a future release.", "0.11.0.0")
   def getMessages(topicMessageStreams: Map[String, List[KafkaStream[String, String]]],
                      nMessagesPerThread: Int = -1): List[String] = {
 
@@ -1148,7 +1117,7 @@ object TestUtils extends Logging {
   def verifyTopicDeletion(zkUtils: ZkUtils, topic: String, numPartitions: Int, servers: Seq[KafkaServer]) {
     val topicPartitions = (0 until numPartitions).map(new TopicPartition(topic, _))
     // wait until admin path for delete topic is deleted, signaling completion of topic deletion
-    TestUtils.waitUntilTrue(() => !zkUtils.isTopicMarkedForDeletion(topic),
+    TestUtils.waitUntilTrue(() => !zkUtils.pathExists(getDeleteTopicPath(topic)),
       "Admin path /admin/delete_topic/%s path not deleted even after a replica is restarted".format(topic))
     TestUtils.waitUntilTrue(() => !zkUtils.pathExists(getTopicPath(topic)),
       "Topic path /brokers/topics/%s not deleted after /admin/delete_topic/%s path is deleted".format(topic, topic))
@@ -1450,16 +1419,6 @@ object TestUtils extends Logging {
       else
         consumer.seekToBeginning(Collections.singletonList(topicPartition))
     }
-  }
-
-  /**
-   * Capture the console output during the execution of the provided function.
-   */
-  def grabConsoleOutput(f: => Unit) : String = {
-    val out = new ByteArrayOutputStream
-    try scala.Console.withOut(out)(f)
-    finally scala.Console.out.flush
-    out.toString
   }
 
 }

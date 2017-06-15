@@ -30,7 +30,8 @@ public class LongDeserializer implements Deserializer<Long> {
         if (data == null)
             return null;
         if (data.length != 8) {
-            throw new SerializationException("Size of data received by LongDeserializer is not 8");
+            throw new SerializationException("Size of data received by LongDeserializer is " +
+                    "not 8");
         }
 
         long value = 0;

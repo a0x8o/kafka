@@ -54,8 +54,7 @@ public class EndTxnRequest extends AbstractRequest {
         @Override
         public String toString() {
             StringBuilder bld = new StringBuilder();
-            bld.append("(type=EndTxnRequest").
-                    append(", transactionalId=").append(transactionalId).
+            bld.append("(transactionalId=").append(transactionalId).
                     append(", producerId=").append(producerId).
                     append(", producerEpoch=").append(producerEpoch).
                     append(", result=").append(result).

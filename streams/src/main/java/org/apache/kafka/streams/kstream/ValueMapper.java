@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.kstream;
 
+import org.apache.kafka.common.annotation.InterfaceStability;
 
 /**
  * The {@code ValueMapper} interface for mapping a value to a new value of arbitrary type.
@@ -33,6 +34,7 @@ package org.apache.kafka.streams.kstream;
  * @see KStream#flatMapValues(ValueMapper)
  * @see KTable#mapValues(ValueMapper)
  */
+@InterfaceStability.Unstable
 public interface ValueMapper<V, VR> {
 
     /**

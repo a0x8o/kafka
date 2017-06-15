@@ -60,7 +60,6 @@ class StreamsSimpleBenchmarkTest(Test):
             'joinSourceTopic1KTableKTable' : { 'partitions': scale, 'replication-factor': self.replication },
             'joinSourceTopic2KTableKTable' : { 'partitions': scale, 'replication-factor': self.replication }
         })
-        self.kafka.log_level = "INFO"
         self.kafka.start()
  
         ################

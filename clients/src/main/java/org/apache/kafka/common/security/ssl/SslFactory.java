@@ -154,8 +154,6 @@ public class SslFactory implements Configurable {
         if (cipherSuites != null) sslEngine.setEnabledCipherSuites(cipherSuites);
         if (enabledProtocols != null) sslEngine.setEnabledProtocols(enabledProtocols);
 
-        // SSLParameters#setEndpointIdentificationAlgorithm enables endpoint validation
-        // only in client mode. Hence, validation is enabled only for clients.
         if (mode == Mode.SERVER) {
             sslEngine.setUseClientMode(false);
             if (needClientAuth)

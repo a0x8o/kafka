@@ -22,146 +22,180 @@ import java.util.concurrent.TimeUnit
 import java.util.Collections
 import java.util.Properties
 
+import org.easymock.EasyMock
 import org.junit.Assert._
-import org.junit.{After, Before, Test}
-import kafka.admin.ConsumerGroupCommand.{ConsumerGroupCommandOptions, ConsumerGroupService, KafkaConsumerGroupService, ZkConsumerGroupService}
+import org.junit.Before
+import org.junit.Test
+import kafka.admin.ConsumerGroupCommand.ConsumerGroupCommandOptions
+import kafka.admin.ConsumerGroupCommand.KafkaConsumerGroupService
+import kafka.admin.ConsumerGroupCommand.ZkConsumerGroupService
 import kafka.consumer.OldConsumer
 import kafka.consumer.Whitelist
 import kafka.integration.KafkaServerTestHarness
 import kafka.server.KafkaConfig
 import kafka.utils.TestUtils
+
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.errors.TimeoutException
-import org.apache.kafka.common.errors.WakeupException
+import org.apache.kafka.common.errors.{CoordinatorNotAvailableException, WakeupException}
 import org.apache.kafka.common.serialization.StringDeserializer
 
-import scala.collection.mutable.ArrayBuffer
 
 class DescribeConsumerGroupTest extends KafkaServerTestHarness {
-  private val topic = "foo"
-  private val group = "test.group"
 
-  @deprecated("This field will be removed in a future release", "0.11.0.0")
-  private val oldConsumers = new ArrayBuffer[OldConsumer]
-  private var consumerGroupService: ConsumerGroupService = _
-  private var consumerGroupExecutor: ConsumerGroupExecutor = _
+  val overridingProps = new Properties()
+  val topic = "foo"
+  val topicFilter = Whitelist(topic)
+  val group = "test.group"
+  val props = new Properties
 
   // configure the servers and clients
-  override def generateConfigs() = {
-    TestUtils.createBrokerConfigs(1, zkConnect, enableControlledShutdown = false).map { props =>
-      KafkaConfig.fromProps(props)
-    }
-  }
+  override def generateConfigs() = TestUtils.createBrokerConfigs(1, zkConnect, enableControlledShutdown = false).map(KafkaConfig.fromProps(_, overridingProps))
 
   @Before
   override def setUp() {
     super.setUp()
+
     AdminUtils.createTopic(zkUtils, topic, 1, 1)
-  }
-
-  @After
-  override def tearDown(): Unit = {
-    if (consumerGroupService != null)
-      consumerGroupService.close()
-    if (consumerGroupExecutor != null)
-      consumerGroupExecutor.shutdown()
-    oldConsumers.foreach(_.stop())
-    super.tearDown()
+    props.setProperty("group.id", group)
   }
 
   @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
   def testDescribeNonExistingGroup() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
+    // mocks
+    props.setProperty("zookeeper.connect", zkConnect)
+    val consumerMock = EasyMock.createMockBuilder(classOf[OldConsumer]).withConstructor(topicFilter, props).createMock()
+
+    // stubs
     val opts = new ConsumerGroupCommandOptions(Array("--zookeeper", zkConnect, "--describe", "--group", "missing.group"))
-    consumerGroupService = new ZkConsumerGroupService(opts)
-    TestUtils.waitUntilTrue(() => consumerGroupService.describeGroup()._2.isEmpty, "Expected no rows in describe group results.")
+    val consumerGroupCommand = new ZkConsumerGroupService(opts)
+
+    // simulation
+    EasyMock.replay(consumerMock)
+
+    // action/test
+    TestUtils.waitUntilTrue(() => consumerGroupCommand.describeGroup()._2.isEmpty, "Expected no rows in describe group results.")
+
+    // cleanup
+    consumerGroupCommand.close()
+    consumerMock.stop()
   }
 
   @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
   def testDescribeExistingGroup() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
+    // mocks
+    props.setProperty("zookeeper.connect", zkConnect)
+    val consumerMock = EasyMock.createMockBuilder(classOf[OldConsumer]).withConstructor(topicFilter, props).createMock()
+
+    // stubs
     val opts = new ConsumerGroupCommandOptions(Array("--zookeeper", zkConnect, "--describe", "--group", group))
-    consumerGroupService = new ZkConsumerGroupService(opts)
+    val consumerGroupCommand = new ZkConsumerGroupService(opts)
+
+    // simulation
+    EasyMock.replay(consumerMock)
+
+    // action/test
     TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 1 &&
-      assignments.get.filter(_.group == group).head.consumerId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
-    }, "Expected rows and a consumer id column in describe group results.")
+        val (_, assignments) = consumerGroupCommand.describeGroup()
+        assignments.isDefined &&
+        assignments.get.count(_.group == group) == 1 &&
+        assignments.get.filter(_.group == group).head.consumerId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
+      }, "Expected rows and a consumer id column in describe group results.")
+
+    // cleanup
+    consumerGroupCommand.close()
+    consumerMock.stop()
   }
 
   @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
   def testDescribeExistingGroupWithNoMembers() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
+    // mocks
+    props.setProperty("zookeeper.connect", zkConnect)
+    val consumerMock = EasyMock.createMockBuilder(classOf[OldConsumer]).withConstructor(topicFilter, props).createMock()
+
+    // stubs
     val opts = new ConsumerGroupCommandOptions(Array("--zookeeper", zkConnect, "--describe", "--group", group))
-    consumerGroupService = new ZkConsumerGroupService(opts)
+    val consumerGroupCommand = new ZkConsumerGroupService(opts)
+
+    // simulation
+    EasyMock.replay(consumerMock)
+
+    // action/test
+    TestUtils.waitUntilTrue(() => {
+        val (_, assignments) = consumerGroupCommand.describeGroup()
+        assignments.isDefined &&
+        assignments.get.count(_.group == group) == 1 &&
+        assignments.get.filter(_.group == group).head.consumerId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
+      }, "Expected rows and a consumer id column in describe group results.")
+    consumerMock.stop()
 
     TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 1 &&
-      assignments.get.filter(_.group == group).head.consumerId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
-    }, "Expected rows and a consumer id column in describe group results.")
-    oldConsumers.head.stop()
+        val (_, assignments) = consumerGroupCommand.describeGroup()
+        assignments.isDefined &&
+        assignments.get.count(_.group == group) == 1 &&
+        assignments.get.filter(_.group == group).head.consumerId.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE) // the member should be gone
+      }, "Expected no active member in describe group results.")
 
-    TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 1 &&
-      assignments.get.filter(_.group == group).head.consumerId.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE) // the member should be gone
-    }, "Expected no active member in describe group results.")
+    // cleanup
+    consumerGroupCommand.close()
   }
 
   @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
   def testDescribeConsumersWithNoAssignedPartitions() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
-    createOldConsumer()
+    // mocks
+    props.setProperty("zookeeper.connect", zkConnect)
+    val consumer1Mock = EasyMock.createMockBuilder(classOf[OldConsumer]).withConstructor(topicFilter, props).createMock()
+    val consumer2Mock = EasyMock.createMockBuilder(classOf[OldConsumer]).withConstructor(topicFilter, props).createMock()
+
+    // stubs
     val opts = new ConsumerGroupCommandOptions(Array("--zookeeper", zkConnect, "--describe", "--group", group))
-    consumerGroupService = new ZkConsumerGroupService(opts)
+    val consumerGroupCommand = new ZkConsumerGroupService(opts)
+
+    EasyMock.replay(consumer1Mock)
+    EasyMock.replay(consumer2Mock)
+
+    // action/test
     TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 2 &&
-      assignments.get.count { x => x.group == group && x.partition.isDefined } == 1 &&
-      assignments.get.count { x => x.group == group && x.partition.isEmpty } == 1
-    }, "Expected rows for consumers with no assigned partitions in describe group results.")
+        val (_, assignments) = consumerGroupCommand.describeGroup()
+        assignments.isDefined &&
+        assignments.get.count(_.group == group) == 2 &&
+        assignments.get.count { x => x.group == group && x.partition.isDefined } == 1 &&
+        assignments.get.count { x => x.group == group && !x.partition.isDefined } == 1
+      }, "Expected rows for consumers with no assigned partitions in describe group results.")
+
+    // cleanup
+    consumerGroupCommand.close()
+    consumer1Mock.stop()
+    consumer2Mock.stop()
   }
 
   @Test
   def testDescribeNonExistingGroupWithNewConsumer() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
     // run one consumer in the group consuming from a single-partition topic
-    consumerGroupExecutor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
+    val executor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
 
     // note the group to be queried is a different (non-existing) group
     val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", "missing.group")
     val opts = new ConsumerGroupCommandOptions(cgcArgs)
-    consumerGroupService = new KafkaConsumerGroupService(opts)
+    val consumerGroupCommand = new KafkaConsumerGroupService(opts)
 
-    val (state, assignments) = consumerGroupService.describeGroup()
+    val (state, assignments) = consumerGroupCommand.describeGroup()
     assertTrue("Expected the state to be 'Dead' with no members in the group.", state == Some("Dead") && assignments == Some(List()))
+    consumerGroupCommand.close()
+    executor.shutdown()
   }
 
   @Test
   def testDescribeExistingGroupWithNewConsumer() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
     // run one consumer in the group consuming from a single-partition topic
-    consumerGroupExecutor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
+    val executor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
 
     val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", group)
     val opts = new ConsumerGroupCommandOptions(cgcArgs)
-    consumerGroupService = new KafkaConsumerGroupService(opts)
+    val consumerGroupCommand = new KafkaConsumerGroupService(opts)
 
     TestUtils.waitUntilTrue(() => {
-        val (state, assignments) = consumerGroupService.describeGroup()
+        val (state, assignments) = consumerGroupCommand.describeGroup()
         state == Some("Stable") &&
         assignments.isDefined &&
         assignments.get.count(_.group == group) == 1 &&
@@ -169,116 +203,111 @@ class DescribeConsumerGroupTest extends KafkaServerTestHarness {
         assignments.get.filter(_.group == group).head.clientId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE) &&
         assignments.get.filter(_.group == group).head.host.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
     }, "Expected a 'Stable' group status, rows and valid values for consumer id / client id / host columns in describe group results.")
+
+    consumerGroupCommand.close()
+    executor.shutdown()
   }
 
   @Test
   def testDescribeExistingGroupWithNoMembersWithNewConsumer() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
     // run one consumer in the group consuming from a single-partition topic
-    consumerGroupExecutor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
+    val executor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
 
     val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", group)
     val opts = new ConsumerGroupCommandOptions(cgcArgs)
-    consumerGroupService = new KafkaConsumerGroupService(opts)
+    val consumerGroupCommand = new KafkaConsumerGroupService(opts)
 
     TestUtils.waitUntilTrue(() => {
-      val (state, _) = consumerGroupService.describeGroup()
+      val (state, _) = consumerGroupCommand.describeGroup()
       state == Some("Stable")
     }, "Expected the group to initially become stable.")
 
-    // Group assignments in describeGroup rely on finding committed consumer offsets.
-    // Wait for an offset commit before shutting down the group executor.
-    TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.exists(_.exists(_.group == group))
-    }, "Expected to find group in assignments after initial offset commit")
-
     // stop the consumer so the group has no active member anymore
-    consumerGroupExecutor.shutdown()
+    executor.shutdown()
 
-    val (result, succeeded) = TestUtils.computeUntilTrue(consumerGroupService.describeGroup()) { case (state, assignments) =>
-      val testGroupAssignments = assignments.toSeq.flatMap(_.filter(_.group == group))
-      def assignment = testGroupAssignments.head
-      state == Some("Empty") &&
-        testGroupAssignments.size == 1 &&
-        assignment.consumerId.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE) && // the member should be gone
-        assignment.clientId.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE) &&
-        assignment.host.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE)
-    }
-    val (state, assignments) = result
-    assertTrue(s"Expected no active member in describe group results, state: $state, assignments: $assignments",
-      succeeded)
+    TestUtils.waitUntilTrue(() => {
+        val (state, assignments) = consumerGroupCommand.describeGroup()
+        state == Some("Empty") &&
+        assignments.isDefined &&
+        assignments.get.count(_.group == group) == 1 &&
+        assignments.get.filter(_.group == group).head.consumerId.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE) && // the member should be gone
+        assignments.get.filter(_.group == group).head.clientId.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE) &&
+        assignments.get.filter(_.group == group).head.host.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE)
+    }, "Expected no active member in describe group results.")
+
+    consumerGroupCommand.close()
   }
 
   @Test
   def testDescribeConsumersWithNoAssignedPartitionsWithNewConsumer() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
     // run two consumers in the group consuming from a single-partition topic
-    consumerGroupExecutor = new ConsumerGroupExecutor(brokerList, 2, group, topic)
+    val executor = new ConsumerGroupExecutor(brokerList, 2, group, topic)
 
     val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", group)
     val opts = new ConsumerGroupCommandOptions(cgcArgs)
-    consumerGroupService = new KafkaConsumerGroupService(opts)
+    val consumerGroupCommand = new KafkaConsumerGroupService(opts)
 
     TestUtils.waitUntilTrue(() => {
-      val (state, assignments) = consumerGroupService.describeGroup()
-      state == Some("Stable") &&
+        val (state, assignments) = consumerGroupCommand.describeGroup()
+        state == Some("Stable") &&
         assignments.isDefined &&
         assignments.get.count(_.group == group) == 2 &&
-        assignments.get.count { x => x.group == group && x.partition.isDefined } == 1 &&
-        assignments.get.count { x => x.group == group && x.partition.isEmpty } == 1
-    }, "Expected rows for consumers with no assigned partitions in describe group results")
+        assignments.get.count{ x => x.group == group && x.partition.isDefined} == 1 &&
+        assignments.get.count{ x => x.group == group && !x.partition.isDefined} == 1
+    }, "Expected rows for consumers with no assigned partitions in describe group results.")
+
+    consumerGroupCommand.close()
+    executor.shutdown()
   }
 
   @Test
   def testDescribeWithMultiPartitionTopicAndMultipleConsumersWithNewConsumer() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
     val topic2 = "foo2"
     AdminUtils.createTopic(zkUtils, topic2, 2, 1)
 
     // run two consumers in the group consuming from a two-partition topic
-    consumerGroupExecutor = new ConsumerGroupExecutor(brokerList, 2, group, topic2)
+    val executor = new ConsumerGroupExecutor(brokerList, 2, group, topic2)
 
     val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", group)
     val opts = new ConsumerGroupCommandOptions(cgcArgs)
-    consumerGroupService = new KafkaConsumerGroupService(opts)
+    val consumerGroupCommand = new KafkaConsumerGroupService(opts)
 
     TestUtils.waitUntilTrue(() => {
-      val (state, assignments) = consumerGroupService.describeGroup()
+      val (state, assignments) = consumerGroupCommand.describeGroup()
       state == Some("Stable") &&
       assignments.isDefined &&
       assignments.get.count(_.group == group) == 2 &&
       assignments.get.count{ x => x.group == group && x.partition.isDefined} == 2 &&
-      assignments.get.count{ x => x.group == group && x.partition.isEmpty} == 0
+      assignments.get.count{ x => x.group == group && !x.partition.isDefined} == 0
     }, "Expected two rows (one row per consumer) in describe group results.")
+
+    consumerGroupCommand.close()
+    executor.shutdown()
   }
 
   @Test
   def testDescribeGroupWithNewConsumerWithShortInitializationTimeout() {
-    // Let creation of the offsets topic happen during group initialisation to ensure that initialization doesn't
-    // complete before the timeout expires
-
     // run one consumer in the group consuming from a single-partition topic
-    consumerGroupExecutor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
+    val executor = new ConsumerGroupExecutor(brokerList, 1, group, topic)
 
     // set the group initialization timeout too low for the group to stabilize
-    val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", "group", "--timeout", "1")
+    val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", "group", "--timeout", "10")
     val opts = new ConsumerGroupCommandOptions(cgcArgs)
-    consumerGroupService = new KafkaConsumerGroupService(opts)
+    val consumerGroupCommand = new KafkaConsumerGroupService(opts)
 
     try {
-      consumerGroupService.describeGroup()
+      consumerGroupCommand.describeGroup()
       fail("The consumer group command should fail due to low initialization timeout")
     } catch {
-      case _: TimeoutException => // OK
+      case _: TimeoutException =>
+        // OK
+      case e: Throwable =>
+        fail("An unexpected exception occurred: " + e.getMessage)
+        throw e
+    } finally {
+      consumerGroupCommand.close()
+      executor.shutdown()
     }
-  }
-
-  private def createOldConsumer(): Unit = {
-    val consumerProps = new Properties
-    consumerProps.setProperty("group.id", group)
-    consumerProps.setProperty("zookeeper.connect", zkConnect)
-    oldConsumers += new OldConsumer(Whitelist(topic), consumerProps)
   }
 }
 
@@ -297,7 +326,7 @@ class ConsumerThread(broker: String, id: Int, groupId: String, topic: String) ex
       while (true)
         consumer.poll(Long.MaxValue)
     } catch {
-      case _: WakeupException => // OK
+      case e: WakeupException => // OK
     } finally {
       consumer.close()
     }
@@ -311,18 +340,24 @@ class ConsumerThread(broker: String, id: Int, groupId: String, topic: String) ex
 
 class ConsumerGroupExecutor(broker: String, numConsumers: Int, groupId: String, topic: String) {
   val executor: ExecutorService = Executors.newFixedThreadPool(numConsumers)
-  private val consumers = new ArrayBuffer[ConsumerThread]()
+  var consumers = List[ConsumerThread]()
   for (i <- 1 to numConsumers) {
     val consumer = new ConsumerThread(broker, i, groupId, topic)
-    consumers += consumer
+    consumers ++= List(consumer)
     executor.submit(consumer)
   }
+
+  Runtime.getRuntime().addShutdownHook(new Thread() {
+    override def run() {
+      shutdown()
+    }
+  })
 
   def shutdown() {
     consumers.foreach(_.shutdown)
     executor.shutdown()
     try {
-      executor.awaitTermination(5000, TimeUnit.MILLISECONDS)
+      executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
     } catch {
       case e: InterruptedException =>
         e.printStackTrace()

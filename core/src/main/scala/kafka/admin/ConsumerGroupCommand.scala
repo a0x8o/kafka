@@ -106,7 +106,8 @@ object ConsumerGroupCommand extends Logging {
       }
       else if (opts.options.has(opts.resetOffsetsOpt)) {
         val offsetsToReset = consumerGroupService.resetOffsets()
-        if (opts.options.has(opts.exportOpt)) {
+        val export = opts.options.has(opts.exportOpt)
+        if (export) {
           val exported = consumerGroupService.exportOffsetsToReset(offsetsToReset)
           println(exported)
         } else
@@ -231,7 +232,6 @@ object ConsumerGroupCommand extends Logging {
     def exportOffsetsToReset(assignmentsToReset: Map[TopicPartition, OffsetAndMetadata]): String = throw new UnsupportedOperationException
   }
 
-  @deprecated("This class has been deprecated and will be removed in a future release.", "0.11.0.0")
   class ZkConsumerGroupService(val opts: ConsumerGroupCommandOptions) extends ConsumerGroupService {
 
     private val zkUtils = {
@@ -523,7 +523,7 @@ object ConsumerGroupCommand extends Logging {
       val groupId = opts.options.valueOf(opts.groupOpt)
       val consumerGroupSummary = adminClient.describeConsumerGroup(groupId, opts.options.valueOf(opts.timeoutMsOpt))
       consumerGroupSummary.state match {
-        case "Empty" | "Dead" =>
+        case "Empty" =>
           val partitionsToReset = getPartitionsToReset(groupId)
           val preparedOffsets = prepareOffsetsToReset(groupId, partitionsToReset)
           val execute = opts.options.has(opts.executeOpt)
@@ -536,7 +536,7 @@ object ConsumerGroupCommand extends Logging {
       }
     }
 
-    private def parseTopicPartitionsToReset(topicArgs: Seq[String]): Seq[TopicPartition] = topicArgs.flatMap {
+    private def parseTopicPartitionsToReset(topicArgs: Seq[String]): Iterable[TopicPartition] = topicArgs.flatMap {
       case topicArg if topicArg.contains(":") =>
         val topicAndPartitions = topicArg.split(":")
         val topic = topicAndPartitions(0)
@@ -545,18 +545,14 @@ object ConsumerGroupCommand extends Logging {
         .map(partitionInfo => new TopicPartition(topic, partitionInfo.partition))
     }
 
-    private def getPartitionsToReset(groupId: String): Seq[TopicPartition] = {
+    private def getPartitionsToReset(groupId: String): Iterable[TopicPartition] = {
       if (opts.options.has(opts.allTopicsOpt)) {
-        val allTopicPartitions = adminClient.listGroupOffsets(groupId).keys.toSeq
-        allTopicPartitions
+        adminClient.listGroupOffsets(groupId).keys
       } else if (opts.options.has(opts.topicOpt)) {
         val topics = opts.options.valuesOf(opts.topicOpt).asScala
         parseTopicPartitionsToReset(topics)
       } else {
-        if (opts.options.has(opts.resetFromFileOpt))
-          Nil
-        else
-          CommandLineUtils.printUsageAndDie(opts.parser, "One of the reset scopes should be defined: --all-topics, --topic.")
+        CommandLineUtils.printUsageAndDie(opts.parser, "One of the reset scopes should be defined: --all-topics, --topic.")
       }
     }
 
@@ -574,22 +570,20 @@ object ConsumerGroupCommand extends Logging {
       if (opts.options.has(opts.resetToOffsetOpt)) {
         val offset = opts.options.valueOf(opts.resetToOffsetOpt)
         partitionsToReset.map {
-          topicPartition =>
-            val newOffset: Long = checkOffsetRange(topicPartition, offset)
-            (topicPartition, new OffsetAndMetadata(newOffset))
+          topicPartition => (topicPartition, new OffsetAndMetadata(offset))
         }.toMap
       } else if (opts.options.has(opts.resetToEarliestOpt)) {
         partitionsToReset.map { topicPartition =>
           getLogStartOffset(topicPartition) match {
             case LogOffsetResult.LogOffset(offset) => (topicPartition, new OffsetAndMetadata(offset))
-            case _ => CommandLineUtils.printUsageAndDie(opts.parser, s"Error getting starting offset of topic partition: $topicPartition")
+            case _ => null
           }
         }.toMap
       } else if (opts.options.has(opts.resetToLatestOpt)) {
         partitionsToReset.map { topicPartition =>
           getLogEndOffset(topicPartition) match {
             case LogOffsetResult.LogOffset(offset) => (topicPartition, new OffsetAndMetadata(offset))
-            case _ => CommandLineUtils.printUsageAndDie(opts.parser, s"Error getting ending offset of topic partition: $topicPartition")
+            case _ => null
           }
         }.toMap
       } else if (opts.options.has(opts.resetShiftByOpt)) {
@@ -598,8 +592,21 @@ object ConsumerGroupCommand extends Logging {
           val shiftBy = opts.options.valueOf(opts.resetShiftByOpt)
           val currentOffset = currentCommittedOffsets.getOrElse(topicPartition,
             throw new IllegalArgumentException(s"Cannot shift offset for partition $topicPartition since there is no current committed offset"))
+
           val shiftedOffset = currentOffset + shiftBy
-          val newOffset: Long = checkOffsetRange(topicPartition, shiftedOffset)
+          val newOffset = getLogEndOffset(topicPartition) match {
+            case LogOffsetResult.LogOffset(endOffset) if shiftedOffset > endOffset =>
+              warn(s"New offset ($shiftedOffset) is higher than latest offset. Value will be set to $endOffset")
+              endOffset
+
+            case _ => getLogStartOffset(topicPartition) match {
+              case LogOffsetResult.LogOffset(startOffset) if shiftedOffset < startOffset =>
+                warn(s"New offset ($shiftedOffset) is lower than earliest offset. Value will be set to $startOffset")
+                startOffset
+
+              case _ => shiftedOffset
+            }
+          }
           (topicPartition, new OffsetAndMetadata(newOffset))
         }.toMap
       } else if (opts.options.has(opts.resetToDatetimeOpt)) {
@@ -608,7 +615,7 @@ object ConsumerGroupCommand extends Logging {
           val logTimestampOffset = getLogTimestampOffset(topicPartition, timestamp)
           logTimestampOffset match {
             case LogOffsetResult.LogOffset(offset) => (topicPartition, new OffsetAndMetadata(offset))
-            case _ => CommandLineUtils.printUsageAndDie(opts.parser, s"Error getting offset by timestamp of topic partition: $topicPartition")
+            case _ => null
           }
         }.toMap
       } else if (opts.options.has(opts.resetByDurationOpt)) {
@@ -621,47 +628,25 @@ object ConsumerGroupCommand extends Logging {
           val logTimestampOffset = getLogTimestampOffset(topicPartition, timestamp)
           logTimestampOffset match {
             case LogOffsetResult.LogOffset(offset) => (topicPartition, new OffsetAndMetadata(offset))
-            case _ => CommandLineUtils.printUsageAndDie(opts.parser, s"Error getting offset by timestamp of topic partition: $topicPartition")
+            case _ => null
           }
         }.toMap
       } else if (opts.options.has(opts.resetFromFileOpt)) {
         val resetPlanPath = opts.options.valueOf(opts.resetFromFileOpt)
         val resetPlanCsv = Utils.readFileAsString(resetPlanPath)
         val resetPlan = parseResetPlan(resetPlanCsv)
-        resetPlan.keySet.map { topicPartition =>
-          val newOffset: Long = checkOffsetRange(topicPartition, resetPlan(topicPartition).offset())
-          (topicPartition, new OffsetAndMetadata(newOffset))
+        partitionsToReset.map { topicPartition =>
+            if (resetPlan.keySet.contains(topicPartition))
+              (topicPartition, resetPlan(topicPartition))
+            else null
         }.toMap
-      } else if (opts.options.has(opts.resetToCurrentOpt)) {
+      } else {
         val currentCommittedOffsets = adminClient.listGroupOffsets(groupId)
         partitionsToReset.map { topicPartition =>
           currentCommittedOffsets.get(topicPartition).map { offset =>
             (topicPartition, new OffsetAndMetadata(offset))
-          }.getOrElse(
-            getLogEndOffset(topicPartition) match {
-              case LogOffsetResult.LogOffset(offset) => (topicPartition, new OffsetAndMetadata(offset))
-              case _ => CommandLineUtils.printUsageAndDie(opts.parser, s"Error getting ending offset of topic partition: $topicPartition")
-            }
-          )
+          }.orNull
         }.toMap
-      } else {
-        CommandLineUtils.printUsageAndDie(opts.parser, "Option '%s' requires one of the following scenarios: %s".format(opts.resetOffsetsOpt, opts.allResetOffsetScenarioOpts) )
-      }
-    }
-
-    private def checkOffsetRange(topicPartition: TopicPartition, offset: Long) = {
-      getLogEndOffset(topicPartition) match {
-        case LogOffsetResult.LogOffset(endOffset) if offset > endOffset =>
-          warn(s"New offset ($offset) is higher than latest offset. Value will be set to $endOffset")
-          endOffset
-
-        case _ => getLogStartOffset(topicPartition) match {
-          case LogOffsetResult.LogOffset(startOffset) if offset < startOffset =>
-            warn(s"New offset ($offset) is lower than earliest offset. Value will be set to $startOffset")
-            startOffset
-
-          case _ => offset
-        }
       }
     }
 
@@ -716,8 +701,8 @@ object ConsumerGroupCommand extends Logging {
     val CommandConfigDoc = "Property file containing configs to be passed to Admin Client and Consumer."
     val ResetOffsetsDoc = "Reset offsets of consumer group. Supports one consumer group at the time, and instances should be inactive" + nl +
       "Has 3 execution options: (default) to plan which offsets to reset, --execute to execute the reset-offsets process, and --export to export the results to a CSV format." + nl +
-      "Has the following scenarios to choose: --to-datetime, --by-period, --to-earliest, --to-latest, --shift-by, --from-file, --to-current. One scenario must be choose" + nl +
-      "To define the scope use: --all-topics or --topic. . One scope must be choose, unless you use '--from-file' scenario"
+      "Has the following scenarios to choose: --to-datetime, --by-period, --to-earliest, --to-latest, --shift-by, --from-file. And by default it resets to current offset." + nl +
+      "To define the scope use: --all-topics or --topic"
     val ExecuteDoc = "Execute operation. Supported operations: reset-offsets."
     val ExportDoc = "Export operation execution to a CSV file. Supported operations: reset-offsets."
     val ResetToOffsetDoc = "Reset offsets to a specific offset."
@@ -726,10 +711,9 @@ object ConsumerGroupCommand extends Logging {
     val ResetByDurationDoc = "Reset offsets to offset by duration from current timestamp. Format: 'PnDTnHnMnS'"
     val ResetToEarliestDoc = "Reset offsets to earliest offset."
     val ResetToLatestDoc = "Reset offsets to latest offset."
-    val ResetToCurrentDoc = "Reset offsets to current offset."
     val ResetShiftByDoc = "Reset offsets shifting current offset by 'n', where 'n' can be positive or negative"
 
-    val parser = new OptionParser(false)
+    val parser = new OptionParser
     val zkConnectOpt = parser.accepts("zookeeper", ZkConnectDoc)
                              .withRequiredArg
                              .describedAs("urls")
@@ -781,7 +765,6 @@ object ConsumerGroupCommand extends Logging {
                                    .ofType(classOf[String])
     val resetToEarliestOpt = parser.accepts("to-earliest", ResetToEarliestDoc)
     val resetToLatestOpt = parser.accepts("to-latest", ResetToLatestDoc)
-    val resetToCurrentOpt = parser.accepts("to-current", ResetToCurrentDoc)
     val resetShiftByOpt = parser.accepts("shift-by", ResetShiftByDoc)
                              .withRequiredArg()
                              .describedAs("number-of-offsets")
@@ -793,7 +776,7 @@ object ConsumerGroupCommand extends Logging {
 
     val allConsumerGroupLevelOpts: Set[OptionSpec[_]] = Set(listOpt, describeOpt, deleteOpt, resetOffsetsOpt)
     val allResetOffsetScenarioOpts: Set[OptionSpec[_]] = Set(resetToOffsetOpt, resetShiftByOpt,
-      resetToDatetimeOpt, resetByDurationOpt, resetToEarliestOpt, resetToLatestOpt, resetToCurrentOpt, resetFromFileOpt)
+      resetToDatetimeOpt, resetByDurationOpt, resetToEarliestOpt, resetToLatestOpt, resetFromFileOpt)
 
     def checkArgs() {
       // check required args
@@ -825,10 +808,8 @@ object ConsumerGroupCommand extends Logging {
         CommandLineUtils.checkInvalidArgs(parser, options, resetByDurationOpt, allResetOffsetScenarioOpts - resetByDurationOpt)
         CommandLineUtils.checkInvalidArgs(parser, options, resetToEarliestOpt, allResetOffsetScenarioOpts - resetToEarliestOpt)
         CommandLineUtils.checkInvalidArgs(parser, options, resetToLatestOpt, allResetOffsetScenarioOpts - resetToLatestOpt)
-        CommandLineUtils.checkInvalidArgs(parser, options, resetToCurrentOpt, allResetOffsetScenarioOpts - resetToCurrentOpt)
         CommandLineUtils.checkInvalidArgs(parser, options, resetShiftByOpt, allResetOffsetScenarioOpts - resetShiftByOpt)
         CommandLineUtils.checkInvalidArgs(parser, options, resetFromFileOpt, allResetOffsetScenarioOpts - resetFromFileOpt)
-
 
       // check invalid args
       CommandLineUtils.checkInvalidArgs(parser, options, groupOpt, allConsumerGroupLevelOpts - describeOpt - deleteOpt - resetOffsetsOpt)

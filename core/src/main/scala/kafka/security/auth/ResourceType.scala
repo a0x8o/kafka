@@ -18,35 +18,27 @@ package kafka.security.auth
 
 import kafka.common.{BaseEnum, KafkaException}
 import org.apache.kafka.common.protocol.Errors
-import org.apache.kafka.common.resource.{ResourceType => JResourceType}
 
-sealed trait ResourceType extends BaseEnum {
-  def error: Errors
-  def toJava: JResourceType
+sealed trait ResourceType extends BaseEnum { def error: Errors }
+
+case object Cluster extends ResourceType {
+  val name = "Cluster"
+  val error = Errors.CLUSTER_AUTHORIZATION_FAILED
 }
 
 case object Topic extends ResourceType {
   val name = "Topic"
   val error = Errors.TOPIC_AUTHORIZATION_FAILED
-  val toJava = JResourceType.TOPIC
 }
 
 case object Group extends ResourceType {
   val name = "Group"
   val error = Errors.GROUP_AUTHORIZATION_FAILED
-  val toJava = JResourceType.GROUP
-}
-
-case object Cluster extends ResourceType {
-  val name = "Cluster"
-  val error = Errors.CLUSTER_AUTHORIZATION_FAILED
-  val toJava = JResourceType.CLUSTER
 }
 
 case object TransactionalId extends ResourceType {
   val name = "TransactionalId"
   val error = Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED
-  val toJava = JResourceType.TRANSACTIONAL_ID
 }
 
 object ResourceType {
@@ -56,7 +48,5 @@ object ResourceType {
     rType.getOrElse(throw new KafkaException(resourceType + " not a valid resourceType name. The valid names are " + values.mkString(",")))
   }
 
-  def values: Seq[ResourceType] = List(Topic, Group, Cluster, TransactionalId)
-
-  def fromJava(operation: JResourceType): ResourceType = fromString(operation.toString.replaceAll("_", ""))
+  def values: Seq[ResourceType] = List(Cluster, Topic, Group, TransactionalId)
 }

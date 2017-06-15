@@ -38,7 +38,7 @@ import org.apache.kafka.streams.state.QueryableStoreType;
  * @param <V> Type of values
  * @see KTable
  */
-@InterfaceStability.Evolving
+@InterfaceStability.Unstable
 public interface KGroupedTable<K, V> {
 
     /**

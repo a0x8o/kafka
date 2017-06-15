@@ -55,15 +55,10 @@ public class AddPartitionsToTxnRequest extends AbstractRequest {
             return new AddPartitionsToTxnRequest(version, transactionalId, producerId, producerEpoch, partitions);
         }
 
-        public List<TopicPartition> partitions() {
-            return partitions;
-        }
-
         @Override
         public String toString() {
             StringBuilder bld = new StringBuilder();
-            bld.append("(type=AddPartitionsToTxnRequest").
-                    append(", transactionalId=").append(transactionalId).
+            bld.append("(transactionalId=").append(transactionalId).
                     append(", producerId=").append(producerId).
                     append(", producerEpoch=").append(producerEpoch).
                     append(", partitions=").append(partitions).

@@ -24,7 +24,6 @@ import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.NetworkClientUtils;
 import org.apache.kafka.clients.RequestCompletionHandler;
 import org.apache.kafka.common.Cluster;
-import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
@@ -47,8 +46,6 @@ import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.InitProducerIdRequest;
 import org.apache.kafka.common.requests.InitProducerIdResponse;
 import org.apache.kafka.common.requests.ProduceRequest;
@@ -65,8 +62,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.kafka.common.record.RecordBatch.NO_TIMESTAMP;
 
 /**
  * The background thread that handles the sending of produce requests to the Kafka cluster. This thread makes metadata
@@ -209,7 +204,7 @@ public class Sender implements Runnable {
 
             // do not continue sending if the transaction manager is in a failed state or if there
             // is no producer id (for the idempotent case).
-            if (transactionManager.hasError() || !transactionManager.hasProducerId()) {
+            if (transactionManager.isInErrorState() || !transactionManager.hasProducerId()) {
                 RuntimeException lastError = transactionManager.lastError();
                 if (lastError != null)
                     maybeAbortBatches(lastError);
@@ -219,6 +214,7 @@ public class Sender implements Runnable {
         }
 
         long pollTimeout = sendProducerData(now);
+        log.trace("waiting {}ms in poll", pollTimeout);
         client.poll(pollTimeout, now);
     }
 
@@ -259,16 +255,13 @@ public class Sender implements Runnable {
             }
         }
 
-        List<ProducerBatch> expiredBatches = this.accumulator.expiredBatches(this.requestTimeout, now);
+        List<ProducerBatch> expiredBatches = this.accumulator.abortExpiredBatches(this.requestTimeout, now);
 
         boolean needsTransactionStateReset = false;
         // Reset the producer id if an expired batch has previously been sent to the broker. Also update the metrics
         // for expired batches. see the documentation of @TransactionState.resetProducerId to understand why
         // we need to reset the producer id here.
-        if (!expiredBatches.isEmpty())
-            log.trace("Expired {} batches in accumulator", expiredBatches.size());
         for (ProducerBatch expiredBatch : expiredBatches) {
-            failBatch(expiredBatch, -1, NO_TIMESTAMP, expiredBatch.timeoutException());
             if (transactionManager != null && expiredBatch.inRetry()) {
                 needsTransactionStateReset = true;
             }
@@ -302,31 +295,25 @@ public class Sender implements Runnable {
     }
 
     private boolean maybeSendTransactionalRequest(long now) {
-        if (transactionManager.isCompletingTransaction() &&
-                !transactionManager.hasPartitionsToAdd() &&
-                accumulator.hasUnflushedBatches()) {
-
-            // If the transaction is being aborted, then we can clear any unsent produce requests
-            if (transactionManager.isAborting())
-                accumulator.abortUnclosedBatches(new KafkaException("Failing batch since transaction was aborted"));
-
-            // There may still be requests left which are being retried. Since we do not know whether they had
-            // been successfully appended to the broker log, we must resend them until their final status is clear.
-            // If they had been appended and we did not receive the error, then our sequence number would no longer
-            // be correct which would lead to an OutOfSequenceException.
-            if (!accumulator.flushInProgress())
-                accumulator.beginFlush();
-
-            // Do not send the EndTxn until all pending batches have been completed
-            if (accumulator.hasUnflushedBatches())
-                return false;
+        TransactionManager.TxnRequestHandler nextRequestHandler = transactionManager.nextRequestHandler();
+        if (nextRequestHandler == null) {
+            log.trace("TransactionalId: {} -- There are no pending transactional requests to send",
+                    transactionManager.transactionalId());
+            return false;
         }
 
-        TransactionManager.TxnRequestHandler nextRequestHandler = transactionManager.nextRequestHandler();
-        if (nextRequestHandler == null)
+        if (nextRequestHandler.isEndTxn() && transactionManager.isCompletingTransaction() && accumulator.hasUnflushedBatches()) {
+            if (!accumulator.flushInProgress())
+                accumulator.beginFlush();
+            transactionManager.reenqueue(nextRequestHandler);
+            log.trace("TransactionalId: {} -- Going to wait for pending ProducerBatches to flush before sending an " +
+                    "end transaction request", transactionManager.transactionalId());
             return false;
+        }
 
-        AbstractRequest.Builder<?> requestBuilder = nextRequestHandler.requestBuilder();
+        log.debug("TransactionalId: {} -- Sending transactional request {}", transactionManager.transactionalId(),
+                nextRequestHandler.requestBuilder());
+
         while (true) {
             Node targetNode = null;
             try {
@@ -336,7 +323,6 @@ public class Sender implements Runnable {
                         transactionManager.lookupCoordinator(nextRequestHandler);
                         break;
                     }
-
                     if (!NetworkClientUtils.awaitReady(client, targetNode, time, requestTimeout)) {
                         transactionManager.lookupCoordinator(nextRequestHandler);
                         break;
@@ -344,35 +330,33 @@ public class Sender implements Runnable {
                 } else {
                     targetNode = awaitLeastLoadedNodeReady(requestTimeout);
                 }
-
                 if (targetNode != null) {
-                    if (nextRequestHandler.isRetry())
+                    if (nextRequestHandler.isRetry()) {
+                        log.trace("TransactionalId: {} -- Waiting {}ms before resending a transactional request {}",
+                                transactionManager.transactionalId(), retryBackoffMs, nextRequestHandler.requestBuilder());
                         time.sleep(retryBackoffMs);
-
+                    }
                     ClientRequest clientRequest = client.newClientRequest(targetNode.idString(),
-                            requestBuilder, now, true, nextRequestHandler);
+                            nextRequestHandler.requestBuilder(), now, true, nextRequestHandler);
                     transactionManager.setInFlightRequestCorrelationId(clientRequest.correlationId());
-                    log.debug("{}Sending transactional request {} to node {}",
-                            transactionManager.logPrefix, requestBuilder, targetNode);
-
+                    log.trace("TransactionalId: {} -- Sending transactional request {} to node {}", transactionManager.transactionalId(),
+                            nextRequestHandler.requestBuilder(), clientRequest.destination());
                     client.send(clientRequest, now);
                     return true;
                 }
             } catch (IOException e) {
-                log.debug("{}Disconnect from {} while trying to send request {}. Going " +
-                        "to back off and retry", transactionManager.logPrefix, targetNode, requestBuilder);
-                if (nextRequestHandler.needsCoordinator()) {
-                    // We break here so that we pick up the FindCoordinator request immediately.
-                    transactionManager.lookupCoordinator(nextRequestHandler);
-                    break;
-                }
+                log.debug("TransactionalId: {} -- Disconnect from {} while trying to send transactional " +
+                                "request {}. Going to back off and retry", transactionManager.transactionalId(),
+                        targetNode, nextRequestHandler.requestBuilder());
             }
-
+            log.trace("TransactionalId: {}. About to wait for {}ms before trying to send another transactional request.",
+                    transactionManager.transactionalId(), retryBackoffMs);
             time.sleep(retryBackoffMs);
             metadata.requestUpdate();
         }
 
         transactionManager.retry(nextRequestHandler);
+
         return true;
     }
 
@@ -418,7 +402,7 @@ public class Sender implements Runnable {
     }
 
     private void maybeWaitForProducerId() {
-        while (!transactionManager.hasProducerId() && !transactionManager.hasError()) {
+        while (!transactionManager.hasProducerId() && !transactionManager.isInErrorState()) {
             try {
                 Node node = awaitLeastLoadedNodeReady(requestTimeout);
                 if (node != null) {
@@ -499,8 +483,7 @@ public class Sender implements Runnable {
     private void completeBatch(ProducerBatch batch, ProduceResponse.PartitionResponse response, long correlationId,
                                long now) {
         Errors error = response.error;
-        if (error == Errors.MESSAGE_TOO_LARGE && batch.recordCount > 1 &&
-                (batch.magic() >= RecordBatch.MAGIC_VALUE_V2 || batch.isCompressed())) {
+        if (error == Errors.MESSAGE_TOO_LARGE && batch.recordCount > 1) {
             // If the batch is too large, we split the batch and send the split batches again. We do not decrement
             // the retry attempts in this case.
             log.warn("Got error produce response in correlation id {} on topic-partition {}, spitting and retrying ({} attempts left). Error: {}",
@@ -578,17 +561,13 @@ public class Sender implements Runnable {
     }
 
     private void failBatch(ProducerBatch batch, ProduceResponse.PartitionResponse response, RuntimeException exception) {
-        failBatch(batch, response.baseOffset, response.logAppendTime, exception);
-    }
-
-    private void failBatch(ProducerBatch batch, long baseOffset, long logAppendTime, RuntimeException exception) {
         if (transactionManager != null) {
             if (exception instanceof OutOfOrderSequenceException
                     && !transactionManager.isTransactional()
                     && transactionManager.hasProducerId(batch.producerId())) {
                 log.error("The broker received an out of order sequence number for topic-partition " +
                                 "{} at offset {}. This indicates data loss on the broker, and should be investigated.",
-                        batch.topicPartition, baseOffset);
+                        batch.topicPartition, response.baseOffset);
 
                 // Reset the transaction state since we have hit an irrecoverable exception and cannot make any guarantees
                 // about the previously committed message. Note that this will discard the producer id and sequence
@@ -602,7 +581,8 @@ public class Sender implements Runnable {
                 transactionManager.transitionToAbortableError(exception);
             }
         }
-        batch.done(baseOffset, logAppendTime, exception);
+
+        batch.done(response.baseOffset, response.logAppendTime, exception);
         this.accumulator.deallocate(batch);
     }
 
@@ -650,7 +630,7 @@ public class Sender implements Runnable {
             // not all support the same message format version. For example, if a partition migrates from a broker
             // which is supporting the new magic version to one which doesn't, then we will need to convert.
             if (!records.hasMatchingMagic(minUsedMagic))
-                records = batch.records().downConvert(minUsedMagic, 0);
+                records = batch.records().downConvert(minUsedMagic);
             produceRecordsByPartition.put(tp, records);
             recordsByPartition.put(tp, batch);
         }

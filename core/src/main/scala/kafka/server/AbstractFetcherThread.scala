@@ -241,7 +241,7 @@ abstract class AbstractFetcherThread(name: String,
         !partitionStates.contains(tp)
       }.map { case (tp, offset) =>
         val fetchState =
-          if (offset < 0)
+          if (PartitionTopicInfo.isOffsetInvalid(offset))
             new PartitionFetchState(handleOffsetOutOfRange(tp), includeLogTruncation)
           else
             new PartitionFetchState(offset, includeLogTruncation)

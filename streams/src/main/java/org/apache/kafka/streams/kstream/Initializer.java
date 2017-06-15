@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.kstream;
 
+import org.apache.kafka.common.annotation.InterfaceStability;
 
 /**
  * The {@code Initializer} interface for creating an initial value in aggregations.
@@ -30,6 +31,7 @@ package org.apache.kafka.streams.kstream;
  * @see KGroupedStream#aggregate(Initializer, Aggregator, Merger, SessionWindows, org.apache.kafka.common.serialization.Serde, String)
  * @see KGroupedStream#aggregate(Initializer, Aggregator, Merger, SessionWindows, org.apache.kafka.common.serialization.Serde, org.apache.kafka.streams.processor.StateStoreSupplier)
  */
+@InterfaceStability.Unstable
 public interface Initializer<VA> {
 
     /**

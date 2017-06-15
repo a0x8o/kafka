@@ -143,7 +143,7 @@ class GroupCoordinator(val brokerId: Int,
                           protocols: List[(String, Array[Byte])],
                           responseCallback: JoinCallback) {
     group synchronized {
-      if (!group.is(Empty) && (!group.protocolType.contains(protocolType) || !group.supportsProtocols(protocols.map(_._1).toSet))) {
+      if (!group.is(Empty) && (group.protocolType != Some(protocolType) || !group.supportsProtocols(protocols.map(_._1).toSet))) {
         // if the new member does not support the group protocol, reject it
         responseCallback(joinError(memberId, Errors.INCONSISTENT_GROUP_PROTOCOL))
       } else if (memberId != JoinGroupRequest.UNKNOWN_MEMBER_ID && !group.has(memberId)) {
@@ -513,6 +513,7 @@ class GroupCoordinator(val brokerId: Int,
     groupManager.cleanupGroupMetadata(Some(topicPartitions))
   }
 
+
   private def validateGroup(groupId: String): Option[Errors] = {
     if (!isActive.get)
       Some(Errors.COORDINATOR_NOT_AVAILABLE)
@@ -684,16 +685,14 @@ class GroupCoordinator(val brokerId: Int,
       new DelayedJoin(this, group, group.rebalanceTimeoutMs)
 
     group.transitionTo(PreparingRebalance)
-
-    info(s"Preparing to rebalance group ${group.groupId} with old generation ${group.generationId} " +
-      s"(${Topic.GROUP_METADATA_TOPIC_NAME}-${partitionFor(group.groupId)})")
+    info("Preparing to restabilize group %s with old generation %s".format(group.groupId, group.generationId))
 
     val groupKey = GroupKey(group.groupId)
     joinPurgatory.tryCompleteElseWatch(delayedRebalance, Seq(groupKey))
   }
 
   private def onMemberFailure(group: GroupMetadata, member: MemberMetadata) {
-    debug(s"Member ${member.memberId} in group ${group.groupId} has failed")
+    trace("Member %s in group %s has failed".format(member.memberId, group.groupId))
     group.remove(member.memberId)
     group.currentState match {
       case Dead | Empty =>
@@ -725,8 +724,7 @@ class GroupCoordinator(val brokerId: Int,
       if (!group.is(Dead)) {
         group.initNextGeneration()
         if (group.is(Empty)) {
-          info(s"Group ${group.groupId} with generation ${group.generationId} is now empty " +
-            s"(${Topic.GROUP_METADATA_TOPIC_NAME}-${partitionFor(group.groupId)})")
+          info(s"Group ${group.groupId} with generation ${group.generationId} is now empty")
 
           groupManager.storeGroup(group, Map.empty, error => {
             if (error != Errors.NONE) {
@@ -737,8 +735,7 @@ class GroupCoordinator(val brokerId: Int,
             }
           })
         } else {
-          info(s"Stabilized group ${group.groupId} generation ${group.generationId} " +
-            s"(${Topic.GROUP_METADATA_TOPIC_NAME}-${partitionFor(group.groupId)})")
+          info(s"Stabilized group ${group.groupId} generation ${group.generationId}")
 
           // trigger the awaiting join group response callback for all the members after rebalancing
           for (member <- group.allMemberMetadata) {

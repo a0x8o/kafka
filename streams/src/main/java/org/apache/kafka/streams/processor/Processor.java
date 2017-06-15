@@ -16,15 +16,12 @@
  */
 package org.apache.kafka.streams.processor;
 
-import org.apache.kafka.common.annotation.InterfaceStability;
-
 /**
  * A processor of key-value pair records.
  *
  * @param <K> the type of keys
  * @param <V> the type of values
  */
-@InterfaceStability.Evolving
 public interface Processor<K, V> {
 
     /**

@@ -17,17 +17,11 @@
 package org.apache.kafka.clients.admin;
 
 import org.apache.kafka.clients.NodeApiVersions;
-import org.apache.kafka.clients.admin.DeleteAclsResult.FilterResults;
+import org.apache.kafka.clients.admin.DeleteAclsResults.FilterResults;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.acl.AccessControlEntry;
-import org.apache.kafka.common.acl.AccessControlEntryFilter;
-import org.apache.kafka.common.acl.AclBinding;
-import org.apache.kafka.common.acl.AclBindingFilter;
-import org.apache.kafka.common.acl.AclOperation;
-import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.protocol.Errors;
@@ -39,14 +33,9 @@ import org.apache.kafka.common.requests.DeleteAclsResponse;
 import org.apache.kafka.common.requests.DeleteAclsResponse.AclDeletionResult;
 import org.apache.kafka.common.requests.DeleteAclsResponse.AclFilterResponse;
 import org.apache.kafka.common.requests.DescribeAclsResponse;
-import org.apache.kafka.common.resource.Resource;
-import org.apache.kafka.common.resource.ResourceFilter;
-import org.apache.kafka.common.resource.ResourceType;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,11 +58,9 @@ import static org.junit.Assert.fail;
 /**
  * A unit test for KafkaAdminClient.
  *
- * See AdminClientIntegrationTest for an integration test.
+ * See KafkaAdminClientIntegrationTest for an integration test of the KafkaAdminClient.
  */
 public class KafkaAdminClientTest {
-    private static final Logger log = LoggerFactory.getLogger(KafkaAdminClientTest.class);
-
     @Rule
     final public Timeout globalTimeout = Timeout.millis(120000);
 
@@ -247,7 +234,7 @@ public class KafkaAdminClientTest {
                         add(new AclCreationResponse(null));
                         add(new AclCreationResponse(null));
                     }}));
-            CreateAclsResult results = env.adminClient().createAcls(new ArrayList<AclBinding>() {{
+            CreateAclsResults results = env.adminClient().createAcls(new ArrayList<AclBinding>() {{
                         add(ACL1);
                         add(ACL2);
                     }});
@@ -291,7 +278,7 @@ public class KafkaAdminClientTest {
                     add(new AclFilterResponse(new SecurityDisabledException("No security"),
                         Collections.<AclDeletionResult>emptySet()));
                 }}));
-            DeleteAclsResult results = env.adminClient().deleteAcls(new ArrayList<AclBindingFilter>() {{
+            DeleteAclsResults results = env.adminClient().deleteAcls(new ArrayList<AclBindingFilter>() {{
                         add(FILTER1);
                         add(FILTER2);
                     }});
@@ -349,42 +336,4 @@ public class KafkaAdminClientTest {
         assertEquals("There are unexpected extra elements in the collection.",
             elements.length, collection.size());
     }
-
-    public static KafkaAdminClient createInternal(AdminClientConfig config, KafkaAdminClient.TimeoutProcessorFactory timeoutProcessorFactory) {
-        return KafkaAdminClient.createInternal(config, timeoutProcessorFactory);
-    }
-
-    public static class FailureInjectingTimeoutProcessorFactory extends KafkaAdminClient.TimeoutProcessorFactory {
-
-        private int numTries = 0;
-        
-        @Override
-        public KafkaAdminClient.TimeoutProcessor create(long now) {
-            return new FailureInjectingTimeoutProcessor(now);
-        }
-
-        synchronized boolean shouldInjectFailure() {
-            numTries++;
-            return numTries == 3;
-        }
-
-        public final class FailureInjectingTimeoutProcessor extends KafkaAdminClient.TimeoutProcessor {
-            public FailureInjectingTimeoutProcessor(long now) {
-                super(now);
-            }
-
-            boolean callHasExpired(KafkaAdminClient.Call call) {
-                if (shouldInjectFailure()) {
-                    log.debug("Injecting timeout for {}.", call);
-                    return true;
-                } else {
-                    boolean ret = super.callHasExpired(call);
-                    log.debug("callHasExpired({}) = {}", call, ret);
-                    return ret;
-                }
-            }
-        }
-
-    }
-
 }

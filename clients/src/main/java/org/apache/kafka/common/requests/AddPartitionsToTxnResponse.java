@@ -105,13 +105,4 @@ public class AddPartitionsToTxnResponse extends AbstractResponse {
     public static AddPartitionsToTxnResponse parse(ByteBuffer buffer, short version) {
         return new AddPartitionsToTxnResponse(ApiKeys.ADD_PARTITIONS_TO_TXN.parseResponse(version, buffer));
     }
-
-    @Override
-    public String toString() {
-        return "AddPartitionsToTxnResponse(" +
-                "errors=" + errors +
-                ", throttleTimeMs=" + throttleTimeMs +
-                ')';
-    }
-
 }

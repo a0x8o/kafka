@@ -34,8 +34,6 @@ import org.apache.kafka.common.header.internals.RecordHeaders
  * this class should be removed (along with BaseProducer)
  * once we deprecate old consumer
  */
-@deprecated("This trait has been deprecated and will be removed in a future release. " +
-            "Please use org.apache.kafka.clients.consumer.KafkaConsumer instead.", "0.11.0.0")
 trait BaseConsumer {
   def receive(): BaseConsumerRecord
   def stop()
@@ -43,8 +41,6 @@ trait BaseConsumer {
   def commit()
 }
 
-@deprecated("This class has been deprecated and will be removed in a future release. " +
-            "Please use org.apache.kafka.clients.consumer.ConsumerRecord instead.", "0.11.0.0")
 case class BaseConsumerRecord(topic: String,
                               partition: Int,
                               offset: Long,
@@ -54,8 +50,6 @@ case class BaseConsumerRecord(topic: String,
                               value: Array[Byte],
                               headers: Headers = new RecordHeaders())
 
-@deprecated("This class has been deprecated and will be removed in a future release. " +
-            "Please use org.apache.kafka.clients.consumer.KafkaConsumer instead.", "0.11.0.0")
 class NewShinyConsumer(topic: Option[String], partitionId: Option[Int], offset: Option[Long], whitelist: Option[String], consumerProps: Properties, val timeoutMs: Long = Long.MaxValue) extends BaseConsumer {
   import org.apache.kafka.clients.consumer.KafkaConsumer
 
@@ -123,8 +117,6 @@ class NewShinyConsumer(topic: Option[String], partitionId: Option[Int], offset: 
   }
 }
 
-@deprecated("This class has been deprecated and will be removed in a future release. " +
-            "Please use org.apache.kafka.clients.consumer.KafkaConsumer instead.", "0.11.0.0")
 class OldConsumer(topicFilter: TopicFilter, consumerProps: Properties) extends BaseConsumer {
   import kafka.serializer.DefaultDecoder
 

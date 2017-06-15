@@ -42,7 +42,6 @@ public class TxnOffsetCommitResponse extends AbstractResponse {
     //   GroupAuthorizationFailed
     //   InvalidCommitOffsetSize
     //   TransactionalIdAuthorizationFailed
-    //   RequestTimedOut
 
     private final Map<TopicPartition, Errors> errors;
     private final int throttleTimeMs;
@@ -107,14 +106,6 @@ public class TxnOffsetCommitResponse extends AbstractResponse {
 
     public static TxnOffsetCommitResponse parse(ByteBuffer buffer, short version) {
         return new TxnOffsetCommitResponse(ApiKeys.TXN_OFFSET_COMMIT.parseResponse(version, buffer));
-    }
-
-    @Override
-    public String toString() {
-        return "TxnOffsetCommitResponse(" +
-                "errors=" + errors +
-                ", throttleTimeMs=" + throttleTimeMs +
-                ')';
     }
 
 }

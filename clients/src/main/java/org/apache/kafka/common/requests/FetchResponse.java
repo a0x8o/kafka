@@ -162,14 +162,11 @@ public class FetchResponse extends AbstractResponse {
 
         @Override
         public String toString() {
-            return "(error=" + error +
-                    ", highWaterMark=" + highWatermark +
+            return "(error=" + error + ", highWaterMark=" + highWatermark +
                     ", lastStableOffset = " + lastStableOffset +
                     ", logStartOffset = " + logStartOffset +
-                    ", abortedTransactions = " + abortedTransactions +
-                    ", recordsSizeInBytes=" + records.sizeInBytes() + ")";
+                    ", abortedTransactions = " + abortedTransactions + ", records=" + records + ")";
         }
-
     }
 
     /**

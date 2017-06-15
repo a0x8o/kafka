@@ -160,12 +160,7 @@ public class AdminClientConfig extends AbstractConfig {
                                 .withClientSaslSupport();
     }
 
-    @Override
-    protected Map<String, Object> postProcessParsedConfig(final Map<String, Object> parsedValues) {
-        return CommonClientConfigs.postProcessReconnectBackoffConfigs(this, parsedValues);
-    }
-
-    public AdminClientConfig(Map<?, ?> props) {
+    AdminClientConfig(Map<?, ?> props) {
         super(CONFIG, props);
     }
 

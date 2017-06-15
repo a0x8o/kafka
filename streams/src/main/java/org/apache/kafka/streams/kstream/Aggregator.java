@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.kstream;
 
+import org.apache.kafka.common.annotation.InterfaceStability;
 
 /**
  * The {@code Aggregator} interface for aggregating values of the given key.
@@ -37,6 +38,7 @@ package org.apache.kafka.streams.kstream;
  * @see KGroupedStream#aggregate(Initializer, Aggregator, Merger, SessionWindows, org.apache.kafka.common.serialization.Serde, org.apache.kafka.streams.processor.StateStoreSupplier)
  * @see Reducer
  */
+@InterfaceStability.Unstable
 public interface Aggregator<K, V, VA> {
 
     /**

@@ -153,7 +153,7 @@ object TopicCommand extends Logging {
   def listTopics(zkUtils: ZkUtils, opts: TopicCommandOptions) {
     val topics = getTopics(zkUtils, opts)
     for(topic <- topics) {
-      if (zkUtils.isTopicMarkedForDeletion(topic)) {
+      if (zkUtils.pathExists(getDeleteTopicPath(topic))) {
         println("%s - marked for deletion".format(topic))
       } else {
         println(topic)
@@ -199,17 +199,14 @@ object TopicCommand extends Logging {
         case Some(topicPartitionAssignment) =>
           val describeConfigs: Boolean = !reportUnavailablePartitions && !reportUnderReplicatedPartitions
           val describePartitions: Boolean = !reportOverriddenConfigs
-          val sortedPartitions = topicPartitionAssignment.toSeq.sortBy(_._1)
-          val markedForDeletion = zkUtils.isTopicMarkedForDeletion(topic)
+          val sortedPartitions = topicPartitionAssignment.toList.sortWith((m1, m2) => m1._1 < m2._1)
           if (describeConfigs) {
             val configs = AdminUtils.fetchEntityConfig(zkUtils, ConfigType.Topic, topic).asScala
             if (!reportOverriddenConfigs || configs.nonEmpty) {
               val numPartitions = topicPartitionAssignment.size
               val replicationFactor = topicPartitionAssignment.head._2.size
-              val configsAsString = configs.map { case (k, v) => s"$k=$v" }.mkString(",")
-              val markedForDeletionString = if (markedForDeletion) "\tMarkedForDeletion:true" else ""
-              println("Topic:%s\tPartitionCount:%d\tReplicationFactor:%d\tConfigs:%s%s"
-                .format(topic, numPartitions, replicationFactor, configsAsString, markedForDeletionString))
+              println("Topic:%s\tPartitionCount:%d\tReplicationFactor:%d\tConfigs:%s"
+                .format(topic, numPartitions, replicationFactor, configs.map(kv => kv._1 + "=" + kv._2).mkString(",")))
             }
           }
           if (describePartitions) {
@@ -219,16 +216,11 @@ object TopicCommand extends Logging {
               if ((!reportUnderReplicatedPartitions && !reportUnavailablePartitions) ||
                   (reportUnderReplicatedPartitions && inSyncReplicas.size < assignedReplicas.size) ||
                   (reportUnavailablePartitions && (leader.isEmpty || !liveBrokers.contains(leader.get)))) {
-
-                val markedForDeletionString =
-                  if (markedForDeletion && !describeConfigs) "\tMarkedForDeletion: true" else ""
                 print("\tTopic: " + topic)
                 print("\tPartition: " + partitionId)
                 print("\tLeader: " + (if(leader.isDefined) leader.get else "none"))
                 print("\tReplicas: " + assignedReplicas.mkString(","))
-                print("\tIsr: " + inSyncReplicas.mkString(","))
-                print(markedForDeletionString)
-                println()
+                println("\tIsr: " + inSyncReplicas.mkString(","))
               }
             }
           }
@@ -280,7 +272,7 @@ object TopicCommand extends Logging {
   }
 
   class TopicCommandOptions(args: Array[String]) {
-    val parser = new OptionParser(false)
+    val parser = new OptionParser
     val zkConnectOpt = parser.accepts("zookeeper", "REQUIRED: The connection string for the zookeeper connection in the form host:port. " +
                                       "Multiple URLS can be given to allow fail-over.")
                            .withRequiredArg

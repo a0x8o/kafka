@@ -36,7 +36,7 @@ public class NetworkTestUtils {
 
     public static NioEchoServer createEchoServer(ListenerName listenerName, SecurityProtocol securityProtocol,
                                                  AbstractConfig serverConfig) throws Exception {
-        NioEchoServer server = new NioEchoServer(listenerName, securityProtocol, serverConfig, "localhost", null);
+        NioEchoServer server = new NioEchoServer(listenerName, securityProtocol, serverConfig, "localhost");
         server.start();
         return server;
     }

@@ -16,14 +16,14 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.{Collections, Properties}
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{ConcurrentLinkedQueue, Future, TimeUnit}
-
+import java.util.concurrent.{ConcurrentLinkedQueue, TimeUnit, Future}
 import kafka.admin.AdminClient.DeleteRecordsResult
 import kafka.common.KafkaException
 import kafka.coordinator.group.GroupOverview
 import kafka.utils.Logging
+
 import org.apache.kafka.clients._
-import org.apache.kafka.clients.consumer.internals.{ConsumerNetworkClient, ConsumerProtocol, RequestFuture, RequestFutureAdapter}
+import org.apache.kafka.clients.consumer.internals.{RequestFutureAdapter, ConsumerNetworkClient, ConsumerProtocol, RequestFuture}
 import org.apache.kafka.common.config.ConfigDef.{Importance, Type}
 import org.apache.kafka.common.config.{AbstractConfig, ConfigDef}
 import org.apache.kafka.common.errors.TimeoutException
@@ -38,7 +38,7 @@ import org.apache.kafka.common.utils.{KafkaThread, Time, Utils}
 import org.apache.kafka.common.{Cluster, Node, TopicPartition}
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 /**
   * A Scala administrative client for Kafka which supports managing and inspecting topics, brokers,
@@ -104,32 +104,20 @@ class AdminClient(val time: Time,
   }
 
   def findCoordinator(groupId: String, timeoutMs: Long = 0): Node = {
-    val requestBuilder = new FindCoordinatorRequest.Builder(FindCoordinatorRequest.CoordinatorType.GROUP, groupId)
-
-    def sendRequest: Try[FindCoordinatorResponse] =
-      Try(sendAnyNode(ApiKeys.FIND_COORDINATOR, requestBuilder).asInstanceOf[FindCoordinatorResponse])
-
     val startTime = time.milliseconds
-    var response = sendRequest
+    val requestBuilder = new FindCoordinatorRequest.Builder(org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.GROUP, groupId)
+    var response = sendAnyNode(ApiKeys.FIND_COORDINATOR, requestBuilder).asInstanceOf[FindCoordinatorResponse]
 
-    while ((response.isFailure || response.get.error == Errors.COORDINATOR_NOT_AVAILABLE) &&
-      (time.milliseconds - startTime < timeoutMs)) {
-
+    while (response.error == Errors.COORDINATOR_NOT_AVAILABLE && time.milliseconds - startTime < timeoutMs) {
       Thread.sleep(retryBackoffMs)
-      response = sendRequest
+      response = sendAnyNode(ApiKeys.FIND_COORDINATOR, requestBuilder).asInstanceOf[FindCoordinatorResponse]
     }
 
-    def timeoutException(cause: Throwable) =
-      throw new TimeoutException("The consumer group command timed out while waiting for group to initialize: ", cause)
+    if (response.error == Errors.COORDINATOR_NOT_AVAILABLE)
+      throw new TimeoutException("The consumer group command timed out while waiting for group to initialize: ", response.error.exception)
 
-    response match {
-      case Failure(exception) => throw timeoutException(exception)
-      case Success(response) =>
-        if (response.error == Errors.COORDINATOR_NOT_AVAILABLE)
-          throw timeoutException(response.error.exception)
-        response.error.maybeThrow()
-        response.node
-    }
+    response.error.maybeThrow()
+    response.node
   }
 
   def listGroups(node: Node): List[GroupOverview] = {
@@ -225,7 +213,7 @@ class AdminClient(val time: Time,
    */
 
   def deleteRecordsBefore(offsets: Map[TopicPartition, Long]): Future[Map[TopicPartition, DeleteRecordsResult]] = {
-    val metadataRequest = new MetadataRequest.Builder(offsets.keys.map(_.topic).toSet.toList.asJava, true)
+    val metadataRequest = new MetadataRequest.Builder(offsets.keys.map(_.topic()).toSet.toList.asJava)
     val response = sendAnyNode(ApiKeys.METADATA, metadataRequest).asInstanceOf[MetadataResponse]
     val errors = response.errors
     if (!errors.isEmpty)
@@ -437,7 +425,7 @@ object AdminClient {
   def create(config: AdminConfig): AdminClient = {
     val time = Time.SYSTEM
     val metrics = new Metrics(time)
-    val metadata = new Metadata(100L, 60 * 60 * 1000L, true)
+    val metadata = new Metadata
     val channelBuilder = ClientUtils.createChannelBuilder(config)
     val requestTimeoutMs = config.getInt(CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG)
     val retryBackoffMs = config.getLong(CommonClientConfigs.RETRY_BACKOFF_MS_CONFIG)

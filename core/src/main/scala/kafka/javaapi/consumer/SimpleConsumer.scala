@@ -24,8 +24,6 @@ import kafka.javaapi.OffsetRequest
 /**
  * A consumer of kafka messages
  */
-@deprecated("This class has been deprecated and will be removed in a future release. " +
-            "Please use org.apache.kafka.clients.consumer.KafkaConsumer instead.", "0.11.0.0")
 @threadsafe
 class SimpleConsumer(val host: String,
                      val port: Int,
@@ -48,7 +46,7 @@ class SimpleConsumer(val host: String,
     import kafka.javaapi.Implicits._
     underlying.fetch(request)
   }
-
+  
   /**
    *  Fetch a set of messages from a topic.
    *
@@ -61,7 +59,7 @@ class SimpleConsumer(val host: String,
 
   /**
    *  Fetch metadata for a sequence of topics.
-   *
+   *  
    *  @param request specifies the versionId, clientId, sequence of topics.
    *  @return metadata for each topic in the request.
    */

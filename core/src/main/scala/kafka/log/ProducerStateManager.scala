@@ -38,13 +38,6 @@ class CorruptSnapshotException(msg: String) extends KafkaException(msg)
 
 private[log] case class TxnMetadata(producerId: Long, var firstOffset: LogOffsetMetadata, var lastOffset: Option[Long] = None) {
   def this(producerId: Long, firstOffset: Long) = this(producerId, LogOffsetMetadata(firstOffset))
-
-  override def toString: String = {
-    "TxnMetadata(" +
-      s"producerId=$producerId, " +
-      s"firstOffset=$firstOffset, " +
-      s"lastOffset=$lastOffset)"
-  }
 }
 
 private[log] object ProducerIdEntry {
@@ -62,16 +55,6 @@ private[log] case class ProducerIdEntry(producerId: Long, producerEpoch: Short, 
     batch.producerEpoch == producerEpoch &&
       batch.baseSequence == firstSeq &&
       batch.lastSequence == lastSeq
-  }
-
-  override def toString: String = {
-    "ProducerIdEntry(" +
-      s"producerId=$producerId, " +
-      s"producerEpoch=$producerEpoch, " +
-      s"firstSequence=$firstSeq, " +
-      s"lastSequence=$lastSeq, " +
-      s"currentTxnFirstOffset=$currentTxnFirstOffset, " +
-      s"coordinatorEpoch=$coordinatorEpoch)"
   }
 }
 
@@ -108,11 +91,11 @@ private[log] class ProducerAppendInfo(val producerId: Long,
   private val transactions = ListBuffer.empty[TxnMetadata]
 
   private def validateAppend(producerEpoch: Short, firstSeq: Int, lastSeq: Int) = {
-    if (isFenced(producerEpoch)) {
+    if (this.producerEpoch > producerEpoch) {
       throw new ProducerFencedException(s"Producer's epoch is no longer valid. There is probably another producer " +
         s"with a newer epoch. $producerEpoch (request epoch), ${this.producerEpoch} (server epoch)")
     } else if (validateSequenceNumbers) {
-      if (producerEpoch != this.producerEpoch) {
+      if (this.producerEpoch == RecordBatch.NO_PRODUCER_EPOCH || this.producerEpoch < producerEpoch) {
         if (firstSeq != 0)
           throw new OutOfOrderSequenceException(s"Invalid sequence number for new epoch: $producerEpoch " +
             s"(request epoch), $firstSeq (seq. number)")
@@ -124,19 +107,11 @@ private[log] class ProducerAppendInfo(val producerId: Long,
         throw new DuplicateSequenceNumberException(s"Duplicate sequence number for producerId $producerId: (incomingBatch.firstSeq, " +
           s"incomingBatch.lastSeq): ($firstSeq, $lastSeq), (lastEntry.firstSeq, lastEntry.lastSeq): " +
           s"(${this.firstSeq}, ${this.lastSeq}).")
-      } else if (!inSequence(firstSeq, lastSeq)) {
+      } else if (firstSeq != this.lastSeq + 1L) {
         throw new OutOfOrderSequenceException(s"Out of order sequence number for producerId $producerId: $firstSeq " +
           s"(incoming seq. number), ${this.lastSeq} (current end sequence number)")
       }
     }
-  }
-
-  private def inSequence(firstSeq: Int, lastSeq: Int): Boolean = {
-    firstSeq == this.lastSeq + 1L || (firstSeq == 0 && this.lastSeq == Int.MaxValue)
-  }
-
-  private def isFenced(producerEpoch: Short): Boolean = {
-    producerEpoch < this.producerEpoch
   }
 
   def append(batch: RecordBatch): Option[CompletedTxn] = {
@@ -183,14 +158,14 @@ private[log] class ProducerAppendInfo(val producerId: Long,
                          producerEpoch: Short,
                          offset: Long,
                          timestamp: Long): CompletedTxn = {
-    if (isFenced(producerEpoch))
+    if (this.producerEpoch > producerEpoch)
       throw new ProducerFencedException(s"Invalid producer epoch: $producerEpoch (zombie): ${this.producerEpoch} (current)")
 
     if (this.coordinatorEpoch > endTxnMarker.coordinatorEpoch)
       throw new TransactionCoordinatorFencedException(s"Invalid coordinator epoch: ${endTxnMarker.coordinatorEpoch} " +
         s"(zombie), $coordinatorEpoch (current)")
 
-    if (producerEpoch != this.producerEpoch) {
+    if (producerEpoch > this.producerEpoch) {
       // it is possible that this control record is the first record seen from a new epoch (the producer
       // may fail before sending to the partition or the request itself could fail for some reason). In this
       // case, we bump the epoch and reset the sequence numbers
@@ -237,16 +212,6 @@ private[log] class ProducerAppendInfo(val producerId: Long,
     }
   }
 
-  override def toString: String = {
-    "ProducerAppendInfo(" +
-      s"producerId=$producerId, " +
-      s"producerEpoch=$producerEpoch, " +
-      s"firstSequence=$firstSeq, " +
-      s"lastSequence=$lastSeq, " +
-      s"currentTxnFirstOffset=$currentTxnFirstOffset, " +
-      s"coordinatorEpoch=$coordinatorEpoch, " +
-      s"startedTransactions=$transactions)"
-  }
 }
 
 object ProducerStateManager {
@@ -507,8 +472,6 @@ class ProducerStateManager(val topicPartition: TopicPartition,
   def update(appendInfo: ProducerAppendInfo): Unit = {
     if (appendInfo.producerId == RecordBatch.NO_PRODUCER_ID)
       throw new IllegalArgumentException(s"Invalid producer id ${appendInfo.producerId} passed to update")
-
-    trace(s"Updated producer ${appendInfo.producerId} state to $appendInfo")
 
     val entry = appendInfo.lastEntry
     producers.put(appendInfo.producerId, entry)
