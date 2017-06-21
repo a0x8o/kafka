@@ -418,6 +418,33 @@ import java.util.regex.Pattern;
  * to pause the consumption on the specified assigned partitions and resume the consumption
  * on the specified paused partitions respectively in the future {@link #poll(long)} calls.
  *
+ * <h3>Reading Transactional Messages</h3>
+ *
+ * <p>
+ * Transactions were introduced in Kafka 0.11.0 wherein applications can write to multiple topics and partitions atomically.
+ * In order for this to work, consumers reading from these partitions should be configured to only read committed data.
+ * This can be achieved by by setting the <code>isolation.level=read_committed</code> in the consumer's configuration.
+ * </p>
+ *
+ * <p>
+ * In <code>read_committed</code> mode, the consumer will read only those transactional messages which have been
+ * successfully committed. It will continue to read non-transactional messages as before. There is no client-side
+ * buffering in <code>read_committed</code> mode. Instead, the end offset of a partition for a <code>read_committed</code>
+ * consumer would be the offset of the first message in the partition belonging to an open transaction. This offset
+ * is known as the 'Last Stable Offset'(LSO).</p>
+ *
+ * <p>A </p><code>read_committed</code> consumer will only read up till the LSO and filter out any transactional
+ * messages which have been aborted. The LSO also affects the behavior of {@link #seekToEnd(Collection)} and
+ * {@link #endOffsets(Collection)} for <code>read_committed</code> consumers, details of which are in each method's documentation.
+ * Finally, the fetch lag metrics are also adjusted to be relative to the LSO for <code>read_committed</code> consumers.</p>
+ *
+ * <p>Partitions with transactional messages will include commit or abort markers which indicate the result of a transaction.
+ * There markers are not returned to applications, yet have an offset in the log. As a result, applications reading from
+ * topics with transactional messages will see gaps in the consumed offsets. These missing messages would be the transaction
+ * markers, and they are filtered out for consumers in both isolation levels. Additionally, applications using
+ * <code>read_committed</code> consumers may also see gaps due to aborted transactions, since those messages would not
+ * be returned by the consumer and yet would have valid offsets.</p>
+ *
  * <h3><a name="multithreaded">Multi-threaded Processing</a></h3>
  *
  * The Kafka consumer is NOT thread-safe. All network I/O happens in the thread of the application
@@ -659,7 +686,8 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                 this.valueDeserializer = valueDeserializer;
             }
             ClusterResourceListeners clusterResourceListeners = configureClusterResourceListeners(keyDeserializer, valueDeserializer, reporters, interceptorList);
-            this.metadata = new Metadata(retryBackoffMs, config.getLong(ConsumerConfig.METADATA_MAX_AGE_CONFIG), false, clusterResourceListeners);
+            this.metadata = new Metadata(retryBackoffMs, config.getLong(ConsumerConfig.METADATA_MAX_AGE_CONFIG),
+                    true, false, clusterResourceListeners);
             List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
             this.metadata.update(Cluster.bootstrap(addresses), Collections.<String>emptySet(), 0);
             String metricGrpPrefix = "consumer";
@@ -902,8 +930,8 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
             log.debug("Subscribed to pattern: {}", pattern);
             this.subscriptions.subscribe(pattern, listener);
             this.metadata.needMetadataForAllTopics(true);
-            this.metadata.requestUpdate();
             this.coordinator.updatePatternSubscription(metadata.fetch());
+            this.metadata.requestUpdate();
         } finally {
             release();
         }
@@ -1246,6 +1274,9 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * Seek to the last offset for each of the given partitions. This function evaluates lazily, seeking to the
      * final offset in all partitions only when {@link #poll(long)} or {@link #position(TopicPartition)} are called.
      * If no partition is provided, seek to the final offset for all of the currently assigned partitions.
+     *
+     * If <code>isolation.level=read_committed</code>, the end offset will be the Last Stable Offset, ie. the offset
+     * of the first message with an open transaction.
      */
     public void seekToEnd(Collection<TopicPartition> partitions) {
         acquire();
@@ -1352,7 +1383,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                 return parts;
 
             Map<String, List<PartitionInfo>> topicMetadata = fetcher.getTopicMetadata(
-                    new MetadataRequest.Builder(Collections.singletonList(topic)), requestTimeoutMs);
+                    new MetadataRequest.Builder(Collections.singletonList(topic), true), requestTimeoutMs);
             return topicMetadata.get(topic);
         } finally {
             release();
@@ -1488,6 +1519,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * <p>
      * Notice that this method may block indefinitely if the partition does not exist.
      * This method does not change the current consumer position of the partitions.
+     * </p>
+     *
+     * <p>When <code>isolation.level=read_committed</code> the last offset will be the Last Stable Offset (LSO).
+     * This is the offset of the first message with an open transaction. The LSO moves forward as transactions
+     * are completed.</p>
      *
      * @see #seekToEnd(Collection)
      *

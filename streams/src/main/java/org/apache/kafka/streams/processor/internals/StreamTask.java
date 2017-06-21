@@ -63,6 +63,7 @@ public class StreamTask extends AbstractTask implements Punctuator {
 
     private boolean commitRequested = false;
     private boolean commitOffsetNeeded = false;
+    private boolean transactionInFlight = false;
     private final Time time;
     private final TaskMetrics metrics;
 
@@ -139,8 +140,9 @@ public class StreamTask extends AbstractTask implements Punctuator {
         initializeStateStores();
         stateMgr.registerGlobalStateStores(topology.globalStateStores());
         if (eosEnabled) {
-            producer.initTransactions();
-            producer.beginTransaction();
+            this.producer.initTransactions();
+            this.producer.beginTransaction();
+            transactionInFlight = true;
         }
         initTopology();
         processorContext.initialized();
@@ -157,6 +159,7 @@ public class StreamTask extends AbstractTask implements Punctuator {
         log.debug("{} Resuming", logPrefix);
         if (eosEnabled) {
             producer.beginTransaction();
+            transactionInFlight = true;
         }
         initTopology();
     }
@@ -294,18 +297,23 @@ public class StreamTask extends AbstractTask implements Punctuator {
             if (eosEnabled) {
                 producer.sendOffsetsToTransaction(consumedOffsetsAndMetadata, applicationId);
                 producer.commitTransaction();
+                transactionInFlight = false;
                 if (startNewTransaction) {
+                    transactionInFlight = true;
                     producer.beginTransaction();
                 }
             } else {
                 try {
                     consumer.commitSync(consumedOffsetsAndMetadata);
                 } catch (final CommitFailedException e) {
-                    log.warn("{} Failed offset commits {} due to {}", logPrefix, consumedOffsetsAndMetadata, e.getMessage());
+                    log.warn("{} Failed offset commits {}: ", logPrefix, consumedOffsetsAndMetadata, e);
                     throw e;
                 }
             }
             commitOffsetNeeded = false;
+        } else if (eosEnabled && !startNewTransaction && transactionInFlight) { // need to make sure to commit txn for suspend case
+            producer.commitTransaction();
+            transactionInFlight = false;
         }
 
         commitRequested = false;
@@ -403,7 +411,7 @@ public class StreamTask extends AbstractTask implements Punctuator {
         } catch (final RuntimeException e) {
             clean = false;
             firstException = e;
-            log.error("{} Could not close task due to {}", logPrefix, e);
+            log.error("{} Could not close task: ", logPrefix, e);
         }
 
         try {
@@ -413,7 +421,7 @@ public class StreamTask extends AbstractTask implements Punctuator {
             if (firstException == null) {
                 firstException = e;
             }
-            log.error("{} Could not close state manager due to {}", logPrefix, e);
+            log.error("{} Could not close state manager: ", logPrefix, e);
         }
 
         try {
@@ -424,6 +432,7 @@ public class StreamTask extends AbstractTask implements Punctuator {
                 if (!clean) {
                     try {
                         producer.abortTransaction();
+                        transactionInFlight = false;
                     } catch (final ProducerFencedException e) {
                         // can be ignored: transaction got already aborted by brokers/transactional-coordinator if this happens
                     }
