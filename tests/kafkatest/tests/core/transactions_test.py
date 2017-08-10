@@ -206,9 +206,9 @@ class TransactionsTest(Test):
 
         for copier in copiers:
             wait_until(lambda: copier.is_done,
-                       timeout_sec=60,
+                       timeout_sec=120,
                        err_msg="%s - Failed to copy all messages in  %ds." %\
-                       (copier.transactional_id, 60))
+                       (copier.transactional_id, 120))
         self.logger.info("finished copying messages")
         return self.drain_consumer(concurrent_consumer)
 
@@ -219,7 +219,8 @@ class TransactionsTest(Test):
         security_protocol = 'PLAINTEXT'
         self.kafka.security_protocol = security_protocol
         self.kafka.interbroker_security_protocol = security_protocol
-        self.kafka.logs["kafka_data"]["collect_default"] = True
+        self.kafka.logs["kafka_data_1"]["collect_default"] = True
+        self.kafka.logs["kafka_data_2"]["collect_default"] = True
         self.kafka.logs["kafka_operational_logs_debug"]["collect_default"] = True
         self.kafka.start()
         input_messages = self.seed_messages()
