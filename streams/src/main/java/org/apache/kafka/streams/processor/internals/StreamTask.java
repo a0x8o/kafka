@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static java.lang.String.format;
@@ -144,16 +145,13 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
 
         partitionGroup = new PartitionGroup(partitionQueues);
         this.time = time;
-        log.debug("{} Initializing", logPrefix);
-        initializeStateStores();
+
         stateMgr.registerGlobalStateStores(topology.globalStateStores());
         if (eosEnabled) {
             this.producer.initTransactions();
             this.producer.beginTransaction();
             transactionInFlight = true;
         }
-        initTopology();
-        processorContext.initialized();
     }
 
     /**
@@ -330,7 +328,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
         }
     }
 
-    private void initTopology() {
+    void initTopology() {
         // initialize the task by initializing all its processor nodes in the topology
         log.trace("{} Initializing processor nodes of the topology", logPrefix);
         for (final ProcessorNode node : topology.processors()) {
@@ -383,14 +381,16 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
         // close the processors
         // make sure close() is called for each node even when there is a RuntimeException
         RuntimeException exception = null;
-        for (final ProcessorNode node : topology.processors()) {
-            processorContext.setCurrentNode(node);
-            try {
-                node.close();
-            } catch (final RuntimeException e) {
-                exception = e;
-            } finally {
-                processorContext.setCurrentNode(null);
+        if (taskInitialized) {
+            for (final ProcessorNode node : topology.processors()) {
+                processorContext.setCurrentNode(node);
+                try {
+                    node.close();
+                } catch (final RuntimeException e) {
+                    exception = e;
+                } finally {
+                    processorContext.setCurrentNode(null);
+                }
             }
         }
 
@@ -400,7 +400,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
     }
 
     // helper to avoid calling suspend() twice if a suspended task is not reassigned and closed
-    void closeSuspended(boolean clean, RuntimeException firstException) {
+    public void closeSuspended(boolean clean, RuntimeException firstException) {
         try {
             closeStateManager(clean);
         } catch (final RuntimeException e) {
@@ -435,6 +435,11 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
         if (firstException != null) {
             throw firstException;
         }
+    }
+
+    @Override
+    public Map<TopicPartition, Long> checkpointedOffsets() {
+        throw new UnsupportedOperationException("checkpointedOffsets is not supported by StreamTasks");
     }
 
     /**
@@ -529,7 +534,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
      * current partition group timestamp has reached the defined stamp
      * Note, this is only called in the presence of new records
      */
-    boolean maybePunctuateStreamTime() {
+    public boolean maybePunctuateStreamTime() {
         final long timestamp = partitionGroup.timestamp();
 
         // if the timestamp is not known yet, meaning there is not enough data accumulated
@@ -546,11 +551,17 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
      * current system timestamp has reached the defined stamp
      * Note, this is called irrespective of the presence of new records
      */
-    boolean maybePunctuateSystemTime() {
+    public boolean maybePunctuateSystemTime() {
         final long timestamp = time.milliseconds();
 
         return systemTimePunctuationQueue.mayPunctuate(timestamp, PunctuationType.SYSTEM_TIME, this);
     }
+
+    @Override
+    public List<ConsumerRecord<byte[], byte[]>> update(final TopicPartition partition, final List<ConsumerRecord<byte[], byte[]>> remaining) {
+        throw new UnsupportedOperationException("update is not implemented");
+    }
+
     /**
      * Request committing the current task's state
      */
@@ -561,7 +572,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
     /**
      * Whether or not a request has been made to commit the current state
      */
-    boolean commitNeeded() {
+    public boolean commitNeeded() {
         return commitRequested;
     }
 
@@ -578,6 +589,15 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
     // visible for testing only
     RecordCollector createRecordCollector() {
         return new RecordCollectorImpl(producer, id.toString());
+    }
+
+    public boolean initialize() {
+        log.debug("{} Initializing", logPrefix);
+        initializeStateStores();
+        initTopology();
+        processorContext.initialized();
+        taskInitialized = true;
+        return topology.stateStores().isEmpty();
     }
 
 }

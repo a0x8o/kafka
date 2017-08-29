@@ -79,6 +79,7 @@ import org.apache.kafka.common.requests.MetadataRequest;
 import org.apache.kafka.common.requests.MetadataResponse;
 import org.apache.kafka.common.requests.Resource;
 import org.apache.kafka.common.requests.ResourceType;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.common.utils.KafkaThread;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
@@ -348,12 +349,13 @@ public class KafkaAdminClient extends AdminClient {
         this.client = client;
         this.runnable = new AdminClientRunnable();
         String threadName = "kafka-admin-client-thread" + (clientId.length() > 0 ? " | " + clientId : "");
-        this.thread = new KafkaThread(threadName, runnable, false);
+        this.thread = new KafkaThread(threadName, runnable, true);
         this.timeoutProcessorFactory = (timeoutProcessorFactory == null) ?
             new TimeoutProcessorFactory() : timeoutProcessorFactory;
         this.maxRetries = config.getInt(AdminClientConfig.RETRIES_CONFIG);
         config.logUnused();
-        log.debug("Created Kafka admin client {}", this.clientId);
+        AppInfoParser.registerAppInfo(JMX_PREFIX, clientId);
+        log.debug("Kafka admin client with client id {} created", this.clientId);
         thread.start();
     }
 
@@ -388,6 +390,9 @@ public class KafkaAdminClient extends AdminClient {
         try {
             // Wait for the thread to be joined.
             thread.join();
+
+            AppInfoParser.unregisterAppInfo(JMX_PREFIX, clientId);
+            
             log.debug("{}: closed.", clientId);
         } catch (InterruptedException e) {
             log.debug("{}: interrupted while joining I/O thread", clientId, e);
@@ -460,6 +465,10 @@ public class KafkaAdminClient extends AdminClient {
          */
         final void fail(long now, Throwable throwable) {
             if (aborted) {
+                // If the call was aborted while in flight due to a timeout, deliver a
+                // TimeoutException.  In this case, we do not get any more retries - the call has
+                // failed. We increment tries anyway in order to display an accurate log message.
+                tries++;
                 if (log.isDebugEnabled()) {
                     log.debug("{} aborted at {} after {} attempt(s)", this, now, tries,
                         new Exception(prettyPrintException(throwable)));
@@ -467,7 +476,9 @@ public class KafkaAdminClient extends AdminClient {
                 handleFailure(new TimeoutException("Aborted due to timeout."));
                 return;
             }
-            // If this is an UnsupportedVersionException that we can retry, do so.
+            // If this is an UnsupportedVersionException that we can retry, do so.  Note that a
+            // protocol downgrade will not count against the total number of retries we get for
+            // this RPC. That is why 'tries' is not incremented.
             if ((throwable instanceof UnsupportedVersionException) &&
                      handleUnsupportedVersionException((UnsupportedVersionException) throwable)) {
                 log.trace("{} attempting protocol downgrade.", this);
