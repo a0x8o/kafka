@@ -18,6 +18,7 @@ package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.Consumed;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsBuilderTest;
 import org.apache.kafka.streams.kstream.JoinWindows;
@@ -53,6 +54,7 @@ public class KStreamKStreamJoinTest {
     @Rule
     public final KStreamTestDriver driver = new KStreamTestDriver();
     private File stateDir = null;
+    private final Consumed<Integer, String> consumed = Consumed.with(intSerde, stringSerde);
 
     @Before
     public void setUp() throws IOException {
@@ -60,7 +62,7 @@ public class KStreamKStreamJoinTest {
     }
 
     @Test
-    public void testJoin() throws Exception {
+    public void testJoin() {
         StreamsBuilder builder = new StreamsBuilder();
 
         final int[] expectedKeys = new int[]{0, 1, 2, 3};
@@ -71,8 +73,8 @@ public class KStreamKStreamJoinTest {
         MockProcessorSupplier<Integer, String> processor;
 
         processor = new MockProcessorSupplier<>();
-        stream1 = builder.stream(intSerde, stringSerde, topic1);
-        stream2 = builder.stream(intSerde, stringSerde, topic2);
+        stream1 = builder.stream(topic1, consumed);
+        stream2 = builder.stream(topic2, consumed);
         joined = stream1.join(stream2,
                               MockValueJoiner.TOSTRING_JOINER,
                               JoinWindows.of(100),
@@ -161,7 +163,7 @@ public class KStreamKStreamJoinTest {
     }
 
     @Test
-    public void testOuterJoin() throws Exception {
+    public void testOuterJoin() {
         StreamsBuilder builder = new StreamsBuilder();
 
         final int[] expectedKeys = new int[]{0, 1, 2, 3};
@@ -172,14 +174,14 @@ public class KStreamKStreamJoinTest {
         MockProcessorSupplier<Integer, String> processor;
 
         processor = new MockProcessorSupplier<>();
-        stream1 = builder.stream(intSerde, stringSerde, topic1);
-        stream2 = builder.stream(intSerde, stringSerde, topic2);
+
+        stream1 = builder.stream(topic1, consumed);
+        stream2 = builder.stream(topic2, consumed);
         joined = stream1.outerJoin(stream2,
                                    MockValueJoiner.TOSTRING_JOINER,
                                    JoinWindows.of(100),
                                    Joined.with(intSerde, stringSerde, stringSerde));
         joined.process(processor);
-
         Collection<Set<String>> copartitionGroups = StreamsBuilderTest.getCopartitionedGroups(builder);
 
         assertEquals(1, copartitionGroups.size());
@@ -262,7 +264,7 @@ public class KStreamKStreamJoinTest {
     }
 
     @Test
-    public void testWindowing() throws Exception {
+    public void testWindowing() {
         long time = 0L;
 
         StreamsBuilder builder = new StreamsBuilder();
@@ -275,8 +277,8 @@ public class KStreamKStreamJoinTest {
         MockProcessorSupplier<Integer, String> processor;
 
         processor = new MockProcessorSupplier<>();
-        stream1 = builder.stream(intSerde, stringSerde, topic1);
-        stream2 = builder.stream(intSerde, stringSerde, topic2);
+        stream1 = builder.stream(topic1, consumed);
+        stream2 = builder.stream(topic2, consumed);
 
         joined = stream1.join(stream2,
                               MockValueJoiner.TOSTRING_JOINER,
@@ -492,7 +494,7 @@ public class KStreamKStreamJoinTest {
     }
 
     @Test
-    public void testAsymetricWindowingAfter() throws Exception {
+    public void testAsymetricWindowingAfter() {
         long time = 1000L;
 
         StreamsBuilder builder = new StreamsBuilder();
@@ -505,8 +507,8 @@ public class KStreamKStreamJoinTest {
         MockProcessorSupplier<Integer, String> processor;
 
         processor = new MockProcessorSupplier<>();
-        stream1 = builder.stream(intSerde, stringSerde, topic1);
-        stream2 = builder.stream(intSerde, stringSerde, topic2);
+        stream1 = builder.stream(topic1, consumed);
+        stream2 = builder.stream(topic2, consumed);
 
         joined = stream1.join(stream2,
                               MockValueJoiner.TOSTRING_JOINER,
@@ -606,7 +608,7 @@ public class KStreamKStreamJoinTest {
     }
 
     @Test
-    public void testAsymetricWindowingBefore() throws Exception {
+    public void testAsymetricWindowingBefore() {
         long time = 1000L;
 
         StreamsBuilder builder = new StreamsBuilder();
@@ -619,8 +621,8 @@ public class KStreamKStreamJoinTest {
         MockProcessorSupplier<Integer, String> processor;
 
         processor = new MockProcessorSupplier<>();
-        stream1 = builder.stream(intSerde, stringSerde, topic1);
-        stream2 = builder.stream(intSerde, stringSerde, topic2);
+        stream1 = builder.stream(topic1, consumed);
+        stream2 = builder.stream(topic2, consumed);
 
         joined = stream1.join(stream2,
                               MockValueJoiner.TOSTRING_JOINER,

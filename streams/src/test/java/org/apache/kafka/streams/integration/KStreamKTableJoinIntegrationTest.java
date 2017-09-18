@@ -26,6 +26,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.streams.Consumed;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -143,7 +144,7 @@ public class KStreamKTableJoinIntegrationTest {
         countClicksPerRegion(10 * 1024 * 1024);
     }
 
-    private void countClicksPerRegion(final int cacheSizeBytes) throws java.util.concurrent.ExecutionException, InterruptedException {
+    private void countClicksPerRegion(final int cacheSizeBytes) throws Exception {
         streamsConfiguration.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, cacheSizeBytes);
         // Input 1: Clicks per user (multiple records allowed per user).
         final List<KeyValue<String, Long>> userClicks = Arrays.asList(
@@ -197,7 +198,7 @@ public class KStreamKTableJoinIntegrationTest {
         //
         // Because this is a KStream ("record stream"), multiple records for the same user will be
         // considered as separate click-count events, each of which will be added to the total count.
-        final KStream<String, Long> userClicksStream = builder.stream(stringSerde, longSerde, userClicksTopic);
+        final KStream<String, Long> userClicksStream = builder.stream(userClicksTopic, Consumed.with(Serdes.String(), Serdes.Long()));
         // This KTable contains information such as "alice" -> "europe".
         //
         // Because this is a KTable ("changelog stream"), only the latest value (here: region) for a
@@ -210,7 +211,8 @@ public class KStreamKTableJoinIntegrationTest {
         // subsequently processed in the `leftJoin`, the latest region update for "alice" is "europe"
         // (which overrides her previous region value of "asia").
         final KTable<String, String> userRegionsTable =
-            builder.table(stringSerde, stringSerde, userRegionsTopic, userRegionsStoreName);
+            builder.table(userRegionsTopic,
+                          Consumed.with(Serdes.String(), Serdes.String()));
 
 
         // Compute the number of clicks per region, e.g. "europe" -> 13L.

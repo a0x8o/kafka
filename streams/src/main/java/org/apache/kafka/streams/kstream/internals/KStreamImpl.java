@@ -20,7 +20,6 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.errors.TopologyException;
 import org.apache.kafka.streams.kstream.ForeachAction;
 import org.apache.kafka.streams.kstream.GlobalKTable;
 import org.apache.kafka.streams.kstream.JoinWindows;
@@ -30,7 +29,8 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
 import org.apache.kafka.streams.kstream.Predicate;
-import org.apache.kafka.streams.kstream.PrintForeachAction;
+import org.apache.kafka.streams.kstream.Printed;
+import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.Serialized;
 import org.apache.kafka.streams.kstream.TransformerSupplier;
 import org.apache.kafka.streams.kstream.ValueJoiner;
@@ -42,11 +42,7 @@ import org.apache.kafka.streams.processor.StateStoreSupplier;
 import org.apache.kafka.streams.processor.StreamPartitioner;
 import org.apache.kafka.streams.state.Stores;
 
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
@@ -235,8 +231,15 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
                       final String label) {
         Objects.requireNonNull(mapper, "mapper can't be null");
         Objects.requireNonNull(label, "label can't be null");
-        String name = builder.newName(PRINTING_NAME);
-        builder.internalTopologyBuilder.addProcessor(name, new KStreamPrint<>(new PrintForeachAction<>(null, mapper, label), keySerde, valSerde), this.name);
+        print(Printed.<K, V>toSysOut().withLabel(label).withKeyValueMapper(mapper));
+    }
+
+    @Override
+    public void print(final Printed<K, V> printed) {
+        Objects.requireNonNull(printed, "printed can't be null");
+        final PrintedInternal<K, V> printedInternal = new PrintedInternal<>(printed);
+        final String name = builder.newName(PRINTING_NAME);
+        builder.internalTopologyBuilder.addProcessor(name, printedInternal.build(this.name), this.name);
     }
 
     @Override
@@ -294,16 +297,7 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
         Objects.requireNonNull(filePath, "filePath can't be null");
         Objects.requireNonNull(label, "label can't be null");
         Objects.requireNonNull(mapper, "mapper can't be null");
-        if (filePath.trim().isEmpty()) {
-            throw new TopologyException("filePath can't be an empty string");
-        }
-        final String name = builder.newName(PRINTING_NAME);
-        try {
-            PrintWriter printWriter = new PrintWriter(filePath, StandardCharsets.UTF_8.name());
-            builder.internalTopologyBuilder.addProcessor(name, new KStreamPrint<>(new PrintForeachAction<>(printWriter, mapper, label), keySerde, valSerde), this.name);
-        } catch (FileNotFoundException | UnsupportedEncodingException e) {
-            throw new TopologyException("Unable to write stream to file at [" + filePath + "] " + e.getMessage());
-        }
+        print(Printed.<K, V>toFile(filePath).withKeyValueMapper(mapper).withLabel(label));
     }
 
     @Override
@@ -379,9 +373,18 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
     public KStream<K, V> through(final Serde<K> keySerde,
                                  final Serde<V> valSerde,
                                  final StreamPartitioner<? super K, ? super V> partitioner, String topic) {
-        to(keySerde, valSerde, partitioner, topic);
+        return through(topic, Produced.with(keySerde, valSerde, partitioner));
+    }
 
-        return builder.stream(null, new FailOnInvalidTimestamp(), keySerde, valSerde, topic);
+    @Override
+    public KStream<K, V> through(final String topic, final Produced<K, V> produced) {
+        final ProducedInternal<K, V> producedInternal = new ProducedInternal<>(produced);
+        to(topic, producedInternal);
+        return builder.stream(Collections.singleton(topic),
+                              new ConsumedInternal<>(producedInternal.keySerde(),
+                                            producedInternal.valueSerde(),
+                                            new FailOnInvalidTimestamp(),
+                                            null));
     }
 
     @Override
@@ -406,13 +409,13 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
     public KStream<K, V> through(final Serde<K> keySerde,
                                  final Serde<V> valSerde,
                                  final String topic) {
-        return through(keySerde, valSerde, null, topic);
+        return through(topic, Produced.with(keySerde, valSerde));
     }
 
     @Override
     public KStream<K, V> through(final StreamPartitioner<? super K, ? super V> partitioner,
                                  final String topic) {
-        return through(null, null, partitioner, topic);
+        return through(topic, Produced.streamPartitioner(partitioner));
     }
 
     @Override
@@ -422,20 +425,20 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
 
     @Override
     public void to(final String topic) {
-        to(null, null, null, topic);
+        to(topic, Produced.<K, V>with(null, null, null));
     }
 
     @Override
     public void to(final StreamPartitioner<? super K, ? super V> partitioner,
                    final String topic) {
-        to(null, null, partitioner, topic);
+        to(topic, Produced.streamPartitioner(partitioner));
     }
 
     @Override
     public void to(final Serde<K> keySerde,
                    final Serde<V> valSerde,
                    final String topic) {
-        to(keySerde, valSerde, null, topic);
+        to(topic, Produced.with(keySerde, valSerde));
     }
 
     @SuppressWarnings("unchecked")
@@ -445,10 +448,23 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
                    final StreamPartitioner<? super K, ? super V> partitioner,
                    final String topic) {
         Objects.requireNonNull(topic, "topic can't be null");
-        final String name = builder.newName(SINK_NAME);
+        to(topic, Produced.with(keySerde, valSerde, partitioner));
+    }
 
-        final Serializer<K> keySerializer = keySerde == null ? null : keySerde.serializer();
-        final Serializer<V> valSerializer = valSerde == null ? null : valSerde.serializer();
+    @SuppressWarnings("unchecked")
+    @Override
+    public void to(final String topic, final Produced<K, V> produced) {
+        Objects.requireNonNull(topic, "topic can't be null");
+        Objects.requireNonNull(produced, "Produced can't be null");
+        to(topic, new ProducedInternal<>(produced));
+
+    }
+
+    private void to(final String topic, final ProducedInternal<K, V> produced) {
+        final String name = builder.newName(SINK_NAME);
+        final Serializer<K> keySerializer = produced.keySerde() == null ? null : produced.keySerde().serializer();
+        final Serializer<V> valSerializer = produced.valueSerde() == null ? null : produced.valueSerde().serializer();
+        final StreamPartitioner<? super K, ? super V> partitioner = produced.streamPartitioner();
 
         if (partitioner == null && keySerializer != null && keySerializer instanceof WindowedSerializer) {
             final WindowedSerializer<Object> windowedSerializer = (WindowedSerializer<Object>) keySerializer;
@@ -589,37 +605,38 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
      */
     private KStreamImpl<K, V> repartitionForJoin(final Serde<K> keySerde,
                                                  final Serde<V> valSerde) {
-        String repartitionedSourceName = createReparitionedSource(this, keySerde, valSerde, null);
+        String repartitionedSourceName = createReparitionedSource(builder, keySerde, valSerde, null, name);
         return new KStreamImpl<>(builder, repartitionedSourceName, Collections
             .singleton(repartitionedSourceName), false);
     }
 
-    static <K1, V1> String createReparitionedSource(final AbstractStream<K1> stream,
+    static <K1, V1> String createReparitionedSource(final InternalStreamsBuilder builder,
                                                     final Serde<K1> keySerde,
                                                     final Serde<V1> valSerde,
-                                                    final String topicNamePrefix) {
+                                                    final String topicNamePrefix,
+                                                    final String name) {
         Serializer<K1> keySerializer = keySerde != null ? keySerde.serializer() : null;
         Serializer<V1> valSerializer = valSerde != null ? valSerde.serializer() : null;
         Deserializer<K1> keyDeserializer = keySerde != null ? keySerde.deserializer() : null;
         Deserializer<V1> valDeserializer = valSerde != null ? valSerde.deserializer() : null;
-        String baseName = topicNamePrefix != null ? topicNamePrefix : stream.name;
+        String baseName = topicNamePrefix != null ? topicNamePrefix : name;
 
         String repartitionTopic = baseName + REPARTITION_TOPIC_SUFFIX;
-        String sinkName = stream.builder.newName(SINK_NAME);
-        String filterName = stream.builder.newName(FILTER_NAME);
-        String sourceName = stream.builder.newName(SOURCE_NAME);
+        String sinkName = builder.newName(SINK_NAME);
+        String filterName = builder.newName(FILTER_NAME);
+        String sourceName = builder.newName(SOURCE_NAME);
 
-        stream.builder.internalTopologyBuilder.addInternalTopic(repartitionTopic);
-        stream.builder.internalTopologyBuilder.addProcessor(filterName, new KStreamFilter<>(new Predicate<K1, V1>() {
+        builder.internalTopologyBuilder.addInternalTopic(repartitionTopic);
+        builder.internalTopologyBuilder.addProcessor(filterName, new KStreamFilter<>(new Predicate<K1, V1>() {
             @Override
             public boolean test(final K1 key, final V1 value) {
                 return key != null;
             }
-        }, false), stream.name);
+        }, false), name);
 
-        stream.builder.internalTopologyBuilder.addSink(sinkName, repartitionTopic, keySerializer, valSerializer,
+        builder.internalTopologyBuilder.addSink(sinkName, repartitionTopic, keySerializer, valSerializer,
             null, filterName);
-        stream.builder.internalTopologyBuilder.addSource(null, sourceName, new FailOnInvalidTimestamp(),
+        builder.internalTopologyBuilder.addSource(null, sourceName, new FailOnInvalidTimestamp(),
             keyDeserializer, valDeserializer, repartitionTopic);
 
         return sourceName;
@@ -769,12 +786,13 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
                                               final Serialized<KR, V> serialized) {
         Objects.requireNonNull(selector, "selector can't be null");
         Objects.requireNonNull(serialized, "serialized can't be null");
+        final SerializedInternal<KR, V> serializedInternal = new SerializedInternal<>(serialized);
         String selectName = internalSelectKey(selector);
         return new KGroupedStreamImpl<>(builder,
                                         selectName,
                                         sourceNodes,
-                                        serialized.keySerde(),
-                                        serialized.valueSerde(),
+                                        serializedInternal.keySerde(),
+                                        serializedInternal.valueSerde(),
                                         true);
     }
 
@@ -793,11 +811,12 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
 
     @Override
     public KGroupedStream<K, V> groupByKey(final Serialized<K, V> serialized) {
+        final SerializedInternal<K, V> serializedInternal = new SerializedInternal<>(serialized);
         return new KGroupedStreamImpl<>(builder,
                                         this.name,
                                         sourceNodes,
-                                        serialized.keySerde(),
-                                        serialized.valueSerde(),
+                                        serializedInternal.keySerde(),
+                                        serializedInternal.valueSerde(),
                                         this.repartitionRequired);
 
     }

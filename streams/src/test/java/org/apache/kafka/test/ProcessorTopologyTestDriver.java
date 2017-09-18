@@ -29,8 +29,10 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.MockTime;
 import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.streams.InternalTopologyAccessor;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.Topology;
@@ -157,6 +159,18 @@ public class ProcessorTopologyTestDriver {
     private StreamTask task;
     private GlobalStateUpdateTask globalStateTask;
 
+
+    /**
+     * Create a new test diver instance
+     * @param config the stream configuration for the topology
+     * @param topology the {@link Topology} whose {@link InternalTopologyBuilder} will
+     *                        be use to create the topology instance.
+     */
+    public ProcessorTopologyTestDriver(final StreamsConfig config,
+                                       final Topology topology) {
+        this(config, InternalTopologyAccessor.getInternalTopologyBuilder(topology));
+    }
+
     /**
      * Create a new test driver instance.
      * @param config the stream configuration for the topology
@@ -193,7 +207,7 @@ public class ProcessorTopologyTestDriver {
 
         final StateDirectory stateDirectory = new StateDirectory(APPLICATION_ID, TestUtils.tempDirectory().getPath(), Time.SYSTEM);
         final StreamsMetrics streamsMetrics = new MockStreamsMetrics(new Metrics());
-        final ThreadCache cache = new ThreadCache("mock", 1024 * 1024, streamsMetrics);
+        final ThreadCache cache = new ThreadCache(new LogContext("mock "), 1024 * 1024, streamsMetrics);
 
         if (globalTopology != null) {
             final MockConsumer<byte[], byte[]> globalConsumer = createGlobalConsumer();
@@ -222,7 +236,8 @@ public class ProcessorTopologyTestDriver {
                                   consumer,
                                   new StoreChangelogReader(
                                       createRestoreConsumer(topology.storeToChangelogTopic()),
-                                      stateRestoreListener),
+                                      stateRestoreListener,
+                                          new LogContext("topology-test-driver ")),
                                   config,
                                   streamsMetrics, stateDirectory,
                                   cache,

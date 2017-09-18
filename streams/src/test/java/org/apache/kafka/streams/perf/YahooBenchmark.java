@@ -25,6 +25,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.streams.Consumed;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.ForeachAction;
@@ -88,7 +89,7 @@ public class YahooBenchmark {
     private boolean maybeSetupPhaseCampaigns(final String topic, final String clientId,
                                              final boolean skipIfAllTests,
                                              final int numCampaigns, final int adsPerCampaign,
-                                             final List<String> ads) throws Exception {
+                                             final List<String> ads) {
         parent.resetStats();
         // initialize topics
         if (parent.loadPhase) {
@@ -127,7 +128,7 @@ public class YahooBenchmark {
     // just for Yahoo benchmark
     private boolean maybeSetupPhaseEvents(final String topic, final String clientId,
                                           final boolean skipIfAllTests, final int numRecords,
-                                          final List<String> ads) throws Exception {
+                                          final List<String> ads) {
         parent.resetStats();
         String[] eventTypes = new String[]{"view", "click", "purchase"};
         Random rand = new Random();
@@ -180,7 +181,7 @@ public class YahooBenchmark {
     }
 
 
-    public void run() throws Exception {
+    public void run() {
         int numCampaigns = 100;
         int adsPerCampaign = 10;
 
@@ -282,10 +283,10 @@ public class YahooBenchmark {
         projectedEventDeserializer.configure(serdeProps, false);
 
         final StreamsBuilder builder = new StreamsBuilder();
-        final KStream<String, ProjectedEvent> kEvents = builder.stream(Serdes.String(),
-            Serdes.serdeFrom(projectedEventSerializer, projectedEventDeserializer), eventsTopic);
-        final KTable<String, String> kCampaigns = builder.table(Serdes.String(), Serdes.String(),
-            campaignsTopic, "campaign-state");
+        final KStream<String, ProjectedEvent> kEvents = builder.stream(eventsTopic,
+                                                                       Consumed.with(Serdes.String(),
+                                                                                     Serdes.serdeFrom(projectedEventSerializer, projectedEventDeserializer)));
+        final KTable<String, String> kCampaigns = builder.table(campaignsTopic, Consumed.with(Serdes.String(), Serdes.String()));
 
 
         KStream<String, ProjectedEvent> filteredEvents = kEvents

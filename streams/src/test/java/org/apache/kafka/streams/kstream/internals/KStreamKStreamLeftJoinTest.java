@@ -18,6 +18,7 @@ package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.Consumed;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsBuilderTest;
 import org.apache.kafka.streams.kstream.JoinWindows;
@@ -52,6 +53,7 @@ public class KStreamKStreamLeftJoinTest {
     @Rule
     public final KStreamTestDriver driver = new KStreamTestDriver();
     private File stateDir = null;
+    private final Consumed<Integer, String> consumed = Consumed.with(intSerde, stringSerde);
 
 
     @Before
@@ -60,7 +62,7 @@ public class KStreamKStreamLeftJoinTest {
     }
 
     @Test
-    public void testLeftJoin() throws Exception {
+    public void testLeftJoin() {
         final StreamsBuilder builder = new StreamsBuilder();
 
         final int[] expectedKeys = new int[]{0, 1, 2, 3};
@@ -71,8 +73,8 @@ public class KStreamKStreamLeftJoinTest {
         final MockProcessorSupplier<Integer, String> processor;
 
         processor = new MockProcessorSupplier<>();
-        stream1 = builder.stream(intSerde, stringSerde, topic1);
-        stream2 = builder.stream(intSerde, stringSerde, topic2);
+        stream1 = builder.stream(topic1, consumed);
+        stream2 = builder.stream(topic2, consumed);
 
         joined = stream1.leftJoin(stream2,
                                   MockValueJoiner.TOSTRING_JOINER,
@@ -85,7 +87,7 @@ public class KStreamKStreamLeftJoinTest {
         assertEquals(1, copartitionGroups.size());
         assertEquals(new HashSet<>(Arrays.asList(topic1, topic2)), copartitionGroups.iterator().next());
 
-        driver.setUp(builder, stateDir);
+        driver.setUp(builder, stateDir, Serdes.Integer(), Serdes.String());
         driver.setTime(0L);
 
         // push two items to the primary stream. the other window is empty
@@ -151,7 +153,7 @@ public class KStreamKStreamLeftJoinTest {
     }
 
     @Test
-    public void testWindowing() throws Exception {
+    public void testWindowing() {
         final StreamsBuilder builder = new StreamsBuilder();
         final int[] expectedKeys = new int[]{0, 1, 2, 3};
         long time = 0L;
@@ -162,8 +164,8 @@ public class KStreamKStreamLeftJoinTest {
         final MockProcessorSupplier<Integer, String> processor;
 
         processor = new MockProcessorSupplier<>();
-        stream1 = builder.stream(intSerde, stringSerde, topic1);
-        stream2 = builder.stream(intSerde, stringSerde, topic2);
+        stream1 = builder.stream(topic1, consumed);
+        stream2 = builder.stream(topic2, consumed);
 
         joined = stream1.leftJoin(stream2,
                                   MockValueJoiner.TOSTRING_JOINER,

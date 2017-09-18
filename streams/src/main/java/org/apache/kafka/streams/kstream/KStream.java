@@ -37,7 +37,7 @@ import org.apache.kafka.streams.processor.StreamPartitioner;
  * For example a user X might buy two items I1 and I2, and thus there might be two records {@code <K:I1>, <K:I2>}
  * in the stream.
  * <p>
- * A {@code KStream} is either {@link StreamsBuilder#stream(String...) defined from one or multiple Kafka topics} that
+ * A {@code KStream} is either {@link StreamsBuilder#stream(String) defined from one or multiple Kafka topics} that
  * are consumed message by message or the result of a {@code KStream} transformation.
  * A {@link KTable} can also be {@link KTable#toStream() converted} into a {@code KStream}.
  * <p>
@@ -52,7 +52,7 @@ import org.apache.kafka.streams.processor.StreamPartitioner;
  * @param <V> Type of values
  * @see KTable
  * @see KGroupedStream
- * @see StreamsBuilder#stream(String...)
+ * @see StreamsBuilder#stream(String)
  */
 @InterfaceStability.Evolving
 public interface KStream<K, V> {
@@ -252,7 +252,7 @@ public interface KStream<K, V> {
      * Thus, <em>no</em> internal data redistribution is required if a key based operator (like an aggregation or join)
      * is applied to the result {@code KStream}. (cf. {@link #flatMap(KeyValueMapper)})
      *
-     * @param processor a {@link ValueMapper} the computes the new output values
+     * @param mapper a {@link ValueMapper} the computes the new output values
      * @param <VR>      the value type of the result stream
      * @return a {@code KStream} that contains more or less records with unmodified keys and new values of different type
      * @see #selectKey(KeyValueMapper)
@@ -262,7 +262,7 @@ public interface KStream<K, V> {
      * @see #transform(TransformerSupplier, String...)
      * @see #transformValues(ValueTransformerSupplier, String...)
      */
-    <VR> KStream<K, VR> flatMapValues(final ValueMapper<? super V, ? extends Iterable<? extends VR>> processor);
+    <VR> KStream<K, VR> flatMapValues(final ValueMapper<? super V, ? extends Iterable<? extends VR>> mapper);
 
     /**
      * Print the records of this stream to {@code System.out}.
@@ -274,7 +274,9 @@ public interface KStream<K, V> {
      * <p>
      * Implementors will need to override {@code toString()} for keys and values that are not of type {@link String},
      * {@link Integer} etc. to get meaningful information.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print();
 
     /**
@@ -288,7 +290,9 @@ public interface KStream<K, V> {
      * {@link Integer} etc. to get meaningful information.
      *
      * @param label the name used to label the key/value pairs printed to the console
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print(final String label);
 
     /**
@@ -304,7 +308,9 @@ public interface KStream<K, V> {
      *
      * @param keySerde key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde value serde used to deserialize value if type is {@code byte[]},
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print(final Serde<K> keySerde,
                final Serde<V> valSerde);
 
@@ -320,7 +326,9 @@ public interface KStream<K, V> {
      * @param keySerde   key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde   value serde used to deserialize value if type is {@code byte[]},
      * @param label the name used to label the key/value pairs printed to the console
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print(final Serde<K> keySerde,
                final Serde<V> valSerde,
                final String label);
@@ -344,7 +352,9 @@ public interface KStream<K, V> {
      * The KeyValueMapper's mapped value type must be {@code String}.
      *
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper);
 
     /**
@@ -367,7 +377,9 @@ public interface KStream<K, V> {
      *
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
      * @param label The given name which labels output will be printed.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper, final String label);
 
     /**
@@ -394,7 +406,9 @@ public interface KStream<K, V> {
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
      * @param keySerde a {@link Serde<K>} used to deserialize key if type is {@code byte[]}.
      * @param valSerde a {@link Serde<V>} used to deserialize value if type is {@code byte[]}.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper, final Serde<K> keySerde, final Serde<V> valSerde);
 
     /**
@@ -422,8 +436,16 @@ public interface KStream<K, V> {
      * @param keySerde a {@link Serde<K>} used to deserialize key if type is {@code byte[]}.
      * @param valSerde a {@link Serde<V>} used to deserialize value if type is {@code byte[]}.
      * @param label The given name which labels output will be printed.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper, final Serde<K> keySerde, final Serde<V> valSerde, final String label);
+
+    /**
+     * Print the records of this KStream using the options provided by {@link Printed}
+     * @param printed options for printing
+     */
+    void print(final Printed<K, V> printed);
 
     /**
      * Write the records of this stream to a file at the given path.
@@ -437,7 +459,9 @@ public interface KStream<K, V> {
      * {@link Integer} etc. to get meaningful information.
      *
      * @param filePath name of the file to write to
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void writeAsText(final String filePath);
 
     /**
@@ -452,7 +476,9 @@ public interface KStream<K, V> {
      *
      * @param filePath   name of the file to write to
      * @param label the name used to label the key/value pairs written to the file
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void writeAsText(final String filePath,
                      final String label);
 
@@ -470,7 +496,9 @@ public interface KStream<K, V> {
      * @param filePath name of the file to write to
      * @param keySerde key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde value serde used to deserialize value if type is {@code byte[]},
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void writeAsText(final String filePath,
                      final Serde<K> keySerde,
                      final Serde<V> valSerde);
@@ -489,7 +517,9 @@ public interface KStream<K, V> {
      * @param label the name used to label the key/value pairs written to the file
      * @param keySerde   key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde   value serde used deserialize value if type is {@code byte[]},
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void writeAsText(final String filePath,
                      final String label,
                      final Serde<K> keySerde,
@@ -517,7 +547,9 @@ public interface KStream<K, V> {
      *
      * @param filePath path of the file to write to.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void writeAsText(final String filePath, final KeyValueMapper<? super K, ? super V, String> mapper);
 
     /**
@@ -543,7 +575,9 @@ public interface KStream<K, V> {
      * @param filePath path of the file to write to.
      * @param label the name used to label records written to file.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void writeAsText(final String filePath, final String label, final KeyValueMapper<? super K, ? super V, String> mapper);
 
     /**
@@ -573,7 +607,9 @@ public interface KStream<K, V> {
      * @param keySerde key serde used to deserialize key if type is {@code byte[]}.
      * @param valSerde value serde used to deserialize value if type is {@code byte[]}.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+     * @deprecated use {@code print(Printed)}
      */
+    @Deprecated
     void writeAsText(final String filePath, final Serde<K> keySerde, final Serde<V> valSerde, final KeyValueMapper<? super K, ? super V, String> mapper);
 
     /**
@@ -604,6 +640,7 @@ public interface KStream<K, V> {
      * @param keySerde key serde used to deserialize key if type is {@code byte[]}.
      * @param valSerde value serde used to deserialize value if type is {@code byte[]}.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+     * @deprecated use {@code print(Printed)}
      */
     void writeAsText(final String filePath, final String label, final Serde<K> keySerde, final Serde<V> valSerde, final KeyValueMapper<? super K, ? super V, String> mapper);
 
@@ -654,7 +691,7 @@ public interface KStream<K, V> {
      * started).
      * <p>
      * This is equivalent to calling {@link #to(String) #to(someTopicName)} and
-     * {@link org.apache.kafka.streams.StreamsBuilder#stream(String...)
+     * {@link StreamsBuilder#stream(String)
      * StreamsBuilder#stream(someTopicName)}.
      *
      * @param topic the topic name
@@ -669,13 +706,15 @@ public interface KStream<K, V> {
      * started).
      * <p>
      * This is equivalent to calling {@link #to(StreamPartitioner, String) #to(StreamPartitioner, someTopicName)} and
-     * {@link StreamsBuilder#stream(String...) StreamsBuilder#stream(someTopicName)}.
+     * {@link StreamsBuilder#stream(String) StreamsBuilder#stream(someTopicName)}.
      *
      * @param partitioner the function used to determine how records are distributed among partitions of the topic,
      *                    if not specified producer's {@link DefaultPartitioner} will be used
      * @param topic       the topic name
      * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
+     * @deprecated use {@code through(String, Produced)}
      */
+    @Deprecated
     KStream<K, V> through(final StreamPartitioner<? super K, ? super V> partitioner,
                           final String topic);
 
@@ -696,7 +735,9 @@ public interface KStream<K, V> {
      *                 if not specified the default value serde defined in the configuration will be used
      * @param topic    the topic name
      * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
+     * @deprecated use {@code through(String, Produced)}
      */
+    @Deprecated
     KStream<K, V> through(final Serde<K> keySerde,
                           final Serde<V> valSerde,
                           final String topic);
@@ -721,11 +762,31 @@ public interface KStream<K, V> {
      *                    be used
      * @param topic       the topic name
      * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
+     * @deprecated use {@code through(String, Produced)}
      */
+    @Deprecated
     KStream<K, V> through(final Serde<K> keySerde,
                           final Serde<V> valSerde,
                           final StreamPartitioner<? super K, ? super V> partitioner,
                           final String topic);
+
+    /**
+     * Materialize this stream to a topic and creates a new {@code KStream} from the topic using the
+     * {@link Produced} instance for configuration of the {@link Serde key serde}, {@link Serde value serde},
+     * and {@link StreamPartitioner}.
+     * The specified topic should be manually created before it is used (i.e., before the Kafka Streams application is
+     * started).
+     * <p>
+     * This is equivalent to calling {@link #to(String, Produced) to(someTopic, Produced.with(keySerde, valueSerde)}
+     * and {@link StreamsBuilder#stream(Serde, Serde, String...)
+     * StreamsBuilder#stream(keySerde, valSerde, someTopicName)}.
+     *
+     * @param topic
+     * @param produced
+     * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
+     */
+    KStream<K, V> through(final String topic,
+                          final Produced<K, V> produced);
 
     /**
      * Materialize this stream to a topic using default serializers specified in the config and producer's
@@ -746,7 +807,9 @@ public interface KStream<K, V> {
      * @param partitioner the function used to determine how records are distributed among partitions of the topic,
      *                    if not specified producer's {@link DefaultPartitioner} will be used
      * @param topic       the topic name
+     * @deprecated use {@code to(String, Produced}
      */
+    @Deprecated
     void to(final StreamPartitioner<? super K, ? super V> partitioner,
             final String topic);
 
@@ -762,7 +825,9 @@ public interface KStream<K, V> {
      * @param valSerde value serde used to send key-value pairs,
      *                 if not specified the default serde defined in the configs will be used
      * @param topic    the topic name
+     * @deprecated use {@code to(String, Produced}
      */
+    @Deprecated
     void to(final Serde<K> keySerde,
             final Serde<V> valSerde,
             final String topic);
@@ -782,11 +847,24 @@ public interface KStream<K, V> {
      *                    {@link WindowedStreamPartitioner} will be used&mdash;otherwise {@link DefaultPartitioner} will
      *                    be used
      * @param topic       the topic name
+     * @deprecated use {@code to(String, Produced}
      */
+    @Deprecated
     void to(final Serde<K> keySerde,
             final Serde<V> valSerde,
             final StreamPartitioner<? super K, ? super V> partitioner,
             final String topic);
+
+    /**
+     * Materialize this stream to a topic using the provided {@link Produced} instance.
+     * The specified topic should be manually created before it is used (i.e., before the Kafka Streams application is
+     * started).
+     *
+     * @param produced    the options to use when producing to the topic
+     * @param topic       the topic name
+     */
+    void to(final String topic,
+            final Produced<K, V> produced);
 
     /**
      * Transform each record of the input stream into zero or more records in the output stream (both key and value type
@@ -830,7 +908,7 @@ public interface KStream<K, V> {
      *                 this.state = context.getStateStore("myTransformState");
      *                 // punctuate each 1000ms; can access this.state
      *                 // can emit as many new KeyValue pairs as required via this.context#forward()
-     *                 context.schedule(1000, PunctuationType.SYSTEM_TIME, new Punctuator(..));
+     *                 context.schedule(1000, PunctuationType.WALL_CLOCK_TIME, new Punctuator(..));
      *             }
      *
      *             KeyValue transform(K key, V value) {
@@ -903,7 +981,7 @@ public interface KStream<K, V> {
      *
      *             void init(ProcessorContext context) {
      *                 this.state = context.getStateStore("myValueTransformState");
-     *                 context.schedule(1000, PunctuationType.SYSTEM_TIME, new Punctuator(..)); // punctuate each 1000ms, can access this.state
+     *                 context.schedule(1000, PunctuationType.WALL_CLOCK_TIME, new Punctuator(..)); // punctuate each 1000ms, can access this.state
      *             }
      *
      *             NewValueType transform(V value) {
@@ -969,7 +1047,7 @@ public interface KStream<K, V> {
      *
      *             void init(ProcessorContext context) {
      *                 this.state = context.getStateStore("myProcessorState");
-     *                 context.schedule(1000, PunctuationType.SYSTEM_TIME, new Punctuator(..)); // punctuate each 1000ms, can access this.state
+     *                 context.schedule(1000, PunctuationType.WALL_CLOCK_TIME, new Punctuator(..)); // punctuate each 1000ms, can access this.state
      *             }
      *
      *             void process(K key, V value) {
