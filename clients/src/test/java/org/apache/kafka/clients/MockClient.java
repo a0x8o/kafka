@@ -18,6 +18,7 @@ package org.apache.kafka.clients;
 
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.AbstractResponse;
@@ -135,6 +136,11 @@ public class MockClient implements KafkaClient {
     }
 
     @Override
+    public AuthenticationException authenticationException(Node node) {
+        return null;
+    }
+
+    @Override
     public void disconnect(String node) {
         long now = time.milliseconds();
         Iterator<ClientRequest> iter = requests.iterator();
@@ -223,6 +229,16 @@ public class MockClient implements KafkaClient {
 
         respond(response);
     }
+
+    // Utility method to enable out of order responses
+    public void respondToRequest(ClientRequest clientRequest, AbstractResponse response) {
+        AbstractRequest request = clientRequest.requestBuilder().build();
+        requests.remove(clientRequest);
+        short version = clientRequest.requestBuilder().desiredOrLatestVersion();
+        responses.add(new ClientResponse(clientRequest.makeHeader(version), clientRequest.callback(), clientRequest.destination(),
+                clientRequest.createdTimeMs(), time.milliseconds(), false, null, response));
+    }
+
 
     public void respond(AbstractResponse response, boolean disconnected) {
         ClientRequest request = requests.remove();

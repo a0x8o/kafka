@@ -29,8 +29,10 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.MockTime;
 import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.streams.InternalTopologyAccessor;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.Topology;
@@ -157,6 +159,18 @@ public class ProcessorTopologyTestDriver {
     private StreamTask task;
     private GlobalStateUpdateTask globalStateTask;
 
+
+    /**
+     * Create a new test diver instance
+     * @param config the stream configuration for the topology
+     * @param topology the {@link Topology} whose {@link InternalTopologyBuilder} will
+     *                        be use to create the topology instance.
+     */
+    public ProcessorTopologyTestDriver(final StreamsConfig config,
+                                       final Topology topology) {
+        this(config, InternalTopologyAccessor.getInternalTopologyBuilder(topology));
+    }
+
     /**
      * Create a new test driver instance.
      * @param config the stream configuration for the topology
@@ -193,7 +207,7 @@ public class ProcessorTopologyTestDriver {
 
         final StateDirectory stateDirectory = new StateDirectory(APPLICATION_ID, TestUtils.tempDirectory().getPath(), Time.SYSTEM);
         final StreamsMetrics streamsMetrics = new MockStreamsMetrics(new Metrics());
-        final ThreadCache cache = new ThreadCache("mock", 1024 * 1024, streamsMetrics);
+        final ThreadCache cache = new ThreadCache(new LogContext("mock "), 1024 * 1024, streamsMetrics);
 
         if (globalTopology != null) {
             final MockConsumer<byte[], byte[]> globalConsumer = createGlobalConsumer();
@@ -222,9 +236,8 @@ public class ProcessorTopologyTestDriver {
                                   consumer,
                                   new StoreChangelogReader(
                                       createRestoreConsumer(topology.storeToChangelogTopic()),
-                                      Time.SYSTEM,
-                                      5000,
-                                      stateRestoreListener),
+                                      stateRestoreListener,
+                                          new LogContext("topology-test-driver ")),
                                   config,
                                   streamsMetrics, stateDirectory,
                                   cache,
@@ -242,7 +255,7 @@ public class ProcessorTopologyTestDriver {
      * @param value the raw message value
      * @param timestamp the raw message timestamp
      */
-    private void process(final String topicName,
+    public void process(final String topicName,
                          final byte[] key,
                          final byte[] value,
                          final long timestamp) {
@@ -311,7 +324,26 @@ public class ProcessorTopologyTestDriver {
                                final V value,
                                final Serializer<K> keySerializer,
                                final Serializer<V> valueSerializer) {
-        process(topicName, keySerializer.serialize(topicName, key), valueSerializer.serialize(topicName, value));
+        process(topicName, key, value, keySerializer, valueSerializer, 0L);
+    }
+
+    /**
+     * Send an input message with the given key and value and timestamp on the specified topic to the topology.
+     *
+     * @param topicName the name of the topic on which the message is to be sent
+     * @param key the raw message key
+     * @param value the raw message value
+     * @param keySerializer the serializer for the key
+     * @param valueSerializer the serializer for the value
+     * @param timestamp the raw message timestamp
+     */
+    public <K, V> void process(final String topicName,
+                               final K key,
+                               final V value,
+                               final Serializer<K> keySerializer,
+                               final Serializer<V> valueSerializer,
+                               final long timestamp) {
+        process(topicName, keySerializer.serialize(topicName, key), valueSerializer.serialize(topicName, value), timestamp);
     }
 
     /**
@@ -394,7 +426,7 @@ public class ProcessorTopologyTestDriver {
      */
     public void close() {
         if (task != null) {
-            task.close(true);
+            task.close(true, false);
         }
         if (globalStateTask != null) {
             try {

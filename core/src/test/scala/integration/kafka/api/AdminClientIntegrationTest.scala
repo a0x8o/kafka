@@ -18,7 +18,9 @@ package kafka.api
 
 import java.util
 import java.util.{Collections, Properties}
+import java.util.Arrays.asList
 import java.util.concurrent.{ExecutionException, TimeUnit}
+import java.io.File
 
 import org.apache.kafka.clients.admin.KafkaAdminClientTest
 import org.apache.kafka.common.utils.{Time, Utils}
@@ -29,16 +31,17 @@ import org.apache.kafka.clients.admin._
 import kafka.utils.{Logging, TestUtils, ZkUtils}
 import kafka.utils.Implicits._
 import org.apache.kafka.clients.admin.NewTopic
-import org.apache.kafka.common.KafkaFuture
-import org.apache.kafka.common.acl.{AccessControlEntry, AclBinding, AclBindingFilter, AclOperation, AclPermissionType}
+import org.apache.kafka.common.{KafkaFuture, TopicPartition, TopicPartitionReplica}
+import org.apache.kafka.common.acl._
 import org.apache.kafka.common.config.ConfigResource
-import org.apache.kafka.common.errors.{InvalidRequestException, SecurityDisabledException, TimeoutException, TopicExistsException, UnknownTopicOrPartitionException}
+import org.apache.kafka.common.errors._
 import org.junit.{After, Before, Rule, Test}
 import org.apache.kafka.common.requests.MetadataResponse
 import org.apache.kafka.common.resource.{Resource, ResourceType}
 import org.junit.rules.Timeout
 import org.junit.Assert._
 
+import scala.util.Random
 import scala.collection.JavaConverters._
 
 /**
@@ -216,6 +219,77 @@ class AdminClientIntegrationTest extends KafkaServerTestHarness with Logging {
   }
 
   @Test
+  def testDescribeLogDirs(): Unit = {
+    client = AdminClient.create(createConfig())
+    val topic = "topic"
+    val leaderByPartition = TestUtils.createTopic(zkUtils, topic, 10, 1, servers, new Properties())
+    val partitionsByBroker = leaderByPartition.groupBy { case (partitionId, leaderId) => leaderId }.mapValues(_.keys.toSeq)
+    val brokers = (0 until brokerCount).map(Integer.valueOf)
+    val logDirInfosByBroker = client.describeLogDirs(brokers.asJava).all.get
+
+    (0 until brokerCount).foreach { brokerId =>
+      val server = servers.find(_.config.brokerId == brokerId).get
+      val expectedPartitions = partitionsByBroker(brokerId)
+      val logDirInfos = logDirInfosByBroker.get(brokerId)
+      val replicaInfos = logDirInfos.asScala.flatMap { case (logDir, logDirInfo) => logDirInfo.replicaInfos.asScala }.filterKeys(_.topic == topic)
+
+      assertEquals(expectedPartitions.toSet, replicaInfos.keys.map(_.partition).toSet)
+      logDirInfos.asScala.foreach { case (logDir, logDirInfo) =>
+        logDirInfo.replicaInfos.asScala.keys.foreach(tp =>
+          assertEquals(server.logManager.getLog(tp).get.dir.getParent, logDir)
+        )
+      }
+    }
+
+    client.close()
+  }
+
+  @Test
+  def testDescribeReplicaLogDir(): Unit = {
+    client = AdminClient.create(createConfig())
+    val topic = "topic"
+    val leaderByPartition = TestUtils.createTopic(zkUtils, topic, 10, 1, servers, new Properties())
+    val replicas = leaderByPartition.map { case (partition, brokerId) => new TopicPartitionReplica(topic, partition, brokerId) }.toSeq
+
+    val replicaDirInfos = client.describeReplicaLogDir(replicas.asJavaCollection).all.get
+    replicaDirInfos.asScala.foreach { case (topicPartitionReplica, replicaDirInfo) =>
+      val server = servers.find(_.config.brokerId == topicPartitionReplica.brokerId()).get
+      val tp = new TopicPartition(topicPartitionReplica.topic(), topicPartitionReplica.partition())
+      assertEquals(server.logManager.getLog(tp).get.dir.getParent, replicaDirInfo.getCurrentReplicaLogDir)
+    }
+
+    client.close()
+  }
+
+  @Test
+  def testAlterReplicaLogDirBeforeTopicCreation(): Unit = {
+    val adminClient = AdminClient.create(createConfig())
+    val topic = "topic"
+    val tp = new TopicPartition(topic, 0)
+
+    val replicaAssignment = servers.map { server =>
+      val logDir = new File(server.config.logDirs(Random.nextInt(2))).getAbsolutePath
+      new TopicPartitionReplica(topic, 0, server.config.brokerId) -> logDir
+    }.toMap
+
+    adminClient.alterReplicaDir(replicaAssignment.asJava, new AlterReplicaDirOptions()).values().asScala.values.foreach { future =>
+      try {
+        future.get()
+        fail("Future should fail with ReplicaNotAvailableException")
+      } catch {
+        case e: ExecutionException => assertTrue(e.getCause.isInstanceOf[ReplicaNotAvailableException])
+      }
+    }
+
+    TestUtils.createTopic(zkUtils, topic, 1, brokerCount, servers, new Properties())
+    servers.foreach { server =>
+      val logDir = server.logManager.getLog(tp).get.dir.getParent
+      assertEquals(replicaAssignment(new TopicPartitionReplica(topic, 0, server.config.brokerId)), logDir)
+    }
+    adminClient.close()
+  }
+
+  @Test
   def testDescribeAndAlterConfigs(): Unit = {
     client = AdminClient.create(createConfig)
 
@@ -284,6 +358,192 @@ class AdminClientIntegrationTest extends KafkaServerTestHarness with Logging {
       configs.get(brokerResource2).get(KafkaConfig.LogCleanerThreadsProp).value)
 
     checkValidAlterConfigs(zkUtils, servers, client, topicResource1, topicResource2)
+  }
+
+  @Test
+  def testCreatePartitions(): Unit = {
+    client = AdminClient.create(createConfig)
+
+    // Create topics
+    val topic1 = "create-partitions-topic-1"
+    TestUtils.createTopic(zkUtils, topic1, 1, 1, servers, new Properties)
+
+    val topic2 = "create-partitions-topic-2"
+    TestUtils.createTopic(zkUtils, topic2, 1, 2, servers, new Properties)
+
+    // assert that both the topics have 1 partition
+    assertEquals(1, client.describeTopics(Set(topic1).asJava).values.get(topic1).get.partitions.size)
+    assertEquals(1, client.describeTopics(Set(topic2).asJava).values.get(topic2).get.partitions.size)
+
+    val validateOnly = new CreatePartitionsOptions().validateOnly(true)
+
+    // assert that a validateOnly request doesn't increase the number of partitions
+    var alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(2)).asJava, validateOnly)
+    var altered = alterResult.values.get(topic1).get
+    // assert that the topics still has 1 partition
+    assertEquals(1, client.describeTopics(Set(topic1).asJava).values.get(topic1).get.partitions.size)
+
+    // try creating a new partition (no assignments), to bring the total to 3 partitions
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(3)).asJava)
+    altered = alterResult.values.get(topic1).get
+    // assert that the topics now has 2 partitions
+    var actualPartitions = client.describeTopics(Set(topic1).asJava).values.get(topic1).get.partitions
+    assertEquals(3, actualPartitions.size)
+
+    // now try creating a new partition (with assignments), to bring the total to 3 partitions
+    alterResult = client.createPartitions(Map(topic2 ->
+      NewPartitions.increaseTo(3, asList(asList(0, 1), asList(1, 2)))).asJava)
+    altered = alterResult.values.get(topic2).get
+    // assert that the topics now has 3 partitions
+    actualPartitions = client.describeTopics(Set(topic2).asJava).values.get(topic2).get.partitions
+    assertEquals(3, actualPartitions.size)
+    assertEquals(Seq(0, 1), actualPartitions.get(1).replicas.asScala.map(_.id))
+    assertEquals(Seq(1, 2), actualPartitions.get(2).replicas.asScala.map(_.id))
+
+    // try a newCount which would be a decrease
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(1)).asJava, validateOnly)
+    try {
+      alterResult.values.get(topic1).get
+      fail("Expect InvalidPartitionsException when newCount is a decrease")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidPartitionsException])
+        assertEquals("Topic currently has 3 partitions, which is higher than the requested 1.", e.getCause.getMessage)
+    }
+
+    // try a newCount which would be a noop
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(3)).asJava, validateOnly)
+    try {
+      alterResult.values.get(topic1).get
+      fail("Expect InvalidPartitionsException when newCount == oldCount")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidPartitionsException])
+        assertEquals("Topic already has 3 partitions.", e.getCause.getMessage)
+    }
+
+    // try a bad topic name
+    val unknownTopic = "an-unknown-topic"
+    alterResult = client.createPartitions(Map(unknownTopic ->
+      NewPartitions.increaseTo(2)).asJava, validateOnly)
+    try {
+      alterResult.values.get(unknownTopic).get
+      fail("Expect InvalidTopicException when using an unknown topic")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[UnknownTopicOrPartitionException])
+        assertEquals("The topic 'an-unknown-topic' does not exist", e.getCause.getMessage)
+    }
+
+    // try an invalid newCount
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(-22)).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidPartitionsException when newCount is invalid")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidPartitionsException])
+        assertEquals("Topic currently has 3 partitions, which is higher than the requested -22.",
+          e.getCause.getMessage)
+    }
+
+    // try assignments where the number of brokers != replication factor
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(4, asList(asList(1, 2)))).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidPartitionsException when #brokers != replication factor")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidReplicaAssignmentException])
+        assertEquals("Inconsistent replication factor between partitions, partition 0 has 1 " +
+          "while partitions [3] have replication factors [2], respectively",
+          e.getCause.getMessage)
+    }
+
+    // try #assignments incompatible with the increase
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(4, asList(asList(1), asList(2)))).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidRequestException when #assignments != newCount - oldCount")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidRequestException])
+        assertEquals("Increasing the number of partitions by 1 but 2 assignments provided.", e.getCause.getMessage)
+    }
+
+    // try with duplicate brokers in assignments
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(4, asList(asList(1, 1)))).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidReplicaAssignmentException when assignments has duplicate brokers")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidReplicaAssignmentException])
+        assertEquals("Duplicate brokers not allowed in replica assignment: 1, 1 for partition id 3.",
+          e.getCause.getMessage)
+    }
+
+    // try assignments with differently sized inner lists
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(5, asList(asList(1), asList(1, 0)))).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidReplicaAssignmentException when assignments have differently sized inner lists")
+    } catch {
+      case e: ExecutionException =>
+        e.printStackTrace()
+        assertTrue(e.getCause.isInstanceOf[InvalidReplicaAssignmentException])
+        assertEquals("Inconsistent replication factor between partitions, partition 0 has 1 " +
+          "while partitions [4] have replication factors [2], respectively", e.getCause.getMessage)
+    }
+
+    // try assignments with unknown brokers
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(4, asList(asList(12)))).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidReplicaAssignmentException when assignments contains an unknown broker")
+    } catch {
+      case e: ExecutionException =>
+        e.printStackTrace()
+        assertTrue(e.getCause.isInstanceOf[InvalidReplicaAssignmentException])
+        assertEquals("Unknown broker(s) in replica assignment: 12.", e.getCause.getMessage)
+    }
+
+    // try with empty assignments
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(4, Collections.emptyList())).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidRequestException when assignments is empty")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidRequestException])
+        assertEquals("Increasing the number of partitions by 1 but 0 assignments provided.", e.getCause.getMessage)
+    }
+
+    // finally, try to add partitions to a topic queued for deletion
+    val deleteResult = client.deleteTopics(asList(topic1))
+    deleteResult.values.get(topic1).get
+    alterResult = client.createPartitions(Map(topic1 ->
+      NewPartitions.increaseTo(4)).asJava, validateOnly)
+    try {
+      altered = alterResult.values.get(topic1).get
+      fail("Expect InvalidTopicException when the topic is queued for deletion")
+    } catch {
+      case e: ExecutionException =>
+        assertTrue(e.getCause.isInstanceOf[InvalidTopicException])
+        assertEquals("The topic is queued for deletion.", e.getCause.getMessage)
+    }
+
   }
 
   @Test
@@ -366,7 +626,7 @@ class AdminClientIntegrationTest extends KafkaServerTestHarness with Logging {
 
   override def generateConfigs = {
     val cfgs = TestUtils.createBrokerConfigs(brokerCount, zkConnect, interBrokerSecurityProtocol = Some(securityProtocol),
-      trustStoreFile = trustStoreFile, saslProperties = serverSaslProperties)
+      trustStoreFile = trustStoreFile, saslProperties = serverSaslProperties, logDirCount = 2)
     cfgs.foreach { config =>
       config.setProperty(KafkaConfig.ListenersProp, s"${listenerName.value}://localhost:${TestUtils.RandomPort}")
       config.remove(KafkaConfig.InterBrokerSecurityProtocolProp)

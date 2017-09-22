@@ -77,7 +77,7 @@ allprojects {
 }
 
 ext {
-  gradleVersion = "4.1"
+  gradleVersion = "4.2"
   buildVersionFileName = "kafka-version.properties"
 
   maxPermSizeArgs = []
@@ -220,9 +220,11 @@ subprojects {
       showStandardStreams = userShowStandardStreams ?: testShowStandardStreams
       exceptionFormat = testExceptionFormat
     }
+
     useJUnit {
       includeCategories 'org.apache.kafka.test.IntegrationTest'
     }
+
   }
 
   task unitTest(type: Test, dependsOn: compileJava) {
@@ -237,9 +239,11 @@ subprojects {
       showStandardStreams = userShowStandardStreams ?: testShowStandardStreams
       exceptionFormat = testExceptionFormat
     }
+
     useJUnit {
       excludeCategories 'org.apache.kafka.test.IntegrationTest'
     }
+    
   }
 
   jar {
@@ -666,11 +670,18 @@ project(':core') {
     standardOutput = new File(generatedDocsDir, "consumer_metrics.html").newOutputStream()
   }
 
+  task genProducerMetricsDocs(type: JavaExec) {
+    classpath = sourceSets.test.runtimeClasspath
+    main = 'org.apache.kafka.clients.producer.internals.ProducerMetrics'
+    if( !generatedDocsDir.exists() ) { generatedDocsDir.mkdirs() }
+    standardOutput = new File(generatedDocsDir, "producer_metrics.html").newOutputStream()
+  }
+
   task siteDocsTar(dependsOn: ['genProtocolErrorDocs', 'genProtocolApiKeyDocs', 'genProtocolMessageDocs',
                                'genAdminClientConfigDocs', 'genProducerConfigDocs', 'genConsumerConfigDocs',
                                'genKafkaConfigDocs', 'genTopicConfigDocs',
                                ':connect:runtime:genConnectConfigDocs', ':connect:runtime:genConnectTransformationDocs',
-                               ':streams:genStreamsConfigDocs', 'genConsumerMetricsDocs'], type: Tar) {
+                               ':streams:genStreamsConfigDocs', 'genConsumerMetricsDocs', 'genProducerMetricsDocs'], type: Tar) {
     classifier = 'site-docs'
     compression = Compression.GZIP
     from project.file("$rootDir/docs")
@@ -759,7 +770,7 @@ project(':clients') {
     testCompile libs.bcpkix
     testCompile libs.junit
     testCompile libs.easymock
-    testCompile libs.powermock
+    testCompile libs.powermockJunit4
     testCompile libs.powermockEasymock
 
     testRuntime libs.slf4jlog4j
@@ -1047,7 +1058,7 @@ project(':connect:transforms') {
 
     testCompile libs.easymock
     testCompile libs.junit
-    testCompile libs.powermock
+    testCompile libs.powermockJunit4
     testCompile libs.powermockEasymock
 
     testRuntime libs.slf4jlog4j
@@ -1085,7 +1096,7 @@ project(':connect:json') {
 
     testCompile libs.easymock
     testCompile libs.junit
-    testCompile libs.powermock
+    testCompile libs.powermockJunit4
     testCompile libs.powermockEasymock
 
     testRuntime libs.slf4jlog4j
@@ -1134,7 +1145,7 @@ project(':connect:runtime') {
     testCompile project(':clients').sourceSets.test.output
     testCompile libs.easymock
     testCompile libs.junit
-    testCompile libs.powermock
+    testCompile libs.powermockJunit4
     testCompile libs.powermockEasymock
 
     testCompile project(":connect:json")
@@ -1187,7 +1198,7 @@ project(':connect:file') {
 
     testCompile libs.easymock
     testCompile libs.junit
-    testCompile libs.powermock
+    testCompile libs.powermockJunit4
     testCompile libs.powermockEasymock
 
     testRuntime libs.slf4jlog4j

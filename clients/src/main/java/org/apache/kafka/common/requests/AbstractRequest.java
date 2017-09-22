@@ -133,9 +133,9 @@ public abstract class AbstractRequest extends AbstractRequestResponse {
                 return new SyncGroupRequest(struct, apiVersion);
             case STOP_REPLICA:
                 return new StopReplicaRequest(struct, apiVersion);
-            case CONTROLLED_SHUTDOWN_KEY:
+            case CONTROLLED_SHUTDOWN:
                 return new ControlledShutdownRequest(struct, apiVersion);
-            case UPDATE_METADATA_KEY:
+            case UPDATE_METADATA:
                 return new UpdateMetadataRequest(struct, apiVersion);
             case LEADER_AND_ISR:
                 return new LeaderAndIsrRequest(struct, apiVersion);
@@ -177,6 +177,14 @@ public abstract class AbstractRequest extends AbstractRequestResponse {
                 return new DescribeConfigsRequest(struct, apiVersion);
             case ALTER_CONFIGS:
                 return new AlterConfigsRequest(struct, apiVersion);
+            case ALTER_REPLICA_DIR:
+                return new AlterReplicaDirRequest(struct, apiVersion);
+            case DESCRIBE_LOG_DIRS:
+                return new DescribeLogDirsRequest(struct, apiVersion);
+            case SASL_AUTHENTICATE:
+                return new SaslAuthenticateRequest(struct, apiVersion);
+            case CREATE_PARTITIONS:
+                return new CreatePartitionsRequest(struct, apiVersion);
             default:
                 throw new AssertionError(String.format("ApiKey %s is not currently handled in `parseRequest`, the " +
                         "code should be updated to do so.", apiKey));
