@@ -102,8 +102,8 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.METADATA => handleTopicMetadataRequest(request)
         case ApiKeys.LEADER_AND_ISR => handleLeaderAndIsrRequest(request)
         case ApiKeys.STOP_REPLICA => handleStopReplicaRequest(request)
-        case ApiKeys.UPDATE_METADATA_KEY => handleUpdateMetadataRequest(request)
-        case ApiKeys.CONTROLLED_SHUTDOWN_KEY => handleControlledShutdownRequest(request)
+        case ApiKeys.UPDATE_METADATA => handleUpdateMetadataRequest(request)
+        case ApiKeys.CONTROLLED_SHUTDOWN => handleControlledShutdownRequest(request)
         case ApiKeys.OFFSET_COMMIT => handleOffsetCommitRequest(request)
         case ApiKeys.OFFSET_FETCH => handleOffsetFetchRequest(request)
         case ApiKeys.FIND_COORDINATOR => handleFindCoordinatorRequest(request)
@@ -133,6 +133,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.ALTER_REPLICA_DIR => handleAlterReplicaDirRequest(request)
         case ApiKeys.DESCRIBE_LOG_DIRS => handleDescribeLogDirsRequest(request)
         case ApiKeys.SASL_AUTHENTICATE => handleSaslAuthenticateRequest(request)
+        case ApiKeys.CREATE_PARTITIONS => handleCreatePartitionsRequest(request)
       }
     } catch {
       case e: FatalExitError => throw e
@@ -219,7 +220,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
       if (adminManager.hasDelayedTopicOperations) {
         updateMetadataRequest.partitionStates.keySet.asScala.map(_.topic).foreach { topic =>
-        adminManager.tryCompleteDelayedTopicOperations(topic)
+          adminManager.tryCompleteDelayedTopicOperations(topic)
         }
       }
       sendResponseExemptThrottle(request, new UpdateMetadataResponse(Errors.NONE))
@@ -1126,7 +1127,7 @@ class KafkaApis(val requestChannel: RequestChannel,
   def handleListGroupsRequest(request: RequestChannel.Request) {
     if (!authorize(request.session, Describe, Resource.ClusterResource)) {
       sendResponseMaybeThrottle(request, requestThrottleMs =>
-        ListGroupsResponse.fromError(requestThrottleMs, Errors.CLUSTER_AUTHORIZATION_FAILED))
+        request.body[ListGroupsRequest].getErrorResponse(requestThrottleMs, Errors.CLUSTER_AUTHORIZATION_FAILED.exception))
     } else {
       val (error, groups) = groupCoordinator.handleListGroups()
       val allGroups = groups.map { group => new ListGroupsResponse.Group(group.groupId, group.protocolType) }
@@ -1330,6 +1331,44 @@ class KafkaApis(val requestChannel: RequestChannel,
         validTopics,
         sendResponseWithDuplicatesCallback
       )
+    }
+  }
+
+  def handleCreatePartitionsRequest(request: RequestChannel.Request): Unit = {
+    val createPartitionsRequest = request.body[CreatePartitionsRequest]
+
+    def sendResponseCallback(results: Map[String, ApiError]): Unit = {
+      def createResponse(requestThrottleMs: Int): AbstractResponse = {
+        val responseBody = new CreatePartitionsResponse(requestThrottleMs, results.asJava)
+        trace(s"Sending create partitions response $responseBody for correlation id ${request.header.correlationId} to " +
+          s"client ${request.header.clientId}.")
+        responseBody
+      }
+      sendResponseMaybeThrottle(request, createResponse)
+    }
+
+    if (!controller.isActive) {
+      val result = createPartitionsRequest.newPartitions.asScala.map { case (topic, _) =>
+        (topic, new ApiError(Errors.NOT_CONTROLLER, null))
+      }
+      sendResponseCallback(result)
+    } else {
+      // Special handling to add duplicate topics to the response
+      val dupes = createPartitionsRequest.duplicates.asScala
+      val notDuped = createPartitionsRequest.newPartitions.asScala -- dupes
+      val (authorized, unauthorized) = notDuped.partition { case (topic, _) =>
+        authorize(request.session, Alter, new Resource(Topic, topic))
+      }
+      val (queuedForDeletion, valid) = authorized.partition { case (topic, _) =>
+        controller.topicDeletionManager.isTopicQueuedUpForDeletion(topic)
+      }
+
+      val errors = dupes.map(_ -> new ApiError(Errors.INVALID_REQUEST, "Duplicate topic in request")) ++
+        unauthorized.keySet.map(_ -> new ApiError(Errors.TOPIC_AUTHORIZATION_FAILED, null)) ++
+        queuedForDeletion.keySet.map(_ -> new ApiError(Errors.INVALID_TOPIC_EXCEPTION, "The topic is queued for deletion."))
+
+      adminManager.createPartitions(createPartitionsRequest.timeout, valid, createPartitionsRequest.validateOnly,
+        request.context.listenerName, result => sendResponseCallback(result ++ errors))
     }
   }
 

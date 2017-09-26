@@ -26,10 +26,11 @@ import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Merger;
 import org.apache.kafka.streams.kstream.Reducer;
+import org.apache.kafka.streams.kstream.SessionWindowedKStream;
 import org.apache.kafka.streams.kstream.SessionWindows;
 import org.apache.kafka.streams.kstream.Window;
 import org.apache.kafka.streams.kstream.Windowed;
-import org.apache.kafka.streams.kstream.WindowedKStream;
+import org.apache.kafka.streams.kstream.TimeWindowedKStream;
 import org.apache.kafka.streams.kstream.Windows;
 import org.apache.kafka.streams.processor.StateStoreSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -49,18 +50,6 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
     private final Serde<K> keySerde;
     private final Serde<V> valSerde;
     private final boolean repartitionRequired;
-    private final Initializer<Long> countInitializer = new Initializer<Long>() {
-        @Override
-        public Long apply() {
-            return 0L;
-        }
-    };
-    private final Aggregator<K, V, Long> countAggregator = new Aggregator<K, V, Long>() {
-        @Override
-        public Long apply(K aggKey, V value, Long aggregate) {
-            return aggregate + 1;
-        }
-    };
     private final GroupedStreamAggregateBuilder<K, V> aggregateBuilder;
     private boolean isQueryable = true;
 
@@ -235,7 +224,10 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
                                                                   final Aggregator<? super K, ? super V, T> aggregator,
                                                                   final Windows<W> windows,
                                                                   final Serde<T> aggValueSerde) {
-        return windowedBy(windows).aggregate(initializer, aggregator, aggValueSerde);
+        return windowedBy(windows).aggregate(initializer, aggregator,
+                                             Materialized.<K, T, WindowStore<Bytes, byte[]>>as(builder.newStoreName(AGGREGATE_NAME))
+                                                     .withKeySerde(keySerde)
+                                                     .withValueSerde(aggValueSerde));
     }
 
     @SuppressWarnings("unchecked")
@@ -268,12 +260,12 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
 
     @Override
     public KTable<K, Long> count(final StateStoreSupplier<KeyValueStore> storeSupplier) {
-        return aggregate(countInitializer, countAggregator, storeSupplier);
+        return aggregate(aggregateBuilder.countInitializer, aggregateBuilder.countAggregator, storeSupplier);
     }
 
     @Override
     public KTable<K, Long> count(final Materialized<K, Long, KeyValueStore<Bytes, byte[]>> materialized) {
-        return aggregate(countInitializer, countAggregator, materialized);
+        return aggregate(aggregateBuilder.countInitializer, aggregateBuilder.countAggregator, materialized);
     }
 
     @Override
@@ -292,8 +284,8 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
     public <W extends Window> KTable<Windowed<K>, Long> count(final Windows<W> windows,
                                                               final StateStoreSupplier<WindowStore> storeSupplier) {
         return aggregate(
-                countInitializer,
-                countAggregator,
+                aggregateBuilder.countInitializer,
+                aggregateBuilder.countAggregator,
                 windows,
                 storeSupplier);
     }
@@ -324,7 +316,12 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
                                                 final Merger<? super K, T> sessionMerger,
                                                 final SessionWindows sessionWindows,
                                                 final Serde<T> aggValueSerde) {
-        return aggregate(initializer, aggregator, sessionMerger, sessionWindows, aggValueSerde, (String) null);
+        return windowedBy(sessionWindows).aggregate(initializer,
+                                                    aggregator,
+                                                    sessionMerger,
+                                                    Materialized.<K, T, SessionStore<Bytes, byte[]>>as(builder.newStoreName(AGGREGATE_NAME))
+                                                            .withKeySerde(keySerde)
+                                                            .withValueSerde(aggValueSerde));
     }
 
     @SuppressWarnings("unchecked")
@@ -349,26 +346,37 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
     }
 
     @Override
-    public <W extends Window> WindowedKStream<K, V> windowedBy(final Windows<W> windows) {
-        return new WindowedKStreamImpl<>(windows,
-                                         builder,
-                                         sourceNodes,
-                                         name,
-                                         keySerde,
-                                         valSerde,
-                                         repartitionRequired);
+    public <W extends Window> TimeWindowedKStream<K, V> windowedBy(final Windows<W> windows) {
+        return new TimeWindowedKStreamImpl<>(windows,
+                                             builder,
+                                             sourceNodes,
+                                             name,
+                                             keySerde,
+                                             valSerde,
+                                             repartitionRequired);
+    }
+
+    @Override
+    public SessionWindowedKStream<K, V> windowedBy(final SessionWindows windows) {
+        return new SessionWindowedKStreamImpl<>(windows,
+                                                builder,
+                                                sourceNodes,
+                                                name,
+                                                keySerde,
+                                                valSerde,
+                                                aggregateBuilder);
     }
 
     @SuppressWarnings("unchecked")
     public KTable<Windowed<K>, Long> count(final SessionWindows sessionWindows, final String queryableStoreName) {
-        determineIsQueryable(queryableStoreName);
-        return count(sessionWindows,
-                     storeFactory(keySerde, Serdes.Long(), getOrCreateName(queryableStoreName, AGGREGATE_NAME))
-                             .sessionWindowed(sessionWindows.maintainMs()).build());
+        Materialized<K, Long, SessionStore<Bytes, byte[]>> materialized = Materialized.<K, Long, SessionStore<Bytes, byte[]>>as(getOrCreateName(queryableStoreName, AGGREGATE_NAME))
+                .withKeySerde(keySerde)
+                .withValueSerde(Serdes.Long());
+        return windowedBy(sessionWindows).count(materialized);
     }
 
     public KTable<Windowed<K>, Long> count(final SessionWindows sessionWindows) {
-        return count(sessionWindows, (String) null);
+        return windowedBy(sessionWindows).count();
     }
 
     @Override
@@ -383,7 +391,12 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
             }
         };
 
-        return aggregate(countInitializer, countAggregator, sessionMerger, sessionWindows, Serdes.Long(), storeSupplier);
+        return aggregate(aggregateBuilder.countInitializer,
+                         aggregateBuilder.countAggregator,
+                         sessionMerger,
+                         sessionWindows,
+                         Serdes.Long(),
+                         storeSupplier);
     }
 
 
@@ -403,7 +416,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
     public KTable<Windowed<K>, V> reduce(final Reducer<V> reducer,
                                          final SessionWindows sessionWindows) {
 
-        return reduce(reducer, sessionWindows, (String) null);
+        return windowedBy(sessionWindows).reduce(reducer);
     }
 
     @Override

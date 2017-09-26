@@ -38,9 +38,10 @@ import org.apache.kafka.streams.kstream.ValueMapper;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.FailOnInvalidTimestamp;
 import org.apache.kafka.streams.processor.ProcessorSupplier;
-import org.apache.kafka.streams.processor.StateStoreSupplier;
 import org.apache.kafka.streams.processor.StreamPartitioner;
+import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
+import org.apache.kafka.streams.state.WindowStore;
 
 import java.lang.reflect.Array;
 import java.util.Collections;
@@ -182,7 +183,7 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
 
         return new KStreamImpl<>(builder, name, sourceNodes, this.repartitionRequired);
     }
-
+    
     @Override
     public void print() {
         print(defaultKeyValueMapper, null, null, this.name);
@@ -345,24 +346,22 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
         return branchChildren;
     }
 
-    public static <K, V> KStream<K, V> merge(final InternalStreamsBuilder builder,
-                                             final KStream<K, V>[] streams) {
-        if (streams == null || streams.length == 0) {
-            throw new IllegalArgumentException("Parameter <streams> must not be null or has length zero");
-        }
-
+    @Override 
+    public KStream<K, V> merge(final KStream<K, V> stream) {
+        Objects.requireNonNull(stream);
+        return merge(builder, stream);
+    }
+    
+    private KStream<K, V> merge(final InternalStreamsBuilder builder,
+                                final KStream<K, V> stream) {
+        KStreamImpl<K, V> streamImpl = (KStreamImpl<K, V>) stream;
         String name = builder.newName(MERGE_NAME);
-        String[] parentNames = new String[streams.length];
+        String[] parentNames = {this.name, streamImpl.name};
         Set<String> allSourceNodes = new HashSet<>();
-        boolean requireRepartitioning = false;
 
-        for (int i = 0; i < streams.length; i++) {
-            KStreamImpl<K, V> stream = (KStreamImpl<K, V>) streams[i];
-
-            parentNames[i] = stream.name;
-            requireRepartitioning |= stream.repartitionRequired;
-            allSourceNodes.addAll(stream.sourceNodes);
-        }
+        boolean requireRepartitioning = streamImpl.repartitionRequired || repartitionRequired;
+        allSourceNodes.addAll(sourceNodes);
+        allSourceNodes.addAll(streamImpl.sourceNodes);
 
         builder.internalTopologyBuilder.addProcessor(name, new KStreamPassThrough<>(), parentNames);
 
@@ -827,16 +826,16 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
         return groupByKey(Serialized.with(keySerde, valSerde));
     }
 
-    private static <K, V> StateStoreSupplier createWindowedStateStore(final JoinWindows windows,
-                                                                      final Serde<K> keySerde,
-                                                                      final Serde<V> valueSerde,
-                                                                      final String storeName) {
-        return Stores.create(storeName)
-            .withKeys(keySerde)
-            .withValues(valueSerde)
-            .persistent()
-            .windowed(windows.size(), windows.maintainMs(), windows.segments, true)
-            .build();
+    private static <K, V> StoreBuilder<WindowStore<K, V>> createWindowedStateStore(final JoinWindows windows,
+                                                                                   final Serde<K> keySerde,
+                                                                                   final Serde<V> valueSerde,
+                                                                                   final String storeName) {
+        return Stores.windowStoreBuilder(Stores.persistentWindowStore(storeName,
+                                                                      windows.maintainMs(),
+                                                                      windows.segments,
+                                                                      windows.size(),
+                                                                      true), keySerde, valueSerde);
+
     }
 
     private class KStreamImplJoin {
@@ -854,17 +853,17 @@ public class KStreamImpl<K, V> extends AbstractStream<K> implements KStream<K, V
                                                    final KStream<K1, V2> other,
                                                    final ValueJoiner<? super V1, ? super V2, ? extends R> joiner,
                                                    final JoinWindows windows,
-                                                   final Joined joined) {
+                                                   final Joined<K1, V1, V2> joined) {
             String thisWindowStreamName = builder.newName(WINDOWED_NAME);
             String otherWindowStreamName = builder.newName(WINDOWED_NAME);
             String joinThisName = rightOuter ? builder.newName(OUTERTHIS_NAME) : builder.newName(JOINTHIS_NAME);
             String joinOtherName = leftOuter ? builder.newName(OUTEROTHER_NAME) : builder.newName(JOINOTHER_NAME);
             String joinMergeName = builder.newName(MERGE_NAME);
 
-            StateStoreSupplier thisWindow =
+            final StoreBuilder<WindowStore<K1, V1>> thisWindow =
                 createWindowedStateStore(windows, joined.keySerde(), joined.valueSerde(), joinThisName + "-store");
 
-            StateStoreSupplier otherWindow =
+            final StoreBuilder<WindowStore<K1, V2>> otherWindow =
                 createWindowedStateStore(windows, joined.keySerde(), joined.otherValueSerde(), joinOtherName + "-store");
 
 
