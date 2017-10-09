@@ -90,6 +90,8 @@ public abstract class AdminClient implements AutoCloseable {
      * This is a convenience method for #{@link #createTopics(Collection, CreateTopicsOptions)} with default options.
      * See the overload for more details.
      *
+     * This operation is supported by brokers with version 0.10.1.0 or higher.
+     *
      * @param newTopics         The new topics to create.
      * @return                  The CreateTopicsResult.
      */
@@ -118,8 +120,8 @@ public abstract class AdminClient implements AutoCloseable {
                                                     CreateTopicsOptions options);
 
     /**
-     * Similar to #{@link AdminClient#deleteTopics(Collection<String>, DeleteTopicsOptions)},
-     * but uses the default options.
+     * This is a convenience method for #{@link AdminClient#deleteTopics(Collection, DeleteTopicsOptions)}
+     * with default options. See the overload for more details.
      *
      * This operation is supported by brokers with version 0.10.1.0 or higher.
      *
@@ -132,6 +134,8 @@ public abstract class AdminClient implements AutoCloseable {
 
     /**
      * Delete a batch of topics.
+     *
+     * This operation is not transactional so it may succeed for some topics while fail for others.
      *
      * It may take several seconds after AdminClient#deleteTopics returns
      * success for all the brokers to become aware that the topics are gone.
@@ -153,6 +157,9 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * List the topics available in the cluster with the default options.
      *
+     * This is a convenience method for #{@link AdminClient#listTopics(ListTopicsOptions)} with default options.
+     * See the overload for more details.
+     *
      * @return                  The ListTopicsResult.
      */
     public ListTopicsResult listTopics() {
@@ -170,7 +177,8 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * Describe some topics in the cluster, with the default options.
      *
-     * See {@link AdminClient#describeTopics(Collection<String>, DescribeTopicsOptions)}
+     * This is a convenience method for #{@link AdminClient#describeTopics(Collection, DescribeTopicsOptions)} with
+     * default options. See the overload for more details.
      *
      * @param topicNames        The names of the topics to describe.
      *
@@ -194,6 +202,9 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * Get information about the nodes in the cluster, using the default options.
      *
+     * This is a convenience method for #{@link AdminClient#describeCluster(DescribeClusterOptions)} with default options.
+     * See the overload for more details.
+     *
      * @return                  The DescribeClusterResult.
      */
     public DescribeClusterResult describeCluster() {
@@ -209,8 +220,8 @@ public abstract class AdminClient implements AutoCloseable {
     public abstract DescribeClusterResult describeCluster(DescribeClusterOptions options);
 
     /**
-     * Similar to #{@link AdminClient#describeAcls(AclBindingFilter, DescribeAclsOptions)},
-     * but uses the default options.
+     * This is a convenience method for #{@link AdminClient#describeAcls(AclBindingFilter, DescribeAclsOptions)} with
+     * default options. See the overload for more details.
      *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
      *
@@ -236,8 +247,8 @@ public abstract class AdminClient implements AutoCloseable {
     public abstract DescribeAclsResult describeAcls(AclBindingFilter filter, DescribeAclsOptions options);
 
     /**
-     * Similar to #{@link AdminClient#createAcls(Collection<AclBinding>, CreateAclsOptions)},
-     * but uses the default options.
+     * This is a convenience method for #{@link AdminClient#createAcls(Collection<AclBinding>, CreateAclsOptions)} with
+     * default options. See the overload for more details.
      *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
      *
@@ -251,6 +262,8 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * Creates access control lists (ACLs) which are bound to specific resources.
      *
+     * This operation is not transactional so it may succeed for some ACLs while fail for others.
+     *
      * If you attempt to add an ACL that duplicates an existing ACL, no error will be raised, but
      * no changes will be made.
      *
@@ -263,8 +276,8 @@ public abstract class AdminClient implements AutoCloseable {
     public abstract CreateAclsResult createAcls(Collection<AclBinding> acls, CreateAclsOptions options);
 
     /**
-     * Similar to #{@link AdminClient#deleteAcls(Collection<AclBinding>, DeleteAclsOptions)},
-     * but uses the default options.
+     * This is a convenience method for #{@link AdminClient#deleteAcls(Collection<AclBinding>, DeleteAclsOptions)} with default options.
+     * See the overload for more details.
      *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
      *
@@ -278,6 +291,8 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * Deletes access control lists (ACLs) according to the supplied filters.
      *
+     * This operation is not transactional so it may succeed for some ACLs while fail for others.
+     *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
      *
      * @param filters           The filters to use.
@@ -287,12 +302,13 @@ public abstract class AdminClient implements AutoCloseable {
     public abstract DeleteAclsResult deleteAcls(Collection<AclBindingFilter> filters, DeleteAclsOptions options);
 
 
-     /**
+    /**
      * Get the configuration for the specified resources with the default options.
      *
-     * See {@link #describeConfigs(Collection, DescribeConfigsOptions)} for more details.
-      *
-      * This operation is supported by brokers with version 0.11.0.0 or higher.
+     * This is a convenience method for #{@link AdminClient#describeConfigs(Collection, DescribeConfigsOptions)} with default options.
+     * See the overload for more details.
+     *
+     * This operation is supported by brokers with version 0.11.0.0 or higher.
      *
      * @param resources         The resources (topic and broker resource types are currently supported)
      * @return                  The DescribeConfigsResult
@@ -324,7 +340,8 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * Update the configuration for the specified resources with the default options.
      *
-     * See {@link #alterConfigs(Map, AlterConfigsOptions)} for more details.
+     * This is a convenience method for #{@link AdminClient#alterConfigs(Map, AlterConfigsOptions)} with default options.
+     * See the overload for more details.
      *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
      *
@@ -338,6 +355,9 @@ public abstract class AdminClient implements AutoCloseable {
 
     /**
      * Update the configuration for the specified resources with the default options.
+     *
+     * Updates are not transactional so they may succeed for some resources while fail for others. The configs for
+     * a particular resource are updated atomically.
      *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
      *
@@ -353,13 +373,16 @@ public abstract class AdminClient implements AutoCloseable {
      * before the replica has been created on the broker. It will support moving replicas that have already been created after
      * KIP-113 is fully implemented.
      *
+     * This is a convenience method for #{@link AdminClient#alterReplicaLogDirs(Map, AlterReplicaLogDirsOptions)} with default options.
+     * See the overload for more details.
+     *
      * This operation is supported by brokers with version 1.0.0 or higher.
      *
      * @param replicaAssignment  The replicas with their log directory absolute path
-     * @return                   The AlterReplicaDirResult
+     * @return                   The AlterReplicaLogDirsResult
      */
-    public AlterReplicaDirResult alterReplicaDir(Map<TopicPartitionReplica, String> replicaAssignment) {
-        return alterReplicaDir(replicaAssignment, new AlterReplicaDirOptions());
+    public AlterReplicaLogDirsResult alterReplicaLogDirs(Map<TopicPartitionReplica, String> replicaAssignment) {
+        return alterReplicaLogDirs(replicaAssignment, new AlterReplicaLogDirsOptions());
     }
 
     /**
@@ -367,16 +390,21 @@ public abstract class AdminClient implements AutoCloseable {
      * before the replica has been created on the broker. It will support moving replicas that have already been created after
      * KIP-113 is fully implemented.
      *
+     * This operation is not transactional so it may succeed for some replicas while fail for others.
+     *
      * This operation is supported by brokers with version 1.0.0 or higher.
      *
      * @param replicaAssignment  The replicas with their log directory absolute path
      * @param options            The options to use when changing replica dir
-     * @return                   The AlterReplicaDirResult
+     * @return                   The AlterReplicaLogDirsResult
      */
-    public abstract AlterReplicaDirResult alterReplicaDir(Map<TopicPartitionReplica, String> replicaAssignment, AlterReplicaDirOptions options);
+    public abstract AlterReplicaLogDirsResult alterReplicaLogDirs(Map<TopicPartitionReplica, String> replicaAssignment, AlterReplicaLogDirsOptions options);
 
     /**
      * Query the information of all log directories on the given set of brokers
+     *
+     * This is a convenience method for #{@link AdminClient#describeLogDirs(Collection, DescribeLogDirsOptions)} with default options.
+     * See the overload for more details.
      *
      * This operation is supported by brokers with version 1.0.0 or higher.
      *
@@ -401,13 +429,16 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * Query the replica log directory information for the specified replicas.
      *
+     * This is a convenience method for #{@link AdminClient#describeReplicaLogDirs(Collection, DescribeReplicaLogDirsOptions)}
+     * with default options. See the overload for more details.
+     *
      * This operation is supported by brokers with version 1.0.0 or higher.
      *
      * @param replicas      The replicas to query
-     * @return              The DescribeReplicaLogDirResult
+     * @return              The DescribeReplicaLogDirsResult
      */
-    public DescribeReplicaLogDirResult describeReplicaLogDir(Collection<TopicPartitionReplica> replicas) {
-        return describeReplicaLogDir(replicas, new DescribeReplicaLogDirOptions());
+    public DescribeReplicaLogDirsResult describeReplicaLogDirs(Collection<TopicPartitionReplica> replicas) {
+        return describeReplicaLogDirs(replicas, new DescribeReplicaLogDirsOptions());
     }
 
     /**
@@ -417,16 +448,17 @@ public abstract class AdminClient implements AutoCloseable {
      *
      * @param replicas      The replicas to query
      * @param options       The options to use when querying replica log dir info
-     * @return              The DescribeReplicaLogDirResult
+     * @return              The DescribeReplicaLogDirsResult
      */
-    public abstract DescribeReplicaLogDirResult describeReplicaLogDir(Collection<TopicPartitionReplica> replicas, DescribeReplicaLogDirOptions options);
+    public abstract DescribeReplicaLogDirsResult describeReplicaLogDirs(Collection<TopicPartitionReplica> replicas, DescribeReplicaLogDirsOptions options);
 
     /**
-     * Increase the number of partitions of the topics given as the keys of {@code newPartitions}
-     * according to the corresponding values.
+     * <p>Increase the number of partitions of the topics given as the keys of {@code newPartitions}
+     * according to the corresponding values. <strong>If partitions are increased for a topic that has a key,
+     * the partition logic or ordering of the messages will be affected.</strong></p>
      *
-     * This is a convenience method for {@link #createPartitions(Map, CreatePartitionsOptions)} with default options.
-     * See the overload for more details.
+     * <p>This is a convenience method for {@link #createPartitions(Map, CreatePartitionsOptions)} with default options.
+     * See the overload for more details.</p>
      *
      * @param newPartitions The topics which should have new partitions created, and corresponding parameters
      *                      for the created partitions.
@@ -437,17 +469,36 @@ public abstract class AdminClient implements AutoCloseable {
     }
 
     /**
-     * Increase the number of partitions of the topics given as the keys of {@code newPartitions}
-     * according to the corresponding values.
+     * <p>Increase the number of partitions of the topics given as the keys of {@code newPartitions}
+     * according to the corresponding values. <strong>If partitions are increased for a topic that has a key,
+     * the partition logic or ordering of the messages will be affected.</strong></p>
      *
-     * This operation is not transactional so it may succeed for some topics while fail for others.
+     * <p>This operation is not transactional so it may succeed for some topics while fail for others.</p>
      *
-     * It may take several seconds after this method returns
+     * <p>It may take several seconds after this method returns
      * success for all the brokers to become aware that the partitions have been created.
      * During this time, {@link AdminClient#describeTopics(Collection)}
-     * may not return information about the new partitions.
+     * may not return information about the new partitions.</p>
      *
-     * This operation is supported by brokers with version 1.0.0 or higher.
+     * <p>This operation is supported by brokers with version 1.0.0 or higher.</p>
+     *
+     * <p>The following exceptions can be anticipated when calling {@code get()} on the futures obtained from the
+     * {@link CreatePartitionsResult#values() values()} method of the returned {@code CreatePartitionsResult}</p>
+     * <ul>
+     *     <li>{@link org.apache.kafka.common.errors.AuthorizationException}
+     *     if the authenticated user is not authorized to alter the topic</li>
+     *     <li>{@link org.apache.kafka.common.errors.TimeoutException}
+     *     if the request was not completed in within the given {@link CreatePartitionsOptions#timeoutMs()}.</li>
+     *     <li>{@link org.apache.kafka.common.errors.ReassignmentInProgressException}
+     *     if a partition reassignment is currently in progress</li>
+     *     <li>{@link org.apache.kafka.common.errors.BrokerNotAvailableException}
+     *     if the requested {@link NewPartitions#assignments()} contain a broker that is currently unavailable.</li>
+     *     <li>{@link org.apache.kafka.common.errors.InvalidReplicationFactorException}
+     *     if no {@link NewPartitions#assignments()} are given and it is impossible for the broker to assign
+     *     replicas with the topics replication factor.</li>
+     *     <li>Subclasses of {@link org.apache.kafka.common.KafkaException}
+     *     if the request is invalid in some way.</li>
+     * </ul>
      *
      * @param newPartitions The topics which should have new partitions created, and corresponding parameters
      *                      for the created partitions.
