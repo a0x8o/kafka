@@ -18,8 +18,13 @@ package kafka.server
 
 import java.util.Collections
 
+<<<<<<< HEAD
 import org.apache.kafka.common.metrics.{MetricConfig, Metrics, Quota}
 import org.apache.kafka.common.utils.{MockTime, Sanitizer}
+=======
+import org.apache.kafka.common.metrics.{MetricConfig, Metrics, Quota, Sanitizer}
+import org.apache.kafka.common.utils.MockTime
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.{Before, Test}
 
@@ -373,18 +378,30 @@ class ClientQuotaManagerTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testClientIdNotSanitized() {
+=======
+  def testSanitizeClientId() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val metrics = newMetrics
     val clientMetrics = new ClientQuotaManager(config, metrics, QuotaType.Produce, time)
     val clientId = "client@#$%"
     try {
       clientMetrics.maybeRecordAndThrottle("ANONYMOUS", clientId, 100, callback)
+<<<<<<< HEAD
 
       // The metrics should use the raw client ID, even if the reporters internally sanitize them
       val throttleTimeSensor = metrics.getSensor("ProduceThrottleTime-:" + clientId)
       assertTrue("Throttle time sensor should exist", throttleTimeSensor != null)
 
       val byteRateSensor = metrics.getSensor("Produce-:"  + clientId)
+=======
+      
+      val throttleTimeSensor = metrics.getSensor("ProduceThrottleTime-:" + Sanitizer.sanitize(clientId))
+      assertTrue("Throttle time sensor should exist", throttleTimeSensor != null)
+
+      val byteRateSensor = metrics.getSensor("Produce-:"  + Sanitizer.sanitize(clientId))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       assertTrue("Byte rate sensor should exist", byteRateSensor != null)
     } finally {
       clientMetrics.shutdown()

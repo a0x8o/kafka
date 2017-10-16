@@ -105,6 +105,10 @@ public class Printed<K, V> {
      * The example below shows how to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }

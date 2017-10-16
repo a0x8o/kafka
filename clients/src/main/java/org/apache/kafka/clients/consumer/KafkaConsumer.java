@@ -42,6 +42,7 @@ import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.common.metrics.Sanitizer;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.network.ChannelBuilder;
 import org.apache.kafka.common.network.Selector;
@@ -646,6 +647,10 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
             if (clientId.isEmpty())
                 clientId = "consumer-" + CONSUMER_CLIENT_ID_SEQUENCE.getAndIncrement();
             this.clientId = clientId;
+<<<<<<< HEAD
+=======
+            String sanitizedClientId = Sanitizer.sanitize(this.clientId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             String groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
 
             LogContext logContext = new LogContext("[Consumer clientId=" + clientId + ", groupId=" + groupId + "] ");
@@ -659,7 +664,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                 throw new ConfigException(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG + " should be greater than " + ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG + " and " + ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG);
             this.time = Time.SYSTEM;
 
+<<<<<<< HEAD
             Map<String, String> metricsTags = Collections.singletonMap("client-id", clientId);
+=======
+            Map<String, String> metricsTags = Collections.singletonMap("client-id", sanitizedClientId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             MetricConfig metricConfig = new MetricConfig().samples(config.getInt(ConsumerConfig.METRICS_NUM_SAMPLES_CONFIG))
                     .timeWindow(config.getLong(ConsumerConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG), TimeUnit.MILLISECONDS)
                     .recordLevel(Sensor.RecordingLevel.forName(config.getString(ConsumerConfig.METRICS_RECORDING_LEVEL_CONFIG)))
@@ -770,7 +779,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                     isolationLevel);
 
             config.logUnused();
+<<<<<<< HEAD
             AppInfoParser.registerAppInfo(JMX_PREFIX, clientId, metrics);
+=======
+            AppInfoParser.registerAppInfo(JMX_PREFIX, sanitizedClientId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
             log.debug("Kafka consumer initialized");
         } catch (Throwable t) {
@@ -796,8 +809,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                   SubscriptionState subscriptions,
                   Metadata metadata,
                   long retryBackoffMs,
+<<<<<<< HEAD
                   long requestTimeoutMs,
                   List<PartitionAssignor> assignors) {
+=======
+                  long requestTimeoutMs) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         this.log = logContext.logger(getClass());
         this.clientId = clientId;
         this.coordinator = coordinator;
@@ -875,8 +892,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      *                 subscribed topics
      * @throws IllegalArgumentException If topics is null or contains null or empty elements, or if listener is null
      * @throws IllegalStateException If {@code subscribe()} is called previously with pattern, or assign is called
+<<<<<<< HEAD
      *                               previously (without a subsequent call to {@link #unsubscribe()}), or if not
      *                               configured at-least one partition assignment strategy
+=======
+     *                               previously (without a subsequent call to {@link #unsubscribe()})
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Override
     public void subscribe(Collection<String> topics, ConsumerRebalanceListener listener) {
@@ -922,8 +943,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @param topics The list of topics to subscribe to
      * @throws IllegalArgumentException If topics is null or contains null or empty elements
      * @throws IllegalStateException If {@code subscribe()} is called previously with pattern, or assign is called
+<<<<<<< HEAD
      *                               previously (without a subsequent call to {@link #unsubscribe()}), or if not
      *                               configured at-least one partition assignment strategy
+=======
+     *                               previously (without a subsequent call to {@link #unsubscribe()})
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Override
     public void subscribe(Collection<String> topics) {
@@ -949,8 +974,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      *                 subscribed topics
      * @throws IllegalArgumentException If pattern or listener is null
      * @throws IllegalStateException If {@code subscribe()} is called previously with topics, or assign is called
+<<<<<<< HEAD
      *                               previously (without a subsequent call to {@link #unsubscribe()}), or if not
      *                               configured at-least one partition assignment strategy
+=======
+     *                               previously (without a subsequent call to {@link #unsubscribe()})
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Override
     public void subscribe(Pattern pattern, ConsumerRebalanceListener listener) {
@@ -984,8 +1013,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @param pattern Pattern to subscribe to
      * @throws IllegalArgumentException If pattern is null
      * @throws IllegalStateException If {@code subscribe()} is called previously with topics, or assign is called
+<<<<<<< HEAD
      *                               previously (without a subsequent call to {@link #unsubscribe()}), or if not
      *                               configured at-least one partition assignment strategy
+=======
+     *                               previously (without a subsequent call to {@link #unsubscribe()})
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Override
     public void subscribe(Pattern pattern) {
@@ -1579,7 +1612,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @return a mapping from partition to the timestamp and offset of the first message with timestamp greater
      *         than or equal to the target timestamp. {@code null} will be returned for the partition if there is no
      *         such message.
+<<<<<<< HEAD
      * @throws org.apache.kafka.common.errors.AuthenticationException if authentication fails. See the exception for more details
+=======
+     * @throws AuthenticationException if authentication fails. See the exception for more details
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @throws IllegalArgumentException if the target timestamp is negative.
      * @throws org.apache.kafka.common.errors.TimeoutException if the offset metadata could not be fetched before
      *         expiration of the configured request timeout
@@ -1683,7 +1720,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @param timeout The maximum time to wait for consumer to close gracefully. The value must be
      *                non-negative. Specifying a timeout of zero means do not wait for pending requests to complete.
      * @param timeUnit The time unit for the {@code timeout}
+<<<<<<< HEAD
      * @throws org.apache.kafka.common.errors.AuthenticationException if authentication fails. See the exception for more details
+=======
+     * @throws AuthenticationException if authentication fails. See the exception for more details
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @throws InterruptException If the thread is interrupted before or while this function is called
      * @throws IllegalArgumentException If the {@code timeout} is negative.
      */
@@ -1737,7 +1778,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         ClientUtils.closeQuietly(client, "consumer network client", firstException);
         ClientUtils.closeQuietly(keyDeserializer, "consumer key deserializer", firstException);
         ClientUtils.closeQuietly(valueDeserializer, "consumer value deserializer", firstException);
+<<<<<<< HEAD
         AppInfoParser.unregisterAppInfo(JMX_PREFIX, clientId, metrics);
+=======
+        AppInfoParser.unregisterAppInfo(JMX_PREFIX, Sanitizer.sanitize(clientId));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         log.debug("Kafka consumer has been closed");
         Throwable exception = firstException.get();
         if (exception != null && !swallowException) {
@@ -1753,7 +1798,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * or reset it using the offset reset policy the user has configured.
      *
      * @param partitions The partitions that needs updating fetch positions
+<<<<<<< HEAD
      * @throws org.apache.kafka.common.errors.AuthenticationException if authentication fails. See the exception for more details
+=======
+     * @throws AuthenticationException if authentication fails. See the exception for more details
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @throws NoOffsetForPartitionException If no offset is stored for a given partition and no offset reset policy is
      *             defined
      */

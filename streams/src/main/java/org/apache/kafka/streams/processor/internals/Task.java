@@ -18,7 +18,10 @@ package org.apache.kafka.streams.processor.internals;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+<<<<<<< HEAD
 import org.apache.kafka.streams.errors.StreamsException;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.TaskId;
@@ -72,8 +75,11 @@ public interface Task {
     /**
      * initialize the task and return true if the task is ready to run, i.e, it has not state stores
      * @return true if this task has no state stores that may need restoring.
+<<<<<<< HEAD
      * @throws IllegalStateException If store gets registered after initialized is already finished
      * @throws StreamsException if the store's change log does not contain the partition
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     boolean initialize();
 

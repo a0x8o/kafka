@@ -28,9 +28,15 @@ import org.apache.kafka.streams.integration.utils.EmbeddedKafkaCluster;
 import org.apache.kafka.streams.integration.utils.IntegrationTestUtils;
 import org.apache.kafka.streams.kstream.ForeachAction;
 import org.apache.kafka.streams.processor.StreamPartitioner;
+<<<<<<< HEAD
 import org.apache.kafka.streams.processor.ThreadMetadata;
 import org.apache.kafka.streams.processor.internals.GlobalStreamThread;
 import org.apache.kafka.streams.processor.internals.StreamThread;
+=======
+import org.apache.kafka.streams.processor.internals.GlobalStreamThread;
+import org.apache.kafka.streams.processor.internals.StreamThread;
+import org.apache.kafka.streams.processor.ThreadMetadata;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.test.IntegrationTest;
 import org.apache.kafka.test.MockMetricsReporter;
 import org.apache.kafka.test.MockStateRestoreListener;
@@ -57,6 +63,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+<<<<<<< HEAD
+=======
+import static org.junit.Assert.assertNotNull;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 @Category({IntegrationTest.class})
 public class KafkaStreamsTest {

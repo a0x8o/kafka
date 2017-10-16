@@ -20,7 +20,11 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs;
 import org.apache.kafka.common.memory.MemoryPool;
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.security.JaasContext;
 import org.apache.kafka.common.security.authenticator.CredentialCache;
 import org.apache.kafka.common.security.authenticator.LoginManager;
@@ -81,7 +85,10 @@ public class SaslChannelBuilder implements ChannelBuilder {
             this.configs = configs;
             boolean hasKerberos;
             if (mode == Mode.SERVER) {
+<<<<<<< HEAD
                 @SuppressWarnings("unchecked")
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 List<String> enabledMechanisms = (List<String>) this.configs.get(BrokerSecurityConfigs.SASL_ENABLED_MECHANISMS_CONFIG);
                 hasKerberos = enabledMechanisms == null || enabledMechanisms.contains(SaslConfigs.GSSAPI_MECHANISM);
             } else {

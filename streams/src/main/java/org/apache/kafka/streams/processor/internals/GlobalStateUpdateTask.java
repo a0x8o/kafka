@@ -18,9 +18,13 @@ package org.apache.kafka.streams.processor.internals;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+<<<<<<< HEAD
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.errors.DeserializationExceptionHandler;
 import org.apache.kafka.streams.errors.StreamsException;
+=======
+import org.apache.kafka.streams.errors.DeserializationExceptionHandler;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -35,20 +39,33 @@ public class GlobalStateUpdateTask implements GlobalStateMaintainer {
     private final ProcessorTopology topology;
     private final InternalProcessorContext processorContext;
     private final Map<TopicPartition, Long> offsets = new HashMap<>();
+<<<<<<< HEAD
     private final Map<String, RecordDeserializer> deserializers = new HashMap<>();
     private final GlobalStateManager stateMgr;
     private final DeserializationExceptionHandler deserializationExceptionHandler;
     private final LogContext logContext;
+=======
+    private final Map<String, SourceNodeRecordDeserializer> deserializers = new HashMap<>();
+    private final GlobalStateManager stateMgr;
+    private final DeserializationExceptionHandler deserializationExceptionHandler;
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     public GlobalStateUpdateTask(final ProcessorTopology topology,
                                  final InternalProcessorContext processorContext,
                                  final GlobalStateManager stateMgr,
+<<<<<<< HEAD
                                  final DeserializationExceptionHandler deserializationExceptionHandler,
                                  final LogContext logContext) {
+=======
+                                 final DeserializationExceptionHandler deserializationExceptionHandler) {
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         this.topology = topology;
         this.stateMgr = stateMgr;
         this.processorContext = processorContext;
         this.deserializationExceptionHandler = deserializationExceptionHandler;
+<<<<<<< HEAD
         this.logContext = logContext;
     }
 
@@ -56,13 +73,21 @@ public class GlobalStateUpdateTask implements GlobalStateMaintainer {
      * @throws IllegalStateException If store gets registered after initialized is already finished
      * @throws StreamsException if the store's change log does not contain the partition
      */
+=======
+    }
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public Map<TopicPartition, Long> initialize() {
         final Set<String> storeNames = stateMgr.initialize(processorContext);
         final Map<String, String> storeNameToTopic = topology.storeToChangelogTopic();
         for (final String storeName : storeNames) {
             final String sourceTopic = storeNameToTopic.get(storeName);
             final SourceNode source = topology.source(sourceTopic);
+<<<<<<< HEAD
             deserializers.put(sourceTopic, new RecordDeserializer(source, deserializationExceptionHandler, logContext));
+=======
+            deserializers.put(sourceTopic, new SourceNodeRecordDeserializer(source, deserializationExceptionHandler));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
         initTopology();
         processorContext.initialized();
@@ -73,8 +98,13 @@ public class GlobalStateUpdateTask implements GlobalStateMaintainer {
     @SuppressWarnings("unchecked")
     @Override
     public void update(final ConsumerRecord<byte[], byte[]> record) {
+<<<<<<< HEAD
         final RecordDeserializer sourceNodeAndDeserializer = deserializers.get(record.topic());
         final ConsumerRecord<Object, Object> deserialized = sourceNodeAndDeserializer.deserialize(processorContext, record);
+=======
+        final SourceNodeRecordDeserializer sourceNodeAndDeserializer = deserializers.get(record.topic());
+        final ConsumerRecord<Object, Object> deserialized = sourceNodeAndDeserializer.tryDeserialize(processorContext, record);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         if (deserialized != null) {
             final ProcessorRecordContext recordContext =

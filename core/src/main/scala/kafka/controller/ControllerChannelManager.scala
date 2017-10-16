@@ -33,7 +33,10 @@ import org.apache.kafka.common.protocol.ApiKeys
 import org.apache.kafka.common.requests.UpdateMetadataRequest.EndPoint
 import org.apache.kafka.common.requests._
 import org.apache.kafka.common.security.JaasContext
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.{LogContext, Time}
 import org.apache.kafka.common.{Node, TopicPartition}
 

@@ -29,8 +29,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.MEMBER_ID;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.apache.kafka.common.protocol.types.Type.BYTES;
 import static org.apache.kafka.common.protocol.types.Type.INT32;
 import static org.apache.kafka.common.protocol.types.Type.STRING;
@@ -49,21 +52,36 @@ public class JoinGroupRequest extends AbstractRequest {
             new Field(PROTOCOL_METADATA_KEY_NAME, BYTES));
 
     private static final Schema JOIN_GROUP_REQUEST_V0 = new Schema(
+<<<<<<< HEAD
             GROUP_ID,
             new Field(SESSION_TIMEOUT_KEY_NAME, INT32, "The coordinator considers the consumer dead if it receives " +
                     "no heartbeat after this timeout in ms."),
             MEMBER_ID,
+=======
+            new Field(GROUP_ID_KEY_NAME, STRING, "The group id."),
+            new Field(SESSION_TIMEOUT_KEY_NAME, INT32, "The coordinator considers the consumer dead if it receives " +
+                    "no heartbeat after this timeout in ms."),
+            new Field(MEMBER_ID_KEY_NAME, STRING, "The assigned consumer id or an empty string for a new consumer."),
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(PROTOCOL_TYPE_KEY_NAME, STRING, "Unique name for class of protocols implemented by group"),
             new Field(GROUP_PROTOCOLS_KEY_NAME, new ArrayOf(JOIN_GROUP_REQUEST_PROTOCOL_V0), "List of protocols " +
                     "that the member supports"));
 
     private static final Schema JOIN_GROUP_REQUEST_V1 = new Schema(
+<<<<<<< HEAD
             GROUP_ID,
+=======
+            new Field(GROUP_ID_KEY_NAME, STRING, "The group id."),
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(SESSION_TIMEOUT_KEY_NAME, INT32, "The coordinator considers the consumer dead if it receives no " +
                     "heartbeat after this timeout in ms."),
             new Field(REBALANCE_TIMEOUT_KEY_NAME, INT32, "The maximum time that the coordinator will wait for each " +
                     "member to rejoin when rebalancing the group"),
+<<<<<<< HEAD
             MEMBER_ID,
+=======
+            new Field(MEMBER_ID_KEY_NAME, STRING, "The assigned consumer id or an empty string for a new consumer."),
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(PROTOCOL_TYPE_KEY_NAME, STRING, "Unique name for class of protocols implemented by group"),
             new Field(GROUP_PROTOCOLS_KEY_NAME, new ArrayOf(JOIN_GROUP_REQUEST_PROTOCOL_V0), "List of protocols " +
                     "that the member supports"));

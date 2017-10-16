@@ -23,7 +23,10 @@ import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
+<<<<<<< HEAD
 import java.util.Map;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_MESSAGE;
@@ -86,11 +89,14 @@ public class SaslAuthenticateResponse extends AbstractResponse {
     }
 
     @Override
+<<<<<<< HEAD
     public Map<Errors, Integer> errorCounts() {
         return errorCounts(error);
     }
 
     @Override
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public Struct toStruct(short version) {
         Struct struct = new Struct(ApiKeys.SASL_AUTHENTICATE.responseSchema(version));
         struct.set(ERROR_CODE, error.code());

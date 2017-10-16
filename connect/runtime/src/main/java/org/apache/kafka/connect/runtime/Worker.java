@@ -74,7 +74,10 @@ public class Worker {
     private final String workerId;
     private final Plugins plugins;
     private final ConnectMetrics metrics;
+<<<<<<< HEAD
     private final WorkerMetricsGroup workerMetricsGroup;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private final WorkerConfig config;
     private final Converter internalKeyConverter;
     private final Converter internalValueConverter;
@@ -98,8 +101,11 @@ public class Worker {
         this.time = time;
         this.plugins = plugins;
         this.config = config;
+<<<<<<< HEAD
         this.workerMetricsGroup = new WorkerMetricsGroup(metrics);
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         // Internal converters are required properties, thus getClass won't return null.
         this.internalKeyConverter = plugins.newConverter(
                 config.getClass(WorkerConfig.INTERNAL_KEY_CONVERTER_CLASS_CONFIG).getName(),

@@ -29,6 +29,10 @@ import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
 import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
 import static org.apache.kafka.common.protocol.types.Type.BYTES;
 
+import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
+import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
+import static org.apache.kafka.common.protocol.types.Type.BYTES;
+
 public class SyncGroupResponse extends AbstractResponse {
     private static final String MEMBER_ASSIGNMENT_KEY_NAME = "member_assignment";
 

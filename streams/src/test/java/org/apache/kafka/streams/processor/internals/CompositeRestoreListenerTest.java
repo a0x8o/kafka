@@ -124,7 +124,11 @@ public class CompositeRestoreListenerTest {
     @Test
     public void shouldHandleNullReportStoreListener() {
         compositeRestoreListener = new CompositeRestoreListener(batchingStateRestoreCallback);
+<<<<<<< HEAD
         compositeRestoreListener.setUserRestoreListener(null);
+=======
+        compositeRestoreListener.setGlobalRestoreListener(null);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         compositeRestoreListener.restoreAll(records);
         compositeRestoreListener.onRestoreStart(topicPartition, storeName, startOffset, endOffset);
@@ -138,7 +142,11 @@ public class CompositeRestoreListenerTest {
     @Test
     public void shouldHandleNoRestoreListener() {
         compositeRestoreListener = new CompositeRestoreListener(noListenBatchingStateRestoreCallback);
+<<<<<<< HEAD
         compositeRestoreListener.setUserRestoreListener(null);
+=======
+        compositeRestoreListener.setGlobalRestoreListener(null);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         compositeRestoreListener.restoreAll(records);
         compositeRestoreListener.onRestoreStart(topicPartition, storeName, startOffset, endOffset);
@@ -151,7 +159,11 @@ public class CompositeRestoreListenerTest {
     @Test(expected = UnsupportedOperationException.class)
     public void shouldThrowExceptionWhenSinglePutDirectlyCalled() {
         compositeRestoreListener = new CompositeRestoreListener(noListenBatchingStateRestoreCallback);
+<<<<<<< HEAD
         compositeRestoreListener.setUserRestoreListener(null);
+=======
+        compositeRestoreListener.setGlobalRestoreListener(null);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         compositeRestoreListener.restore(key, value);
     }
@@ -179,7 +191,11 @@ public class CompositeRestoreListenerTest {
 
     private void setUpCompositeRestoreListener(StateRestoreCallback stateRestoreCallback) {
         compositeRestoreListener = new CompositeRestoreListener(stateRestoreCallback);
+<<<<<<< HEAD
         compositeRestoreListener.setUserRestoreListener(reportingStoreListener);
+=======
+        compositeRestoreListener.setGlobalRestoreListener(reportingStoreListener);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
 

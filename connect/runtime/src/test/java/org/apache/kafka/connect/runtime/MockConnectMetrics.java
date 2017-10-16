@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime;
 
+<<<<<<< HEAD
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
@@ -44,11 +45,22 @@ public class MockConnectMetrics extends ConnectMetrics {
 
     private static final Map<String, String> DEFAULT_WORKER_CONFIG = new HashMap<>();
 
+=======
+import org.apache.kafka.connect.util.MockTime;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class MockConnectMetrics extends ConnectMetrics {
+
+    private static final Map<String, String> DEFAULT_WORKER_CONFIG = new HashMap<>();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     static {
         DEFAULT_WORKER_CONFIG.put(WorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter");
         DEFAULT_WORKER_CONFIG.put(WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter");
         DEFAULT_WORKER_CONFIG.put(WorkerConfig.INTERNAL_KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter");
         DEFAULT_WORKER_CONFIG.put(WorkerConfig.INTERNAL_VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter");
+<<<<<<< HEAD
         DEFAULT_WORKER_CONFIG.put(CommonClientConfigs.METRIC_REPORTER_CLASSES_CONFIG, MockMetricsReporter.class.getName());
     }
 
@@ -62,12 +74,19 @@ public class MockConnectMetrics extends ConnectMetrics {
 
     public MockConnectMetrics(MockTime time) {
         super("mock", new WorkerConfig(WorkerConfig.baseConfigDef(), DEFAULT_WORKER_CONFIG), time);
+=======
+    }
+
+    public MockConnectMetrics() {
+        super("mock", new WorkerConfig(WorkerConfig.baseConfigDef(), DEFAULT_WORKER_CONFIG), new MockTime());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Override
     public MockTime time() {
         return (MockTime) super.time();
     }
+<<<<<<< HEAD
 
     /**
      * Get the current value of the named metric, which may have already been removed from the
@@ -198,4 +217,6 @@ public class MockConnectMetrics extends ConnectMetrics {
             return metric != null ? metric.metricValue() : null;
         }
     }
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 }

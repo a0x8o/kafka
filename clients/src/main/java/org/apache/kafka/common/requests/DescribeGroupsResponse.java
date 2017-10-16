@@ -31,8 +31,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
+<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.MEMBER_ID;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
 import static org.apache.kafka.common.protocol.types.Type.BYTES;
 import static org.apache.kafka.common.protocol.types.Type.STRING;
@@ -41,6 +44,10 @@ public class DescribeGroupsResponse extends AbstractResponse {
 
     private static final String GROUPS_KEY_NAME = "groups";
 
+<<<<<<< HEAD
+=======
+    private static final String GROUP_ID_KEY_NAME = "group_id";
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private static final String GROUP_STATE_KEY_NAME = "state";
     private static final String PROTOCOL_TYPE_KEY_NAME = "protocol_type";
     private static final String PROTOCOL_KEY_NAME = "protocol";
@@ -52,7 +59,11 @@ public class DescribeGroupsResponse extends AbstractResponse {
     private static final String MEMBER_ASSIGNMENT_KEY_NAME = "member_assignment";
 
     private static final Schema DESCRIBE_GROUPS_RESPONSE_MEMBER_V0 = new Schema(
+<<<<<<< HEAD
             MEMBER_ID,
+=======
+            new Field(MEMBER_ID_KEY_NAME, STRING, "The memberId assigned by the coordinator"),
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(CLIENT_ID_KEY_NAME, STRING, "The client id used in the member's latest join group request"),
             new Field(CLIENT_HOST_KEY_NAME, STRING, "The client host used in the request session corresponding to the " +
                     "member's join group."),
@@ -63,8 +74,13 @@ public class DescribeGroupsResponse extends AbstractResponse {
 
     private static final Schema DESCRIBE_GROUPS_RESPONSE_GROUP_METADATA_V0 = new Schema(
             ERROR_CODE,
+<<<<<<< HEAD
             GROUP_ID,
             new Field(GROUP_STATE_KEY_NAME, STRING, "The current state of the group (one of: Dead, Stable, CompletingRebalance, " +
+=======
+            new Field(GROUP_ID_KEY_NAME, STRING),
+            new Field(GROUP_STATE_KEY_NAME, STRING, "The current state of the group (one of: Dead, Stable, AwaitingSync, " +
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     "PreparingRebalance, or empty if there is no active group)"),
             new Field(PROTOCOL_TYPE_KEY_NAME, STRING, "The current group protocol type (will be empty if there is no active group)"),
             new Field(PROTOCOL_KEY_NAME, STRING, "The current group protocol (only provided if the group is Stable)"),
@@ -112,7 +128,11 @@ public class DescribeGroupsResponse extends AbstractResponse {
         for (Object groupObj : struct.getArray(GROUPS_KEY_NAME)) {
             Struct groupStruct = (Struct) groupObj;
 
+<<<<<<< HEAD
             String groupId = groupStruct.get(GROUP_ID);
+=======
+            String groupId = groupStruct.getString(GROUP_ID_KEY_NAME);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             Errors error = Errors.forCode(groupStruct.get(ERROR_CODE));
             String state = groupStruct.getString(GROUP_STATE_KEY_NAME);
             String protocolType = groupStruct.getString(PROTOCOL_TYPE_KEY_NAME);
@@ -259,7 +279,11 @@ public class DescribeGroupsResponse extends AbstractResponse {
         for (Map.Entry<String, GroupMetadata> groupEntry : groups.entrySet()) {
             Struct groupStruct = struct.instance(GROUPS_KEY_NAME);
             GroupMetadata group = groupEntry.getValue();
+<<<<<<< HEAD
             groupStruct.set(GROUP_ID, groupEntry.getKey());
+=======
+            groupStruct.set(GROUP_ID_KEY_NAME, groupEntry.getKey());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             groupStruct.set(ERROR_CODE, group.error.code());
             groupStruct.set(GROUP_STATE_KEY_NAME, group.state);
             groupStruct.set(PROTOCOL_TYPE_KEY_NAME, group.protocolType);

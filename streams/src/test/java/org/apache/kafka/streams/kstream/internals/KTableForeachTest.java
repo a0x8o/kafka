@@ -85,9 +85,15 @@ public class KTableForeachTest {
         StreamsBuilder builder = new StreamsBuilder();
         KTable<Integer, String> table = builder.table(topicName,
                                                       Consumed.with(intSerde, stringSerde),
+<<<<<<< HEAD
                                                       Materialized.<Integer, String, KeyValueStore<Bytes, byte[]>>as(topicName)
                                                               .withKeySerde(intSerde)
                                                               .withValueSerde(stringSerde));
+=======
+                                                      new MaterializedInternal<>(Materialized.<Integer, String, KeyValueStore<Bytes, byte[]>>as(topicName)
+                                                                                         .withKeySerde(intSerde)
+                                                                                         .withValueSerde(stringSerde)));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         table.foreach(action);
 
         // Then

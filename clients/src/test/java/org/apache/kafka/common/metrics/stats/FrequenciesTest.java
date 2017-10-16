@@ -102,7 +102,10 @@ public class FrequenciesTest {
     }
 
     @Test
+<<<<<<< HEAD
     @SuppressWarnings("deprecation")
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void testUseWithMetrics() {
         MetricName name1 = name("1");
         MetricName name2 = name("2");
@@ -157,4 +160,8 @@ public class FrequenciesTest {
         return new Frequency(name(name), value);
     }
 
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d

@@ -64,6 +64,7 @@ public class WordCountDemo {
         KStream<String, String> source = builder.stream("streams-plaintext-input");
 
         KTable<String, Long> counts = source
+<<<<<<< HEAD
             .flatMapValues(new ValueMapper<String, Iterable<String>>() {
                 @Override
                 public Iterable<String> apply(String value) {
@@ -77,6 +78,21 @@ public class WordCountDemo {
                 }
             })
             .count();
+=======
+                .flatMapValues(new ValueMapper<String, Iterable<String>>() {
+                    @Override
+                    public Iterable<String> apply(String value) {
+                        return Arrays.asList(value.toLowerCase(Locale.getDefault()).split(" "));
+                    }
+                })
+                .groupBy(new KeyValueMapper<String, String, String>() {
+                    @Override
+                    public String apply(String key, String value) {
+                        return value;
+                    }
+                })
+                .count("Counts");
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         // need to override value serde to Long type
         counts.toStream().to("streams-wordcount-output", Produced.with(Serdes.String(), Serdes.Long()));

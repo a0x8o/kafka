@@ -46,7 +46,11 @@ public abstract class AbstractTask implements Task {
     final ProcessorTopology topology;
     final ProcessorStateManager stateMgr;
     final Set<TopicPartition> partitions;
+<<<<<<< HEAD
     final Consumer<byte[], byte[]> consumer;
+=======
+    final Consumer consumer;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     final String logPrefix;
     final boolean eosEnabled;
     final Logger log;
@@ -90,7 +94,11 @@ public abstract class AbstractTask implements Task {
                 topology.storeToChangelogTopic(),
                 changelogReader,
                 eosEnabled,
+<<<<<<< HEAD
                 logContext);
+=======
+                    logContext);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         } catch (final IOException e) {
             throw new ProcessorStateException(String.format("%sError while creating the state manager", logPrefix), e);
         }

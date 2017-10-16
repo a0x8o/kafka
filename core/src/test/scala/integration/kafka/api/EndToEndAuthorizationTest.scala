@@ -214,7 +214,11 @@ abstract class EndToEndAuthorizationTest extends IntegrationTestHarness with Sas
     * Tests that a producer fails to publish messages when the appropriate ACL
     * isn't set.
     */
+<<<<<<< HEAD
   @Test(expected = classOf[TopicAuthorizationException])
+=======
+  @Test(expected = classOf[TimeoutException])
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   def testNoProduceWithoutDescribeAcl(): Unit = {
     sendRecords(numRecords, tp)
   }
@@ -246,7 +250,11 @@ abstract class EndToEndAuthorizationTest extends IntegrationTestHarness with Sas
     consumeRecords(this.consumers.head)
   }
   
+<<<<<<< HEAD
   @Test(expected = classOf[TopicAuthorizationException])
+=======
+  @Test(expected = classOf[TimeoutException])
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   def testNoConsumeWithoutDescribeAclViaSubscribe(): Unit = {
     noConsumeWithoutDescribeAclSetup()
     consumers.head.subscribe(List(topic).asJava)

@@ -60,7 +60,11 @@
               files="AbstractRequest.java"/>
 
     <suppress checks="NPathComplexity"
+<<<<<<< HEAD
               files="(BufferPool|MetricName|Node|ConfigDef|SslTransportLayer|MetadataResponse|KerberosLogin|Selector|Sender|Serdes|Agent).java"/>
+=======
+              files="(BufferPool|MetricName|Node|ConfigDef|SslTransportLayer|MetadataResponse|KerberosLogin|SslTransportLayer|Sender|Serdes|Agent).java"/>
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     <!-- clients tests -->
     <suppress checks="ClassDataAbstractionCoupling"

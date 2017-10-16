@@ -20,7 +20,10 @@ package org.apache.kafka.streams.processor.internals;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.kstream.Materialized;
+<<<<<<< HEAD
 import org.apache.kafka.streams.kstream.internals.InternalNameProvider;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.kstream.internals.KeyValueStoreMaterializer;
 import org.apache.kafka.streams.kstream.internals.MaterializedInternal;
 import org.apache.kafka.streams.processor.StateStore;
@@ -33,30 +36,44 @@ import org.apache.kafka.streams.state.internals.InMemoryKeyValueStore;
 import org.apache.kafka.streams.state.internals.MeteredKeyValueBytesStore;
 import org.apache.kafka.streams.state.internals.WrappedStateStore;
 import org.easymock.EasyMock;
+<<<<<<< HEAD
 import org.easymock.EasyMockRunner;
 import org.easymock.Mock;
 import org.easymock.MockType;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+=======
+import org.hamcrest.CoreMatchers;
+import org.junit.Test;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.hamcrest.core.IsNot.not;
 
+<<<<<<< HEAD
 @RunWith(EasyMockRunner.class)
 public class KeyValueStoreMaterializerTest {
 
     private final String storePrefix = "prefix";
     @Mock(type = MockType.NICE)
     private InternalNameProvider nameProvider;
+=======
+
+public class KeyValueStoreMaterializerTest {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     @Test
     public void shouldCreateBuilderThatBuildsMeteredStoreWithCachingAndLoggingEnabled() {
         final MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
+<<<<<<< HEAD
                 = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("store"),
                                              nameProvider,
                                              storePrefix);
+=======
+                = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("store"));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KeyValueStoreMaterializer<String, String> materializer = new KeyValueStoreMaterializer<>(materialized);
         final StoreBuilder<KeyValueStore<String, String>> builder = materializer.materialize();
         final KeyValueStore<String, String> store = builder.build();
@@ -71,7 +88,11 @@ public class KeyValueStoreMaterializerTest {
     public void shouldCreateBuilderThatBuildsStoreWithCachingDisabled() {
         final MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
                 = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("store")
+<<<<<<< HEAD
                                                      .withCachingDisabled(), nameProvider, storePrefix);
+=======
+                                                     .withCachingDisabled());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KeyValueStoreMaterializer<String, String> materializer = new KeyValueStoreMaterializer<>(materialized);
         final StoreBuilder<KeyValueStore<String, String>> builder = materializer.materialize();
         final KeyValueStore<String, String> store = builder.build();
@@ -83,7 +104,11 @@ public class KeyValueStoreMaterializerTest {
     public void shouldCreateBuilderThatBuildsStoreWithLoggingDisabled() {
         final MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
                 = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("store")
+<<<<<<< HEAD
                                                      .withLoggingDisabled(), nameProvider, storePrefix);
+=======
+                                                     .withLoggingDisabled());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KeyValueStoreMaterializer<String, String> materializer = new KeyValueStoreMaterializer<>(materialized);
         final StoreBuilder<KeyValueStore<String, String>> builder = materializer.materialize();
         final KeyValueStore<String, String> store = builder.build();
@@ -97,7 +122,11 @@ public class KeyValueStoreMaterializerTest {
         final MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
                 = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("store")
                                                      .withCachingDisabled()
+<<<<<<< HEAD
                                                      .withLoggingDisabled(), nameProvider, storePrefix);
+=======
+                                                     .withLoggingDisabled());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KeyValueStoreMaterializer<String, String> materializer = new KeyValueStoreMaterializer<>(materialized);
         final StoreBuilder<KeyValueStore<String, String>> builder = materializer.materialize();
         final KeyValueStore<String, String> store = builder.build();
@@ -115,7 +144,11 @@ public class KeyValueStoreMaterializerTest {
         EasyMock.replay(supplier);
 
         final MaterializedInternal<String, Integer, KeyValueStore<Bytes, byte[]>> materialized
+<<<<<<< HEAD
                 = new MaterializedInternal<>(Materialized.<String, Integer>as(supplier), nameProvider, storePrefix);
+=======
+                = new MaterializedInternal<>(Materialized.<String, Integer>as(supplier));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KeyValueStoreMaterializer<String, Integer> materializer = new KeyValueStoreMaterializer<>(materialized);
         final StoreBuilder<KeyValueStore<String, Integer>> builder = materializer.materialize();
         final KeyValueStore<String, Integer> built = builder.build();

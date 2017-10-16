@@ -138,8 +138,13 @@ public abstract class AbstractResponse extends AbstractRequestResponse {
                 return new DescribeConfigsResponse(struct);
             case ALTER_CONFIGS:
                 return new AlterConfigsResponse(struct);
+<<<<<<< HEAD
             case ALTER_REPLICA_LOG_DIRS:
                 return new AlterReplicaLogDirsResponse(struct);
+=======
+            case ALTER_REPLICA_DIR:
+                return new AlterReplicaDirResponse(struct);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             case DESCRIBE_LOG_DIRS:
                 return new DescribeLogDirsResponse(struct);
             case SASL_AUTHENTICATE:

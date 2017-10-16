@@ -101,7 +101,11 @@ public class ScramSaslServer implements SaslServer {
                             throw new SaslException("Authentication failed: Invalid user credentials");
                         String authorizationIdFromClient = clientFirstMessage.authorizationId();
                         if (!authorizationIdFromClient.isEmpty() && !authorizationIdFromClient.equals(username))
+<<<<<<< HEAD
                             throw new SaslAuthenticationException("Authentication failed: Client requested an authorization id that is different from username");
+=======
+                            throw new SaslException("Authentication failed: Client requested an authorization id that is different from username");
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
                         if (scramCredential.iterations() < mechanism.minIterations())
                             throw new SaslException("Iterations " + scramCredential.iterations() +  " is less than the minimum " + mechanism.minIterations() + " for " + mechanism);

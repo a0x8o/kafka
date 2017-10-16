@@ -77,7 +77,11 @@ allprojects {
 }
 
 ext {
+<<<<<<< HEAD
   gradleVersion = "4.2.1"
+=======
+  gradleVersion = "4.2"
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   buildVersionFileName = "kafka-version.properties"
 
   maxPermSizeArgs = []
@@ -681,8 +685,12 @@ project(':core') {
                                'genAdminClientConfigDocs', 'genProducerConfigDocs', 'genConsumerConfigDocs',
                                'genKafkaConfigDocs', 'genTopicConfigDocs',
                                ':connect:runtime:genConnectConfigDocs', ':connect:runtime:genConnectTransformationDocs',
+<<<<<<< HEAD
                                ':streams:genStreamsConfigDocs', 'genConsumerMetricsDocs', 'genProducerMetricsDocs',
                                ':connect:runtime:genConnectMetricsDocs'], type: Tar) {
+=======
+                               ':streams:genStreamsConfigDocs', 'genConsumerMetricsDocs', 'genProducerMetricsDocs'], type: Tar) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     classifier = 'site-docs'
     compression = Compression.GZIP
     from project.file("$rootDir/docs")
@@ -835,7 +843,10 @@ project(':clients') {
     include "**/org/apache/kafka/common/resource/*"
     include "**/org/apache/kafka/common/serialization/*"
     include "**/org/apache/kafka/common/config/*"
+<<<<<<< HEAD
     include "**/org/apache/kafka/common/security/auth/*"
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     include "**/org/apache/kafka/server/policy/*"
   }
 }
@@ -895,7 +906,10 @@ project(':streams') {
     testCompile project(':core').sourceSets.test.output
     testCompile libs.junit
     testCompile libs.easymock
+<<<<<<< HEAD
     testCompile libs.bcpkix
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     testRuntime libs.slf4jlog4j
   }

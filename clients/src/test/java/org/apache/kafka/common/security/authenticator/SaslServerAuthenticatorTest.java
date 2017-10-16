@@ -22,7 +22,11 @@ import org.apache.kafka.common.network.InvalidReceiveException;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.network.TransportLayer;
 import org.apache.kafka.common.protocol.ApiKeys;
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.protocol.types.Struct;
 import org.apache.kafka.common.requests.RequestHeader;
 import org.apache.kafka.common.security.JaasContext;
@@ -40,6 +44,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.kafka.common.security.scram.ScramMechanism.SCRAM_SHA_256;
+<<<<<<< HEAD
+=======
+import static org.junit.Assert.assertTrue;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.junit.Assert.fail;
 
 public class SaslServerAuthenticatorTest {
@@ -99,8 +107,13 @@ public class SaslServerAuthenticatorTest {
         try {
             authenticator.authenticate();
             fail("Expected authenticate() to raise an exception");
+<<<<<<< HEAD
         } catch (IllegalSaslStateException e) {
             // expected exception
+=======
+        } catch (IOException e) {
+            assertTrue(e.getCause() instanceof IllegalSaslStateException);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 

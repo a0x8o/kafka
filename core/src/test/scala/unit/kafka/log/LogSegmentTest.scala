@@ -17,6 +17,7 @@
  package kafka.log
 
 import java.io.File
+import java.util.concurrent.ConcurrentLinkedDeque
 
 import kafka.utils.TestUtils
 import kafka.utils.TestUtils.checkEquals
@@ -317,8 +318,12 @@ class LogSegmentTest {
 
     // recover again, but this time assuming the transaction from pid2 began on a previous segment
     stateManager = new ProducerStateManager(topicPartition, logDir)
+<<<<<<< HEAD
     stateManager.loadProducerEntry(new ProducerIdEntry(pid2,
       mutable.Queue[BatchMetadata](BatchMetadata(10, 10L, 5, RecordBatch.NO_TIMESTAMP)), producerEpoch, 0, Some(75L)))
+=======
+    stateManager.loadProducerEntry(new ProducerIdEntry(pid2, mutable.Queue[BatchMetadata](BatchMetadata(10, 90L, 5, RecordBatch.NO_TIMESTAMP)), producerEpoch, 0, Some(75L)))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     segment.recover(stateManager)
     assertEquals(108L, stateManager.mapEndOffset)
 

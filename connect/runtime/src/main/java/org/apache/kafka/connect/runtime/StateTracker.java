@@ -167,7 +167,11 @@ public class StateTracker {
             }
             long total = durationCurrent + unassignedTotalTimeMs + runningTotalTimeMs + pausedTotalTimeMs +
                                  failedTotalTimeMs + destroyedTotalTimeMs;
+<<<<<<< HEAD
             return total == 0.0d ? 0.0d : (double) durationDesired / total;
+=======
+            return (double) durationDesired / total;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 }

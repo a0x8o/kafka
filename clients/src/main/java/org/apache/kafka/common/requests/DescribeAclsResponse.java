@@ -23,7 +23,10 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.types.ArrayOf;
 import org.apache.kafka.common.protocol.types.Field;
 import org.apache.kafka.common.protocol.types.Schema;
+<<<<<<< HEAD
 import org.apache.kafka.common.protocol.Errors;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.protocol.types.Struct;
 import org.apache.kafka.common.resource.Resource;
 
@@ -132,11 +135,14 @@ public class DescribeAclsResponse extends AbstractResponse {
 
     public ApiError error() {
         return error;
+<<<<<<< HEAD
     }
 
     @Override
     public Map<Errors, Integer> errorCounts() {
         return errorCounts(error.error());
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     public Collection<AclBinding> acls() {

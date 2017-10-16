@@ -72,22 +72,32 @@ public class TimeWindowedKStreamImpl<K, V, W extends Window> extends AbstractStr
     @Override
     public KTable<Windowed<K>, Long> count(final Materialized<K, Long, WindowStore<Bytes, byte[]>> materialized) {
         Objects.requireNonNull(materialized, "materialized can't be null");
+<<<<<<< HEAD
         final MaterializedInternal<K, Long, WindowStore<Bytes, byte[]>> materializedInternal
                 = new MaterializedInternal<>(materialized, builder, AGGREGATE_NAME);
         if (materializedInternal.valueSerde() == null) {
             materialized.withValueSerde(Serdes.Long());
         }
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return aggregate(aggregateBuilder.countInitializer, aggregateBuilder.countAggregator, materialized);
     }
 
 
+<<<<<<< HEAD
     @SuppressWarnings("unchecked")
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <VR> KTable<Windowed<K>, VR> aggregate(final Initializer<VR> initializer,
                                                   final Aggregator<? super K, ? super V, VR> aggregator) {
         Objects.requireNonNull(initializer, "initializer can't be null");
         Objects.requireNonNull(aggregator, "aggregator can't be null");
+<<<<<<< HEAD
         return doAggregate(initializer, aggregator, (Serde<VR>) valSerde);
+=======
+        return doAggregate(initializer, aggregator, null);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @SuppressWarnings("unchecked")
@@ -109,11 +119,15 @@ public class TimeWindowedKStreamImpl<K, V, W extends Window> extends AbstractStr
         Objects.requireNonNull(initializer, "initializer can't be null");
         Objects.requireNonNull(aggregator, "aggregator can't be null");
         Objects.requireNonNull(materialized, "materialized can't be null");
+<<<<<<< HEAD
         final MaterializedInternal<K, VR, WindowStore<Bytes, byte[]>> materializedInternal
                 = new MaterializedInternal<>(materialized, builder, AGGREGATE_NAME);
         if (materializedInternal.keySerde() == null) {
             materializedInternal.withKeySerde(keySerde);
         }
+=======
+        final MaterializedInternal<K, VR, WindowStore<Bytes, byte[]>> materializedInternal = new MaterializedInternal<>(materialized);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return (KTable<Windowed<K>, VR>) aggregateBuilder.build(new KStreamWindowAggregate<>(windows,
                                                                                              materializedInternal.storeName(),
                                                                                              initializer,
@@ -140,8 +154,12 @@ public class TimeWindowedKStreamImpl<K, V, W extends Window> extends AbstractStr
     public KTable<Windowed<K>, V> reduce(final Reducer<V> reducer, final Materialized<K, V, WindowStore<Bytes, byte[]>> materialized) {
         Objects.requireNonNull(reducer, "reducer can't be null");
         Objects.requireNonNull(materialized, "materialized can't be null");
+<<<<<<< HEAD
         final MaterializedInternal<K, V, WindowStore<Bytes, byte[]>> materializedInternal
                 = new MaterializedInternal<>(materialized, builder, REDUCE_NAME);
+=======
+        final MaterializedInternal<K, V, WindowStore<Bytes, byte[]>> materializedInternal = new MaterializedInternal<>(materialized);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         return (KTable<Windowed<K>, V>) aggregateBuilder.build(new KStreamWindowReduce<K, V, W>(windows, materializedInternal.storeName(), reducer),
                                                                REDUCE_NAME,

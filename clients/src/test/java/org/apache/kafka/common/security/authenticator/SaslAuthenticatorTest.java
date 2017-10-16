@@ -382,6 +382,7 @@ public class SaslAuthenticatorTest {
      * (non-SASL) PLAINTEXT client and sends ApiVersionsRequest straight after
      * connection to the server is established, before any SASL-related packets are sent.
      * This test is run with SaslHandshake version 0 and no SaslAuthenticate headers.
+<<<<<<< HEAD
      */
     @Test
     public void testUnauthenticatedApiVersionsRequestOverPlaintextHandshakeVersion0() throws Exception {
@@ -393,6 +394,19 @@ public class SaslAuthenticatorTest {
      * This test is run with SaslHandshake version 1 and SaslAuthenticate headers.
      */
     @Test
+=======
+     */
+    @Test
+    public void testUnauthenticatedApiVersionsRequestOverPlaintextHandshakeVersion0() throws Exception {
+        testUnauthenticatedApiVersionsRequest(SecurityProtocol.SASL_PLAINTEXT, (short) 0);
+    }
+
+    /**
+     * See {@link #testUnauthenticatedApiVersionsRequestOverSslHandshakeVersion0()} for test scenario.
+     * This test is run with SaslHandshake version 1 and SaslAuthenticate headers.
+     */
+    @Test
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void testUnauthenticatedApiVersionsRequestOverPlaintextHandshakeVersion1() throws Exception {
         testUnauthenticatedApiVersionsRequest(SecurityProtocol.SASL_PLAINTEXT, (short) 1);
     }
@@ -1152,8 +1166,12 @@ public class SaslAuthenticatorTest {
     private ChannelState createAndCheckClientConnectionFailure(SecurityProtocol securityProtocol, String node)
             throws Exception {
         createClientConnection(securityProtocol, node);
+<<<<<<< HEAD
         ChannelState finalState = NetworkTestUtils.waitForChannelClose(selector, node,
                 ChannelState.State.AUTHENTICATION_FAILED);
+=======
+        NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         selector.close();
         selector = null;
         return finalState;

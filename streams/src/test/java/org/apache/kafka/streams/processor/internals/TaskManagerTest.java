@@ -32,7 +32,10 @@ import org.junit.runner.RunWith;
 
 import java.util.Collection;
 import java.util.Collections;
+<<<<<<< HEAD
 import java.util.HashSet;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import java.util.Map;
 import java.util.Set;
 
@@ -294,7 +297,11 @@ public class TaskManagerTest {
 
     @Test
     public void shouldInitializeNewActiveTasks() {
+<<<<<<< HEAD
         EasyMock.expect(active.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());
+=======
+        active.initializeNewTasks();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.expect(active.updateRestored(EasyMock.<Collection<TopicPartition>>anyObject())).
                 andReturn(Collections.<TopicPartition>emptySet());
         EasyMock.expectLastCall();
@@ -305,8 +312,12 @@ public class TaskManagerTest {
 
     @Test
     public void shouldInitializeNewStandbyTasks() {
+<<<<<<< HEAD
         EasyMock.expect(standby.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());
         EasyMock.expect(active.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());
+=======
+        standby.initializeNewTasks();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.expect(active.updateRestored(EasyMock.<Collection<TopicPartition>>anyObject())).
                 andReturn(Collections.<TopicPartition>emptySet());
         EasyMock.expectLastCall();
@@ -318,8 +329,12 @@ public class TaskManagerTest {
 
     @Test
     public void shouldRestoreStateFromChangeLogReader() {
+<<<<<<< HEAD
         EasyMock.expect(active.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());
         EasyMock.expect(changeLogReader.restore(active)).andReturn(taskId0Partitions);
+=======
+        EasyMock.expect(changeLogReader.restore()).andReturn(taskId0Partitions);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.expect(active.updateRestored(taskId0Partitions)).
                 andReturn(Collections.<TopicPartition>emptySet());
 
@@ -330,8 +345,12 @@ public class TaskManagerTest {
 
     @Test
     public void shouldResumeRestoredPartitions() {
+<<<<<<< HEAD
         EasyMock.expect(active.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());
         EasyMock.expect(changeLogReader.restore(active)).andReturn(taskId0Partitions);
+=======
+        EasyMock.expect(changeLogReader.restore()).andReturn(taskId0Partitions);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.expect(active.updateRestored(taskId0Partitions)).
                 andReturn(taskId0Partitions);
 
@@ -354,7 +373,10 @@ public class TaskManagerTest {
 
     @Test
     public void shouldReturnFalseWhenThereAreStillNonRunningTasks() {
+<<<<<<< HEAD
         EasyMock.expect(active.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.expect(active.allTasksRunning()).andReturn(false);
         EasyMock.expect(active.updateRestored(EasyMock.<Collection<TopicPartition>>anyObject())).
                 andReturn(Collections.<TopicPartition>emptySet());
@@ -454,6 +476,7 @@ public class TaskManagerTest {
         verify(active);
     }
 
+<<<<<<< HEAD
     @Test
     public void shouldResumeConsumptionOfInitializedPartitions() {
         final Set<TopicPartition> resumed = Collections.singleton(new TopicPartition("topic", 0));
@@ -472,6 +495,10 @@ public class TaskManagerTest {
     private void mockAssignStandbyPartitions(final long offset) {
         final Task task = EasyMock.createNiceMock(Task.class);
         EasyMock.expect(active.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());
+=======
+    private void mockAssignStandbyPartitions(final long offset) {
+        final Task task = EasyMock.createNiceMock(Task.class);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.expect(active.allTasksRunning()).andReturn(true);
         EasyMock.expect(active.updateRestored(EasyMock.<Collection<TopicPartition>>anyObject())).
                 andReturn(Collections.<TopicPartition>emptySet());

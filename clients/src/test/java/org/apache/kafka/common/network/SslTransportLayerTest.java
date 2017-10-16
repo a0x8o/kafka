@@ -22,7 +22,11 @@ import org.apache.kafka.common.config.internals.BrokerSecurityConfigs;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.memory.MemoryPool;
 import org.apache.kafka.common.metrics.Metrics;
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.security.TestSecurityConfig;
 import org.apache.kafka.common.security.ssl.SslFactory;
 import org.apache.kafka.common.utils.LogContext;
@@ -94,6 +98,11 @@ public class SslTransportLayerTest {
     /**
      * Tests that server certificate with SubjectAltName containing the valid hostname
      * is accepted by a client that connects using the hostname and validates server endpoint.
+<<<<<<< HEAD
+     */
+    @Test
+    public void testValidEndpointIdentificationSanDns() throws Exception {
+=======
      */
     @Test
     public void testValidEndpointIdentificationSanDns() throws Exception {
@@ -105,10 +114,52 @@ public class SslTransportLayerTest {
         selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
 
         NetworkTestUtils.checkClientConnection(selector, node, 100, 10);
+    }
+
+    /**
+     * Tests that server certificate with SubjectAltName containing valid IP address
+     * is accepted by a client that connects using IP address and validates server endpoint.
+     */
+    @Test
+    public void testValidEndpointIdentificationSanIp() throws Exception {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
+        String node = "0";
+        serverCertStores = new CertStores(true, "server", InetAddress.getByName("127.0.0.1"));
+        clientCertStores = new CertStores(false, "client", InetAddress.getByName("127.0.0.1"));
+        sslServerConfigs = serverCertStores.getTrustingConfig(clientCertStores);
+        sslClientConfigs = clientCertStores.getTrustingConfig(serverCertStores);
+        server = createEchoServer(SecurityProtocol.SSL);
+        sslClientConfigs.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, "HTTPS");
+        createSelector(sslClientConfigs);
+        InetSocketAddress addr = new InetSocketAddress("127.0.0.1", server.port());
+        selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
+
+        NetworkTestUtils.checkClientConnection(selector, node, 100, 10);
+    }
+
+    /**
+     * Tests that server certificate with CN containing valid hostname
+     * is accepted by a client that connects using hostname and validates server endpoint.
+     */
+    @Test
+    public void testValidEndpointIdentificationCN() throws Exception {
+        String node = "0";
+        serverCertStores = new CertStores(true, "localhost");
+        clientCertStores = new CertStores(false, "localhost");
+        sslServerConfigs = serverCertStores.getTrustingConfig(clientCertStores);
+        sslClientConfigs = clientCertStores.getTrustingConfig(serverCertStores);
+        server = createEchoServer(SecurityProtocol.SSL);
+        sslClientConfigs.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, "HTTPS");
+        createSelector(sslClientConfigs);
+        InetSocketAddress addr = new InetSocketAddress("localhost", server.port());
+        selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
+
+        NetworkTestUtils.checkClientConnection(selector, node, 100, 10);
         server.verifyAuthenticationMetrics(1, 0);
     }
 
     /**
+<<<<<<< HEAD
      * Tests that server certificate with SubjectAltName containing valid IP address
      * is accepted by a client that connects using IP address and validates server endpoint.
      */
@@ -149,6 +200,8 @@ public class SslTransportLayerTest {
     }
 
     /**
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * Tests that hostname verification is performed on the host name or address
      * specified by the client without using reverse DNS lookup. Certificate is
      * created with hostname, client connection uses IP address. Endpoint validation
@@ -231,7 +284,10 @@ public class SslTransportLayerTest {
         selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+<<<<<<< HEAD
         server.verifyAuthenticationMetrics(0, 1);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -325,7 +381,10 @@ public class SslTransportLayerTest {
         selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+<<<<<<< HEAD
         server.verifyAuthenticationMetrics(0, 1);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -346,7 +405,10 @@ public class SslTransportLayerTest {
         selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+<<<<<<< HEAD
         server.verifyAuthenticationMetrics(0, 1);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -499,7 +561,10 @@ public class SslTransportLayerTest {
         selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+<<<<<<< HEAD
         server.verifyAuthenticationMetrics(0, 1);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -517,7 +582,10 @@ public class SslTransportLayerTest {
         selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+<<<<<<< HEAD
         server.verifyAuthenticationMetrics(0, 1);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -536,7 +604,10 @@ public class SslTransportLayerTest {
         selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+<<<<<<< HEAD
         server.verifyAuthenticationMetrics(0, 1);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -616,9 +687,93 @@ public class SslTransportLayerTest {
         while (selector.completedReceives().isEmpty()) {
             selector.poll(100L);
             assertEquals(0, selector.numStagedReceives(channel));
+<<<<<<< HEAD
         }
         long receiveTimeNanos = channel.getAndResetNetworkThreadTimeNanos();
         assertTrue("Receive time not recorded: " + receiveTimeNanos, receiveTimeNanos > 0);
+    }
+
+    /**
+     * Tests that IOExceptions from read during SSL handshake are not treated as authentication failures.
+     */
+    @Test
+    public void testIOExceptionsDuringHandshakeRead() throws Exception {
+        testIOExceptionsDuringHandshake(true, false);
+    }
+
+    /**
+     * Tests that IOExceptions from write during SSL handshake are not treated as authentication failures.
+     */
+    @Test
+    public void testIOExceptionsDuringHandshakeWrite() throws Exception {
+        testIOExceptionsDuringHandshake(false, true);
+    }
+
+    private void testIOExceptionsDuringHandshake(boolean failRead, boolean failWrite) throws Exception {
+        server = createEchoServer(SecurityProtocol.SSL);
+        TestSslChannelBuilder channelBuilder = new TestSslChannelBuilder(Mode.CLIENT);
+        boolean done = false;
+        for (int i = 1; i <= 100; i++) {
+            int readFailureIndex = failRead ? i : Integer.MAX_VALUE;
+            int flushFailureIndex = failWrite ? i : Integer.MAX_VALUE;
+            String node = String.valueOf(i);
+
+            channelBuilder.readFailureIndex = readFailureIndex;
+            channelBuilder.flushFailureIndex = flushFailureIndex;
+            channelBuilder.configure(sslClientConfigs);
+            this.selector = new Selector(5000, new Metrics(), new MockTime(), "MetricGroup", channelBuilder, new LogContext());
+
+            InetSocketAddress addr = new InetSocketAddress("localhost", server.port());
+            selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
+            for (int j = 0; j < 30; j++) {
+                selector.poll(1000L);
+                KafkaChannel channel = selector.channel(node);
+                if (channel != null && channel.ready()) {
+                    done = true;
+                    break;
+                }
+                if (selector.disconnected().containsKey(node)) {
+                    assertEquals(ChannelState.State.AUTHENTICATE, selector.disconnected().get(node).state());
+                    break;
+                }
+            }
+            KafkaChannel channel = selector.channel(node);
+            if (channel != null)
+                assertTrue("Channel not ready or disconnected:" + channel.state().state(), channel.ready());
+        }
+        assertTrue("Too many invocations of read/write during SslTransportLayer.handshake()", done);
+    }
+
+    /**
+     * Tests that handshake failures are propagated only after writes complete, even when
+     * there are delays in writes to ensure that clients see an authentication exception
+     * rather than a connection failure.
+     */
+    @Test
+    public void testPeerNotifiedOfHandshakeFailure() throws Exception {
+        sslServerConfigs = serverCertStores.getUntrustingConfig();
+        sslServerConfigs.put(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required");
+
+        // Test without delay and a couple of delay counts to ensure delay applies to handshake failure
+        for (int i = 0; i < 3; i++) {
+            String node = "0";
+            TestSslChannelBuilder serverChannelBuilder = new TestSslChannelBuilder(Mode.SERVER);
+            serverChannelBuilder.configure(sslServerConfigs);
+            serverChannelBuilder.flushDelayCount = i;
+            server = new NioEchoServer(ListenerName.forSecurityProtocol(SecurityProtocol.SSL),
+                    SecurityProtocol.SSL, new TestSecurityConfig(sslServerConfigs),
+                    "localhost", serverChannelBuilder, null);
+            server.start();
+            createSelector(sslClientConfigs);
+            InetSocketAddress addr = new InetSocketAddress("localhost", server.port());
+            selector.connect(node, addr, BUFFER_SIZE, BUFFER_SIZE);
+
+            NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
+            server.close();
+            selector.close();
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
+        }
     }
 
     /**

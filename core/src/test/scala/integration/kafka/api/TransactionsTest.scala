@@ -29,7 +29,11 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer, OffsetA
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.ProducerFencedException
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.{After, Before, Test}
 import org.junit.Assert._
 

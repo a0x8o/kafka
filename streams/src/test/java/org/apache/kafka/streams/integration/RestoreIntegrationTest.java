@@ -27,6 +27,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.Serdes;
+<<<<<<< HEAD
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.Consumed;
 import org.apache.kafka.streams.KafkaStreams;
@@ -53,6 +54,19 @@ import org.apache.kafka.test.IntegrationTest;
 import org.apache.kafka.test.TestUtils;
 import org.junit.After;
 import org.junit.BeforeClass;
+=======
+import org.apache.kafka.streams.Consumed;
+import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.integration.utils.EmbeddedKafkaCluster;
+import org.apache.kafka.streams.kstream.ForeachAction;
+import org.apache.kafka.streams.processor.StateRestoreListener;
+import org.apache.kafka.test.IntegrationTest;
+import org.apache.kafka.test.TestUtils;
+import org.junit.After;
+import org.junit.Before;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -80,13 +94,18 @@ public class RestoreIntegrationTest {
     @ClassRule
     public static final EmbeddedKafkaCluster CLUSTER =
             new EmbeddedKafkaCluster(NUM_BROKERS);
+<<<<<<< HEAD
     private static final String INPUT_STREAM = "input-stream";
     private static final String INPUT_STREAM_2 = "input-stream-2";
+=======
+    private final String inputStream = "input-stream";
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private final int numberOfKeys = 10000;
     private KafkaStreams kafkaStreams;
     private String applicationId = "restore-test";
 
 
+<<<<<<< HEAD
     @BeforeClass
     public static void createTopics() throws InterruptedException {
         CLUSTER.createTopic(INPUT_STREAM, 2, 1);
@@ -94,6 +113,18 @@ public class RestoreIntegrationTest {
     }
 
     private Properties props(final String applicationId) {
+=======
+    private void createTopics() throws InterruptedException {
+        CLUSTER.createTopic(inputStream, 2, 1);
+    }
+
+    @Before
+    public void before() throws IOException, InterruptedException {
+        createTopics();
+    }
+
+    private Properties props() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         Properties streamsConfiguration = new Properties();
         streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);
         streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
@@ -120,7 +151,11 @@ public class RestoreIntegrationTest {
 
         createStateForRestoration();
 
+<<<<<<< HEAD
         builder.table(INPUT_STREAM, Consumed.with(Serdes.Integer(), Serdes.Integer()))
+=======
+        builder.table(inputStream, Consumed.with(Serdes.Integer(), Serdes.Integer()))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 .toStream()
                 .foreach(new ForeachAction<Integer, Integer>() {
                     @Override
@@ -131,7 +166,11 @@ public class RestoreIntegrationTest {
 
 
         final CountDownLatch startupLatch = new CountDownLatch(1);
+<<<<<<< HEAD
         kafkaStreams = new KafkaStreams(builder.build(), props(applicationId));
+=======
+        kafkaStreams = new KafkaStreams(builder.build(), props());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         kafkaStreams.setStateListener(new KafkaStreams.StateListener() {
             @Override
             public void onChange(final KafkaStreams.State newState, final KafkaStreams.State oldState) {
@@ -166,6 +205,7 @@ public class RestoreIntegrationTest {
     }
 
 
+<<<<<<< HEAD
     @Test
     public void shouldSuccessfullyStartWhenLoggingDisabled() throws InterruptedException {
         final StreamsBuilder builder = new StreamsBuilder();
@@ -286,6 +326,8 @@ public class RestoreIntegrationTest {
         }
     }
     
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private void createStateForRestoration()
             throws ExecutionException, InterruptedException {
         final Properties producerConfig = new Properties();
@@ -295,7 +337,11 @@ public class RestoreIntegrationTest {
                      new KafkaProducer<>(producerConfig, new IntegerSerializer(), new IntegerSerializer())) {
 
             for (int i = 0; i < numberOfKeys; i++) {
+<<<<<<< HEAD
                 producer.send(new ProducerRecord<>(INPUT_STREAM, i, i));
+=======
+                producer.send(new ProducerRecord<>(inputStream, i, i));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             }
         }
 
@@ -306,8 +352,13 @@ public class RestoreIntegrationTest {
         consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, IntegerDeserializer.class);
 
         final Consumer consumer = new KafkaConsumer(consumerConfig);
+<<<<<<< HEAD
         final List<TopicPartition> partitions = Arrays.asList(new TopicPartition(INPUT_STREAM, 0),
                                                               new TopicPartition(INPUT_STREAM, 1));
+=======
+        final List<TopicPartition> partitions = Arrays.asList(new TopicPartition(inputStream, 0),
+                                                              new TopicPartition(inputStream, 1));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         consumer.assign(partitions);
         consumer.seekToEnd(partitions);

@@ -20,6 +20,10 @@ import java.util.Properties
 
 import kafka.utils.TestUtils
 import kafka.utils.Implicits._
+<<<<<<< HEAD
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.errors.TopicAuthorizationException

@@ -30,13 +30,21 @@ import org.apache.kafka.common.resource.{ResourceFilter, Resource => AdminResour
 import org.apache.kafka.common.{Node, TopicPartition}
 import org.apache.kafka.common.metrics.{KafkaMetric, Quota, Sensor}
 import org.apache.kafka.common.network.ListenerName
+<<<<<<< HEAD
 import org.apache.kafka.common.protocol.ApiKeys
+=======
+import org.apache.kafka.common.protocol.{ApiKeys, SecurityProtocol}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.protocol.types.Struct
 import org.apache.kafka.common.record._
 import org.apache.kafka.common.requests.CreateAclsRequest.AclCreation
 import org.apache.kafka.common.requests.{Resource => RResource, ResourceType => RResourceType, _}
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.{AuthenticationContext, KafkaPrincipal, KafkaPrincipalBuilder, SecurityProtocol}
 import org.apache.kafka.common.utils.Sanitizer
+=======
+import org.apache.kafka.common.security.auth.{AuthenticationContext, KafkaPrincipal, KafkaPrincipalBuilder}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.Assert._
 import org.junit.{After, Before, Test}
 
@@ -295,8 +303,13 @@ class RequestQuotaTest extends BaseRequestTest {
                 new AlterConfigsRequest.ConfigEntry(LogConfig.MaxMessageBytesProp, "1000000")
               ))), true)
 
+<<<<<<< HEAD
         case ApiKeys.ALTER_REPLICA_LOG_DIRS =>
           new AlterReplicaLogDirsRequest.Builder(Collections.singletonMap(tp, logDir))
+=======
+        case ApiKeys.ALTER_REPLICA_DIR =>
+          new AlterReplicaDirRequest.Builder(Collections.singletonMap(tp, logDir))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         case ApiKeys.DESCRIBE_LOG_DIRS =>
           new DescribeLogDirsRequest.Builder(Collections.singleton(tp))
@@ -397,7 +410,11 @@ class RequestQuotaTest extends BaseRequestTest {
       case ApiKeys.DELETE_ACLS => new DeleteAclsResponse(response).throttleTimeMs
       case ApiKeys.DESCRIBE_CONFIGS => new DescribeConfigsResponse(response).throttleTimeMs
       case ApiKeys.ALTER_CONFIGS => new AlterConfigsResponse(response).throttleTimeMs
+<<<<<<< HEAD
       case ApiKeys.ALTER_REPLICA_LOG_DIRS => new AlterReplicaLogDirsResponse(response).throttleTimeMs
+=======
+      case ApiKeys.ALTER_REPLICA_DIR => new AlterReplicaDirResponse(response).throttleTimeMs
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       case ApiKeys.DESCRIBE_LOG_DIRS => new DescribeLogDirsResponse(response).throttleTimeMs
       case ApiKeys.CREATE_PARTITIONS => new CreatePartitionsResponse(response).throttleTimeMs
       case requestId => throw new IllegalArgumentException(s"No throttle time for $requestId")

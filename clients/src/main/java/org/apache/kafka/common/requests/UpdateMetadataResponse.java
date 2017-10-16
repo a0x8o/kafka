@@ -26,6 +26,8 @@ import java.util.Map;
 
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
 
+import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
+
 public class UpdateMetadataResponse extends AbstractResponse {
     private static final Schema UPDATE_METADATA_RESPONSE_V0 = new Schema(ERROR_CODE);
     private static final Schema UPDATE_METADATA_RESPONSE_V1 = UPDATE_METADATA_RESPONSE_V0;

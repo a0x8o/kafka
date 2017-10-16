@@ -227,7 +227,11 @@ public class TimeWindowedKStreamImplTest {
     }
 
     private void processData() {
+<<<<<<< HEAD
         driver.setUp(builder, TestUtils.tempDirectory(), 0);
+=======
+        driver.setUp(builder, TestUtils.tempDirectory(), Serdes.String(), Serdes.String(), 0);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         driver.setTime(10);
         driver.process(TOPIC, "1", "1");
         driver.setTime(15);

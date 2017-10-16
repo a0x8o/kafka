@@ -15,13 +15,21 @@ package kafka.api
 import java.io.File
 
 import kafka.security.auth.{All, Allow, Alter, AlterConfigs, Authorizer, ClusterAction, Create, Delete, Deny, Describe, Operation, PermissionType, SimpleAclAuthorizer, Topic, Acl => AuthAcl, Resource => AuthResource}
+<<<<<<< HEAD
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import kafka.server.KafkaConfig
 import kafka.utils.{CoreUtils, JaasTestUtils, TestUtils}
 import org.apache.kafka.clients.admin.{AdminClient, CreateAclsOptions, DeleteAclsOptions}
 import org.apache.kafka.common.acl.{AccessControlEntry, AccessControlEntryFilter, AclBinding, AclBindingFilter, AclOperation, AclPermissionType}
 import org.apache.kafka.common.errors.{ClusterAuthorizationException, InvalidRequestException}
 import org.apache.kafka.common.resource.{Resource, ResourceFilter, ResourceType}
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
+=======
+import org.apache.kafka.common.security.auth.KafkaPrincipal
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.Assert.assertEquals
 import org.junit.{After, Assert, Before, Test}
 

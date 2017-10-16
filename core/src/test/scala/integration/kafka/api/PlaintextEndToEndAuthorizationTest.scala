@@ -18,7 +18,12 @@ package kafka.api
 
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
 import org.apache.kafka.common.network.ListenerName
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth._
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol
+import org.apache.kafka.common.security.auth.{AuthenticationContext, KafkaPrincipal, KafkaPrincipalBuilder, PlaintextAuthenticationContext}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.Before
 
 // This test case uses a separate listener for client and inter-broker communication, from

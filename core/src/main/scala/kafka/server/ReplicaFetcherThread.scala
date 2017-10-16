@@ -18,8 +18,11 @@
 package kafka.server
 
 import java.util
+<<<<<<< HEAD
 
 import AbstractFetcherThread.ResultWithPartitions
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import kafka.admin.AdminUtils
 import kafka.api.{FetchRequest => _, _}
 import kafka.cluster.{BrokerEndPoint, Replica}
@@ -86,7 +89,11 @@ class ReplicaFetcherThread(name: String,
 
   // process fetched data
   def processPartitionData(topicPartition: TopicPartition, fetchOffset: Long, partitionData: PartitionData) {
+<<<<<<< HEAD
     val replica = replicaMgr.getReplicaOrException(topicPartition)
+=======
+    val replica = replicaMgr.getReplica(topicPartition).get
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val records = partitionData.toRecords
 
     maybeWarnIfOversizedRecords(records, topicPartition)
@@ -265,6 +272,7 @@ class ReplicaFetcherThread(name: String,
     val partitionsWithError = mutable.Set[TopicPartition]()
 
     fetchedEpochs.foreach { case (tp, epochOffset) =>
+<<<<<<< HEAD
       try {
         val replica = replicaMgr.getReplicaOrException(tp)
 
@@ -287,6 +295,23 @@ class ReplicaFetcherThread(name: String,
         case e: KafkaStorageException =>
           info(s"Failed to truncate $tp", e)
           partitionsWithError += tp
+=======
+      val replica = replicaMgr.getReplica(tp).get
+
+      if (epochOffset.hasError) {
+        info(s"Retrying leaderEpoch request for partition ${replica.topicPartition} as the leader reported an error: ${epochOffset.error}")
+        partitionsWithError += tp
+      } else {
+        val truncationOffset =
+          if (epochOffset.endOffset == UNDEFINED_EPOCH_OFFSET)
+            highWatermark(replica, epochOffset)
+          else if (epochOffset.endOffset >= replica.logEndOffset.messageOffset)
+            logEndOffset(replica, epochOffset)
+          else
+            epochOffset.endOffset
+
+        truncationPoints.put(tp, truncationOffset)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       }
     }
 
@@ -298,7 +323,11 @@ class ReplicaFetcherThread(name: String,
       .filter { case (_, state) => state.isTruncatingLog }
       .map { case (tp, _) => tp -> epochCacheOpt(tp) }.toMap
 
+<<<<<<< HEAD
     val (partitionsWithEpoch, partitionsWithoutEpoch) = partitionEpochOpts.partition { case (tp, epochCacheOpt) => epochCacheOpt.nonEmpty }
+=======
+    debug(s"Build leaderEpoch request $result")
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     debug(s"Build leaderEpoch request $partitionsWithEpoch")
     val result = partitionsWithEpoch.map { case (tp, epochCacheOpt) => tp -> epochCacheOpt.get.latestEpoch() }

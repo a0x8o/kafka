@@ -30,7 +30,10 @@ import org.apache.kafka.test.KStreamTestDriver;
 import org.apache.kafka.test.MockKeyValueMapper;
 import org.apache.kafka.test.MockProcessorSupplier;
 import org.apache.kafka.test.MockTimestampExtractor;
+<<<<<<< HEAD
 import org.apache.kafka.test.MockValueJoiner;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -303,7 +306,7 @@ public class KStreamBuilderTest {
         final KStream<String, String> mapped = playEvents.map(MockKeyValueMapper.<String, String>SelectValueKeyValueMapper());
         mapped.leftJoin(table, MockValueJoiner.TOSTRING_JOINER).groupByKey().count("count");
         assertEquals(Collections.singletonList("table-topic"), builder.stateStoreNameToSourceTopics().get("table-store"));
-        assertEquals(Collections.singletonList(APP_ID + "-KSTREAM-MAP-0000000003-repartition"), builder.stateStoreNameToSourceTopics().get("count"));
+        assertEquals(Collections.singletonList(APP_ID + "-KSTREAM-MAP-0000000000-repartition"), builder.stateStoreNameToSourceTopics().get("count"));
     }
 
     @Test

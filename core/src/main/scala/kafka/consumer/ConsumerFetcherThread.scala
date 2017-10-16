@@ -31,7 +31,10 @@ import org.apache.kafka.common.protocol.Errors
 import org.apache.kafka.common.record.MemoryRecords
 import org.apache.kafka.common.requests.EpochEndOffset
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 @deprecated("This class has been deprecated and will be removed in a future release. " +
             "Please use org.apache.kafka.clients.consumer.internals.Fetcher instead.", "0.11.0.0")
 class ConsumerFetcherThread(name: String,

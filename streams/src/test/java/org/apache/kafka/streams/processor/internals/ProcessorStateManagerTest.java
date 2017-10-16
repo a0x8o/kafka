@@ -27,6 +27,10 @@ import org.apache.kafka.streams.errors.ProcessorStateException;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.state.internals.OffsetCheckpoint;
 import org.apache.kafka.test.MockBatchingStateRestoreListener;
+<<<<<<< HEAD
+=======
+import org.apache.kafka.test.MockChangelogReader;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.test.MockStateStoreSupplier;
 import org.apache.kafka.test.TestUtils;
 import org.junit.After;
@@ -104,7 +108,11 @@ public class ProcessorStateManagerTest {
         final ProcessorStateManager stateMgr = getStandByStateManager(taskId);
 
         try {
+<<<<<<< HEAD
             stateMgr.register(persistentStore, batchingRestoreCallback);
+=======
+            stateMgr.register(persistentStore, true, batchingRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             stateMgr.updateStandbyStates(persistentStorePartition, Collections.singletonList(consumerRecord));
             assertThat(batchingRestoreCallback.getRestoredRecords().size(), is(1));
             assertTrue(batchingRestoreCallback.getRestoredRecords().contains(expectedKeyValue));
@@ -122,7 +130,11 @@ public class ProcessorStateManagerTest {
         final ProcessorStateManager stateMgr = getStandByStateManager(taskId);
 
         try {
+<<<<<<< HEAD
             stateMgr.register(persistentStore, persistentStore.stateRestoreCallback);
+=======
+            stateMgr.register(persistentStore, true, persistentStore.stateRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             stateMgr.updateStandbyStates(persistentStorePartition, Collections.singletonList(consumerRecord));
             assertThat(persistentStore.keys.size(), is(1));
             assertTrue(persistentStore.keys.contains(intKey));
@@ -329,7 +341,11 @@ public class ProcessorStateManagerTest {
             changelogReader,
             false,
                 logContext);
+<<<<<<< HEAD
         stateMgr.register(nonPersistentStore, nonPersistentStore.stateRestoreCallback);
+=======
+        stateMgr.register(nonPersistentStore, false, nonPersistentStore.stateRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         assertNotNull(stateMgr.getStore(nonPersistentStoreName));
     }
 
@@ -348,7 +364,11 @@ public class ProcessorStateManagerTest {
             changelogReader,
             false,
                 logContext);
+<<<<<<< HEAD
         stateMgr.register(persistentStore, persistentStore.stateRestoreCallback);
+=======
+        stateMgr.register(persistentStore, true, persistentStore.stateRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         stateMgr.close(null);
         final Map<TopicPartition, Long> read = checkpoint.read();
         assertThat(read, equalTo(offsets));
@@ -365,7 +385,11 @@ public class ProcessorStateManagerTest {
             changelogReader,
             false,
                 logContext);
+<<<<<<< HEAD
         stateMgr.register(persistentStore, persistentStore.stateRestoreCallback);
+=======
+        stateMgr.register(persistentStore, true, persistentStore.stateRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         stateMgr.checkpoint(Collections.singletonMap(persistentStorePartition, 10L));
         final Map<TopicPartition, Long> read = checkpoint.read();
@@ -475,7 +499,11 @@ public class ProcessorStateManagerTest {
             false,
                 logContext);
 
+<<<<<<< HEAD
         stateManager.register(mockStateStore, null);
+=======
+        stateManager.register(mockStateStore, false, null);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         try {
             stateManager.register(mockStateStore, null);
@@ -505,7 +533,11 @@ public class ProcessorStateManagerTest {
                 throw new RuntimeException("KABOOM!");
             }
         };
+<<<<<<< HEAD
         stateManager.register(stateStore, stateStore.stateRestoreCallback);
+=======
+        stateManager.register(stateStore, false, stateStore.stateRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         try {
             stateManager.flush();
@@ -570,8 +602,13 @@ public class ProcessorStateManagerTest {
                 flushedStore.set(true);
             }
         };
+<<<<<<< HEAD
         stateManager.register(stateStore1, stateStore1.stateRestoreCallback);
         stateManager.register(stateStore2, stateStore2.stateRestoreCallback);
+=======
+        stateManager.register(stateStore1, false, stateStore1.stateRestoreCallback);
+        stateManager.register(stateStore2, false, stateStore2.stateRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         try {
             stateManager.flush();
@@ -605,8 +642,13 @@ public class ProcessorStateManagerTest {
                 closedStore.set(true);
             }
         };
+<<<<<<< HEAD
         stateManager.register(stateStore1, stateStore1.stateRestoreCallback);
         stateManager.register(stateStore2, stateStore2.stateRestoreCallback);
+=======
+        stateManager.register(stateStore1, false, stateStore1.stateRestoreCallback);
+        stateManager.register(stateStore2, false, stateStore2.stateRestoreCallback);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         try {
             stateManager.close(Collections.<TopicPartition, Long>emptyMap());

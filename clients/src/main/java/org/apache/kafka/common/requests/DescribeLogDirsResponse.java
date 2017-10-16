@@ -74,7 +74,11 @@ public class DescribeLogDirsResponse extends AbstractResponse {
                                             "(if it is the current log for the partition) or current replica's LEO " +
                                             "(if it is the future log for the partition)"),
                                     new Field(IS_FUTURE_KEY_NAME, BOOLEAN, "True if this log is created by " +
+<<<<<<< HEAD
                                             "AlterReplicaLogDirsRequest and will replace the current log of the replica " +
+=======
+                                            "AlterReplicaDirRequest and will replace the current log of the replica " +
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                             "in the future.")))))))))));
 
     public static Schema[] schemaVersions() {
@@ -162,6 +166,7 @@ public class DescribeLogDirsResponse extends AbstractResponse {
         return throttleTimeMs;
     }
 
+<<<<<<< HEAD
     @Override
     public Map<Errors, Integer> errorCounts() {
         Map<Errors, Integer> errorCounts = new HashMap<>();
@@ -170,6 +175,8 @@ public class DescribeLogDirsResponse extends AbstractResponse {
         return errorCounts;
     }
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public Map<String, LogDirInfo> logDirInfos() {
         return logDirInfos;
     }

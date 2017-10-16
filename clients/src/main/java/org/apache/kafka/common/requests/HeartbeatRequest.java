@@ -18,20 +18,41 @@ package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
+<<<<<<< HEAD
+=======
+import org.apache.kafka.common.protocol.types.Field;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
+<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GENERATION_ID;
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.MEMBER_ID;
+=======
+import static org.apache.kafka.common.protocol.types.Type.INT32;
+import static org.apache.kafka.common.protocol.types.Type.STRING;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 public class HeartbeatRequest extends AbstractRequest {
     private static final Schema HEARTBEAT_REQUEST_V0 = new Schema(
             GROUP_ID,
             GENERATION_ID,
             MEMBER_ID);
+
+    /* v1 request is the same as v0. Throttle time has been added to response */
+    private static final Schema HEARTBEAT_REQUEST_V1 = HEARTBEAT_REQUEST_V0;
+
+    public static Schema[] schemaVersions() {
+        return new Schema[] {HEARTBEAT_REQUEST_V0, HEARTBEAT_REQUEST_V1};
+    }
+
+    private static final Schema HEARTBEAT_REQUEST_V0 = new Schema(
+            new Field(GROUP_ID_KEY_NAME, STRING, "The group id."),
+            new Field(GROUP_GENERATION_ID_KEY_NAME, INT32, "The generation of the group."),
+            new Field(MEMBER_ID_KEY_NAME, STRING, "The member id assigned by the group coordinator."));
 
     /* v1 request is the same as v0. Throttle time has been added to response */
     private static final Schema HEARTBEAT_REQUEST_V1 = HEARTBEAT_REQUEST_V0;

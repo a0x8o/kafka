@@ -327,7 +327,10 @@ public class Utils {
                 argTypes[i] = (Class<?>) params[2 * i];
                 args[i] = params[(2 * i) + 1];
             }
+<<<<<<< HEAD
             @SuppressWarnings("unchecked")
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             Constructor<T> constructor = (Constructor<T>) c.getConstructor(argTypes);
             return constructor.newInstance(args);
         } catch (NoSuchMethodException e) {

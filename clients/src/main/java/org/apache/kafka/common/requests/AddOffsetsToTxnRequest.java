@@ -18,15 +18,25 @@ package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
+<<<<<<< HEAD
+=======
+import org.apache.kafka.common.protocol.types.Field;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
+<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.PRODUCER_EPOCH;
 import static org.apache.kafka.common.protocol.CommonFields.PRODUCER_ID;
 import static org.apache.kafka.common.protocol.CommonFields.TRANSACTIONAL_ID;
+=======
+import static org.apache.kafka.common.protocol.types.Type.INT16;
+import static org.apache.kafka.common.protocol.types.Type.INT64;
+import static org.apache.kafka.common.protocol.types.Type.STRING;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 public class AddOffsetsToTxnRequest extends AbstractRequest {
     private static final Schema ADD_OFFSETS_TO_TXN_REQUEST_V0 = new Schema(
@@ -34,6 +44,16 @@ public class AddOffsetsToTxnRequest extends AbstractRequest {
             PRODUCER_ID,
             PRODUCER_EPOCH,
             GROUP_ID);
+
+    public static Schema[] schemaVersions() {
+        return new Schema[]{ADD_OFFSETS_TO_TXN_REQUEST_V0};
+    }
+
+    private static final Schema ADD_OFFSETS_TO_TXN_REQUEST_V0 = new Schema(
+            new Field(TRANSACTIONAL_ID_KEY_NAME, STRING, "The transactional id corresponding to the transaction."),
+            new Field(PRODUCER_ID_KEY_NAME, INT64, "Current producer id in use by the transactional id."),
+            new Field(EPOCH_KEY_NAME, INT16, "Current epoch associated with the producer id."),
+            new Field(CONSUMER_GROUP_ID_KEY_NAME, STRING, "Consumer group id whose offsets should be included in the transaction."));
 
     public static Schema[] schemaVersions() {
         return new Schema[]{ADD_OFFSETS_TO_TXN_REQUEST_V0};

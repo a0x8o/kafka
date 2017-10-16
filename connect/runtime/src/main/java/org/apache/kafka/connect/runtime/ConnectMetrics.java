@@ -18,9 +18,14 @@ package org.apache.kafka.connect.runtime;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.MetricName;
+<<<<<<< HEAD
 import org.apache.kafka.common.MetricNameTemplate;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.JmxReporter;
+=======
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.Measurable;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -47,6 +52,10 @@ import java.util.concurrent.TimeUnit;
 public class ConnectMetrics {
 
     public static final String JMX_PREFIX = "kafka.connect";
+<<<<<<< HEAD
+=======
+    public static final String WORKER_ID_TAG_NAME = "worker-id";
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     private static final Logger LOG = LoggerFactory.getLogger(ConnectMetrics.class);
 
@@ -54,7 +63,10 @@ public class ConnectMetrics {
     private final Time time;
     private final String workerId;
     private final ConcurrentMap<MetricGroupId, MetricGroup> groupsByName = new ConcurrentHashMap<>();
+<<<<<<< HEAD
     private final ConnectMetricsRegistry registry = new ConnectMetricsRegistry();
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     /**
      * Create an instance.
@@ -64,6 +76,7 @@ public class ConnectMetrics {
      * @param time     the time; may not be null
      */
     public ConnectMetrics(String workerId, WorkerConfig config, Time time) {
+<<<<<<< HEAD
         this.workerId = workerId;
         this.time = time;
 
@@ -77,6 +90,19 @@ public class ConnectMetrics {
         this.metrics = new Metrics(metricConfig, reporters, time);
         LOG.debug("Registering Connect metrics with JMX for worker '{}'", workerId);
         AppInfoParser.registerAppInfo(JMX_PREFIX, workerId, metrics);
+=======
+        this.workerId = makeValidName(workerId);
+        this.time = time;
+
+        MetricConfig metricConfig = new MetricConfig().samples(config.getInt(CommonClientConfigs.METRICS_NUM_SAMPLES_CONFIG))
+                                            .timeWindow(config.getLong(CommonClientConfigs.METRICS_SAMPLE_WINDOW_MS_CONFIG), TimeUnit.MILLISECONDS)
+                                            .recordLevel(Sensor.RecordingLevel.forName(config.getString(CommonClientConfigs.METRICS_RECORDING_LEVEL_CONFIG)));
+        List<MetricsReporter> reporters = config.getConfiguredInstances(CommonClientConfigs.METRIC_REPORTER_CLASSES_CONFIG, MetricsReporter.class);
+        reporters.add(new JmxReporter(JMX_PREFIX));
+        this.metrics = new Metrics(metricConfig, reporters, time);
+        LOG.debug("Registering Connect metrics with JMX for worker '{}'", workerId);
+        AppInfoParser.registerAppInfo(JMX_PREFIX, workerId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -99,37 +125,83 @@ public class ConnectMetrics {
     }
 
     /**
+<<<<<<< HEAD
      * Get the registry of metric names.
      *
      * @return the registry for the Connect metrics; never null
      */
     public ConnectMetricsRegistry registry() {
         return registry;
+=======
+     * Get or create a {@link MetricGroup} with the specified group name.
+     *
+     * @param groupName the name of the metric group; may not be null and must be a
+     *                  {@link #checkNameIsValid(String) valid name}
+     * @return the {@link MetricGroup} that can be used to create metrics; never null
+     * @throws IllegalArgumentException if the group name is not valid
+     */
+    public MetricGroup group(String groupName) {
+        return group(groupName, false);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
      * Get or create a {@link MetricGroup} with the specified group name and the given tags.
      * Each group is uniquely identified by the name and tags.
      *
+<<<<<<< HEAD
      * @param groupName    the name of the metric group; may not be null
+=======
+     * @param groupName    the name of the metric group; may not be null and must be a
+     *                     {@link #checkNameIsValid(String) valid name}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @param tagKeyValues pairs of tag name and values
      * @return the {@link MetricGroup} that can be used to create metrics; never null
      * @throws IllegalArgumentException if the group name is not valid
      */
     public MetricGroup group(String groupName, String... tagKeyValues) {
+<<<<<<< HEAD
         MetricGroupId groupId = groupId(groupName, tagKeyValues);
+=======
+        return group(groupName, false, tagKeyValues);
+    }
+
+    /**
+     * Get or create a {@link MetricGroup} with the specified group name and the given tags.
+     * Each group is uniquely identified by the name and tags.
+     *
+     * @param groupName       the name of the metric group; may not be null and must be a
+     *                        {@link #checkNameIsValid(String) valid name}
+     * @param includeWorkerId true if the tags should include the worker ID
+     * @param tagKeyValues    pairs of tag name and values
+     * @return the {@link MetricGroup} that can be used to create metrics; never null
+     * @throws IllegalArgumentException if the group name is not valid
+     */
+    public MetricGroup group(String groupName, boolean includeWorkerId, String... tagKeyValues) {
+        MetricGroupId groupId = groupId(groupName, includeWorkerId, tagKeyValues);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         MetricGroup group = groupsByName.get(groupId);
         if (group == null) {
             group = new MetricGroup(groupId);
             MetricGroup previous = groupsByName.putIfAbsent(groupId, group);
+<<<<<<< HEAD
             if (previous != null)
                 group = previous;
+=======
+            if (previous != null) group = previous;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
         return group;
     }
 
+<<<<<<< HEAD
     protected MetricGroupId groupId(String groupName, String... tagKeyValues) {
         Map<String, String> tags = tags(tagKeyValues);
+=======
+    protected MetricGroupId groupId(String groupName, boolean includeWorkerId, String... tagKeyValues) {
+        checkNameIsValid(groupName);
+        Map<String, String> tags = tags(includeWorkerId ? workerId : null, tagKeyValues);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return new MetricGroupId(groupName, tags);
     }
 
@@ -148,7 +220,11 @@ public class ConnectMetrics {
     public void stop() {
         metrics.close();
         LOG.debug("Unregistering Connect metrics with JMX for worker '{}'", workerId);
+<<<<<<< HEAD
         AppInfoParser.unregisterAppInfo(JMX_PREFIX, workerId, metrics);
+=======
+        AppInfoParser.unregisterAppInfo(JMX_PREFIX, workerId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     public static class MetricGroupId {
@@ -158,8 +234,13 @@ public class ConnectMetrics {
         private final String str;
 
         public MetricGroupId(String groupName, Map<String, String> tags) {
+<<<<<<< HEAD
             Objects.requireNonNull(groupName);
             Objects.requireNonNull(tags);
+=======
+            assert groupName != null;
+            assert tags != null;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             this.groupName = groupName;
             this.tags = Collections.unmodifiableMap(new LinkedHashMap<>(tags));
             this.hc = Objects.hash(this.groupName, this.tags);
@@ -205,8 +286,12 @@ public class ConnectMetrics {
 
         @Override
         public boolean equals(Object obj) {
+<<<<<<< HEAD
             if (obj == this)
                 return true;
+=======
+            if (obj == this) return true;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             if (obj instanceof MetricGroupId) {
                 MetricGroupId that = (MetricGroupId) obj;
                 return this.groupName.equals(that.groupName) && this.tags.equals(that.tags);
@@ -238,12 +323,16 @@ public class ConnectMetrics {
          * @param groupId the identifier of the group; may not be null and must be valid
          */
         protected MetricGroup(MetricGroupId groupId) {
+<<<<<<< HEAD
             Objects.requireNonNull(groupId);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             this.groupId = groupId;
             sensorPrefix = "connect-sensor-group: " + groupId.toString() + ";";
         }
 
         /**
+<<<<<<< HEAD
          * Get the group identifier.
          *
          * @return the group identifier; never null
@@ -266,6 +355,18 @@ public class ConnectMetrics {
         // for testing only
         MetricName metricName(String name) {
             return metrics.metricName(name, groupId.groupName(), "", groupId.tags());
+=======
+         * Create the name of a metric that belongs to this group and has the group's tags.
+         *
+         * @param name the name of the metric/attribute; may not be null and must be valid
+         * @param desc the description for the metric/attribute; may not be null
+         * @return the metric name; never null
+         * @throws IllegalArgumentException if the name is not valid
+         */
+        public MetricName metricName(String name, String desc) {
+            checkNameIsValid(name);
+            return metrics.metricName(name, groupId.groupName(), desc, groupId.tags());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
 
         /**
@@ -273,7 +374,11 @@ public class ConnectMetrics {
          * <p>
          * Do not use this to add {@link Sensor Sensors}, since they will not be removed when this group is
          * {@link #close() closed}. Metrics can be added directly, as long as the metric names are obtained from
+<<<<<<< HEAD
          * this group via the {@link #metricName(MetricNameTemplate)} method.
+=======
+         * this group via the {@link #metricName(String, String)} method.
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
          *
          * @return the metrics; never null
          */
@@ -291,6 +396,7 @@ public class ConnectMetrics {
         }
 
         /**
+<<<<<<< HEAD
          * Add to this group an indicator metric with a function that returns the current value.
          *
          * @param nameTemplate the name template for the metric; may not be null
@@ -323,6 +429,23 @@ public class ConnectMetrics {
                     @Override
                     public T value(MetricConfig config, long now) {
                         return value;
+=======
+         * Add to this group an indicator metric with a function that will be used to obtain the indicator state.
+         *
+         * @param name        the name of the metric; may not be null and must be a
+         *                    {@link #checkNameIsValid(String) valid name}
+         * @param description the description of the metric; may not be null
+         * @param predicate   the predicate function used to determine the indicator state; may not be null
+         * @throws IllegalArgumentException if the name is not valid
+         */
+        public void addIndicatorMetric(String name, String description, final IndicatorPredicate predicate) {
+            MetricName metricName = metricName(name, description);
+            if (metrics().metric(metricName) == null) {
+                metrics().addMetric(metricName, new Measurable() {
+                    @Override
+                    public double measure(MetricConfig config, long now) {
+                        return predicate.matches() ? 1.0d : 0.0d;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     }
                 });
             }
@@ -389,8 +512,12 @@ public class ConnectMetrics {
         public synchronized Sensor sensor(String name, MetricConfig config, Sensor.RecordingLevel recordingLevel, Sensor... parents) {
             // We need to make sure that all sensor names are unique across all groups, so use the sensor prefix
             Sensor result = metrics.sensor(sensorPrefix + name, config, Long.MAX_VALUE, recordingLevel, parents);
+<<<<<<< HEAD
             if (result != null)
                 sensorNames.add(result.name());
+=======
+            if (result != null) sensorNames.add(result.name());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             return result;
         }
 
@@ -411,6 +538,7 @@ public class ConnectMetrics {
     }
 
     /**
+<<<<<<< HEAD
      * A simple functional interface that returns a literal value.
      */
     public interface LiteralSupplier<T> {
@@ -436,11 +564,43 @@ public class ConnectMetrics {
         Map<String, String> tags = new LinkedHashMap<>();
         for (int i = 0; i < keyValue.length; i += 2) {
             tags.put(keyValue[i], keyValue[i + 1]);
+=======
+     * A simple functional interface that determines whether an indicator metric is true.
+     */
+    public interface IndicatorPredicate {
+
+        /**
+         * Return whether the indicator metric is true.
+         *
+         * @return true if the indicator metric is satisfied, or false otherwise
+         */
+        boolean matches();
+    }
+
+    /**
+     * Create a set of tags using the supplied key and value pairs. Every tag name and value will be
+     * {@link #makeValidName(String) made valid} before it is used. The order of the tags will be kept.
+     *
+     * @param workerId the worker ID that should be included first in the tags; may be null if not to be included
+     * @param keyValue the key and value pairs for the tags; must be an even number
+     * @return the map of tags that can be supplied to the {@link Metrics} methods; never null
+     */
+    static Map<String, String> tags(String workerId, String... keyValue) {
+        if ((keyValue.length % 2) != 0)
+            throw new IllegalArgumentException("keyValue needs to be specified in pairs");
+        Map<String, String> tags = new LinkedHashMap<>();
+        if (workerId != null && !workerId.trim().isEmpty()) {
+            tags.put(WORKER_ID_TAG_NAME, makeValidName(workerId));
+        }
+        for (int i = 0; i < keyValue.length; i += 2) {
+            tags.put(makeValidName(keyValue[i]), makeValidName(keyValue[i + 1]));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
         return tags;
     }
 
     /**
+<<<<<<< HEAD
      * Utility to generate the documentation for the Connect metrics.
      *
      * @param args the arguments
@@ -448,5 +608,34 @@ public class ConnectMetrics {
     public static void main(String[] args) {
         ConnectMetricsRegistry metrics = new ConnectMetricsRegistry();
         System.out.println(Metrics.toHtmlTable(JMX_PREFIX, metrics.getAllTemplates()));
+=======
+     * Utility to ensure the supplied name contains valid characters, replacing with a single '-' sequences of
+     * 1 or more characters <em>other than</em> word characters (e.g., "[a-zA-Z_0-9]").
+     *
+     * @param name the name; may not be null
+     * @return the validated name; never null
+     */
+    static String makeValidName(String name) {
+        Objects.requireNonNull(name);
+        name = name.trim();
+        if (!name.isEmpty()) {
+            name = name.replaceAll("[^\\w]+", "-");
+        }
+        return name;
+    }
+
+    /**
+     * Utility method that determines whether the supplied name contains only "[a-zA-Z0-9_-]" characters and thus
+     * would be unchanged by {@link #makeValidName(String)}.
+     *
+     * @param name the name; may not be null
+     * @return true if the name is valid, or false otherwise
+     * @throws IllegalArgumentException if the name is not valid
+     */
+    static void checkNameIsValid(String name) {
+        if (!name.equals(makeValidName(name))) {
+            throw new IllegalArgumentException("The name '" + name + "' contains at least one invalid character");
+        }
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 }

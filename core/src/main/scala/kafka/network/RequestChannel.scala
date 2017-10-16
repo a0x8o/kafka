@@ -21,6 +21,7 @@ import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.util.concurrent._
 
+<<<<<<< HEAD
 import com.yammer.metrics.core.{Gauge, Meter}
 import kafka.metrics.KafkaMetricsGroup
 import kafka.network.RequestChannel.{BaseRequest, SendAction, ShutdownRequest, NoOpAction, CloseConnectionAction}
@@ -28,6 +29,17 @@ import kafka.utils.{Logging, NotNothing}
 import org.apache.kafka.common.memory.MemoryPool
 import org.apache.kafka.common.network.Send
 import org.apache.kafka.common.protocol.{ApiKeys, Errors}
+=======
+import com.yammer.metrics.core.Gauge
+import kafka.metrics.KafkaMetricsGroup
+import kafka.network.RequestChannel.{ShutdownRequest, BaseRequest}
+import kafka.server.QuotaId
+import kafka.utils.{Logging, NotNothing}
+import org.apache.kafka.common.memory.MemoryPool
+import org.apache.kafka.common.metrics.Sanitizer
+import org.apache.kafka.common.network.Send
+import org.apache.kafka.common.protocol.ApiKeys
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.requests._
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.{Sanitizer, Time}
@@ -48,6 +60,7 @@ object RequestChannel extends Logging {
     val sanitizedUser = Sanitizer.sanitize(principal.getName)
   }
 
+<<<<<<< HEAD
   class Metrics {
 
     private val metricsMap = mutable.Map[String, RequestMetrics]()
@@ -64,12 +77,18 @@ object RequestChannel extends Logging {
     }
   }
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   class Request(val processor: Int,
                 val context: RequestContext,
                 val startTimeNanos: Long,
                 memoryPool: MemoryPool,
+<<<<<<< HEAD
                 @volatile private var buffer: ByteBuffer,
                 metrics: RequestChannel.Metrics) extends BaseRequest {
+=======
+                @volatile private var buffer: ByteBuffer) extends BaseRequest {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     // These need to be volatile because the readers are in the network thread and the writers are in the request
     // handler threads or the purgatory threads
     @volatile var requestDequeueTimeNanos = -1L
@@ -83,10 +102,17 @@ object RequestChannel extends Logging {
 
     val session = Session(context.principal, context.clientAddress)
     private val bodyAndSize: RequestAndSize = context.parseRequest(buffer)
+<<<<<<< HEAD
 
     def header: RequestHeader = context.header
     def sizeOfBodyInBytes: Int = bodyAndSize.size
 
+=======
+
+    def header: RequestHeader = context.header
+    def sizeOfBodyInBytes: Int = bodyAndSize.size
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     //most request types are parsed entirely into objects at this point. for those we can release the underlying buffer.
     //some (like produce, or any time the schema contains fields of types BYTES or NULLABLE_BYTES) retain a reference
     //to the buffer. for those requests we cannot release the buffer early, but only when request processing is done.
@@ -140,7 +166,10 @@ object RequestChannel extends Logging {
       val apiThrottleTimeMs = nanosToMs(responseCompleteTimeNanos - apiRemoteCompleteTimeNanos)
       val responseQueueTimeMs = nanosToMs(responseDequeueTimeNanos - responseCompleteTimeNanos)
       val responseSendTimeMs = nanosToMs(endTimeNanos - responseDequeueTimeNanos)
+<<<<<<< HEAD
       val messageConversionsTimeMs = nanosToMs(messageConversionsTimeNanos)
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       val totalTimeMs = nanosToMs(endTimeNanos - startTimeNanos)
       val fetchMetricNames =
         if (header.apiKey == ApiKeys.FETCH) {
@@ -162,9 +191,12 @@ object RequestChannel extends Logging {
         m.responseQueueTimeHist.update(Math.round(responseQueueTimeMs))
         m.responseSendTimeHist.update(Math.round(responseSendTimeMs))
         m.totalTimeHist.update(Math.round(totalTimeMs))
+<<<<<<< HEAD
         m.requestBytesHist.update(sizeOfBodyInBytes)
         m.messageConversionsTimeHist.foreach(_.update(Math.round(messageConversionsTimeMs)))
         m.tempMemoryBytesHist.foreach(_.update(temporaryMemoryBytes))
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       }
 
       // Records network handler thread usage. This is included towards the request quota for the
@@ -194,10 +226,13 @@ object RequestChannel extends Logging {
           .append(",securityProtocol:").append(context.securityProtocol)
           .append(",principal:").append(session.principal)
           .append(",listener:").append(context.listenerName.value)
+<<<<<<< HEAD
         if (temporaryMemoryBytes > 0)
           builder.append(",temporaryMemoryBytes:").append(temporaryMemoryBytes)
         if (messageConversionsTimeMs > 0)
           builder.append(",messageConversionsTime:").append(messageConversionsTimeMs)
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         requestLogger.debug(builder.toString)
       }
     }
@@ -273,6 +308,7 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
   def sendResponse(response: RequestChannel.Response) {
     if (isTraceEnabled) {
       val requestHeader = response.request.header
+<<<<<<< HEAD
       val message = response.responseAction match {
         case SendAction =>
           s"Sending ${requestHeader.apiKey} response to client ${requestHeader.clientId} of ${response.responseSend.get.size} bytes."
@@ -282,6 +318,10 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
           s"Closing connection for client ${requestHeader.clientId} due to error during ${requestHeader.apiKey}."
       }
       trace(message)
+=======
+      trace(s"Sending ${requestHeader.apiKey} response to client ${requestHeader.clientId} of " +
+        s"${response.responseSend.size} bytes.")
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     responseQueues(response.processor).put(response)
@@ -320,6 +360,10 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
   }
 
   def sendShutdownRequest(): Unit = requestQueue.put(ShutdownRequest)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 }
 
 object RequestMetrics {

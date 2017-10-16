@@ -58,6 +58,10 @@ import java.util.Map;
  * @see KStream#join(KStream, ValueJoiner, JoinWindows, Joined)
  * @see KStream#leftJoin(KStream, ValueJoiner, JoinWindows)
  * @see KStream#leftJoin(KStream, ValueJoiner, JoinWindows, Joined)
+<<<<<<< HEAD
+=======
+ * @see KStream#outerJoin(KStream, ValueJoiner, JoinWindows)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
  * @see KStream#outerJoin(KStream, ValueJoiner, JoinWindows)
  * @see KStream#outerJoin(KStream, ValueJoiner, JoinWindows, Joined)
  * @see TimestampExtractor

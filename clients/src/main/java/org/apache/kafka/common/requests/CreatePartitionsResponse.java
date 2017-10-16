@@ -18,7 +18,10 @@
 package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.protocol.ApiKeys;
+<<<<<<< HEAD
 import org.apache.kafka.common.protocol.Errors;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.protocol.types.ArrayOf;
 import org.apache.kafka.common.protocol.types.Field;
 import org.apache.kafka.common.protocol.types.Schema;
@@ -95,11 +98,14 @@ public class CreatePartitionsResponse extends AbstractResponse {
         return errors;
     }
 
+<<<<<<< HEAD
     @Override
     public Map<Errors, Integer> errorCounts() {
         return apiErrorCounts(errors);
     }
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public int throttleTimeMs() {
         return throttleTimeMs;
     }

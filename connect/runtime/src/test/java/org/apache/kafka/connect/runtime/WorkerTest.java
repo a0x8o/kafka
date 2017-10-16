@@ -46,6 +46,10 @@ import org.apache.kafka.connect.util.MockTime;
 import org.apache.kafka.connect.util.ThreadedTest;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
+<<<<<<< HEAD
+=======
+import org.junit.After;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,6 +82,7 @@ public class WorkerTest extends ThreadedTest {
 
     private WorkerConfig config;
     private Worker worker;
+    private ConnectMetrics metrics;
 
     @Mock
     private Plugins plugins;
@@ -106,8 +111,14 @@ public class WorkerTest extends ThreadedTest {
         workerProps.put("offset.storage.file.filename", "/tmp/connect.offsets");
         workerProps.put(CommonClientConfigs.METRIC_REPORTER_CLASSES_CONFIG, MockMetricsReporter.class.getName());
         config = new StandaloneConfig(workerProps);
+        metrics = new MockConnectMetrics();
 
         PowerMock.mockStatic(Plugins.class);
+    }
+
+    @After
+    public void tearDown() {
+        if (metrics != null) metrics.stop();
     }
 
     @Test
@@ -213,7 +224,10 @@ public class WorkerTest extends ThreadedTest {
         worker = new Worker(WORKER_ID, new MockTime(), plugins, config, offsetBackingStore);
         worker.start();
 
+<<<<<<< HEAD
         assertStatistics(worker, 0, 0);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         assertFalse(worker.startConnector(CONNECTOR_ID, props, ctx, connectorStatusListener, TargetState.STARTED));
 
         assertStartupStatistics(worker, 1, 1, 0, 0);
@@ -222,8 +236,11 @@ public class WorkerTest extends ThreadedTest {
         assertStatistics(worker, 0, 0);
         assertStartupStatistics(worker, 1, 1, 0, 0);
         assertFalse(worker.stopConnector(CONNECTOR_ID));
+<<<<<<< HEAD
         assertStatistics(worker, 0, 0);
         assertStartupStatistics(worker, 1, 1, 0, 0);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         PowerMock.verifyAll();
     }
@@ -831,12 +848,21 @@ public class WorkerTest extends ThreadedTest {
 
     private void expectConverters() {
         expectConverters(JsonConverter.class, false);
+<<<<<<< HEAD
     }
 
     private void expectConverters(Boolean expectDefaultConverters) {
         expectConverters(JsonConverter.class, expectDefaultConverters);
     }
 
+=======
+    }
+
+    private void expectConverters(Boolean expectDefaultConverters) {
+        expectConverters(JsonConverter.class, expectDefaultConverters);
+    }
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private void expectConverters(Class<? extends Converter> converterClass, Boolean expectDefaultConverters) {
         // As default converters are instantiated when a task starts, they are expected only if the `startTask` method is called
         if (expectDefaultConverters) {

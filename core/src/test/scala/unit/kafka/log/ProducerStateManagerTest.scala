@@ -86,7 +86,11 @@ class ProducerStateManagerTest extends JUnitSuite {
     val epoch = 15.toShort
     val sequence = Int.MaxValue
     val offset = 735L
+<<<<<<< HEAD
     append(stateManager, producerId, epoch, sequence, offset, isFromClient = false)
+=======
+    append(stateManager, producerId, epoch, sequence, offset, isLoadingFromLog = true)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     append(stateManager, producerId, epoch, 0, offset + 500)
 
@@ -105,7 +109,11 @@ class ProducerStateManagerTest extends JUnitSuite {
     val epoch = 15.toShort
     val sequence = Int.MaxValue
     val offset = 735L
+<<<<<<< HEAD
     append(stateManager, producerId, epoch, sequence, offset, isFromClient = false)
+=======
+    append(stateManager, producerId, epoch, sequence, offset, isLoadingFromLog = true)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     append(stateManager, producerId, epoch, 1, offset + 500)
   }
 
@@ -159,7 +167,12 @@ class ProducerStateManagerTest extends JUnitSuite {
     val producerEpoch = 0.toShort
     val offset = 992342L
     val seq = 0
+<<<<<<< HEAD
     val producerAppendInfo = new ProducerAppendInfo(producerId, ProducerIdEntry.empty(producerId), ValidationType.Full)
+=======
+    val producerAppendInfo = new ProducerAppendInfo(producerId, ProducerIdEntry.empty(producerId), validateSequenceNumbers = true,
+      loadingFromLog = false)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     producerAppendInfo.append(producerEpoch, seq, seq, time.milliseconds(), offset, isTransactional = true)
 
     val logOffsetMetadata = new LogOffsetMetadata(messageOffset = offset, segmentBaseOffset = 990000L,
@@ -175,7 +188,12 @@ class ProducerStateManagerTest extends JUnitSuite {
     val producerEpoch = 0.toShort
     val offset = 992342L
     val seq = 0
+<<<<<<< HEAD
     val producerAppendInfo = new ProducerAppendInfo(producerId, ProducerIdEntry.empty(producerId), ValidationType.Full)
+=======
+    val producerAppendInfo = new ProducerAppendInfo(producerId, ProducerIdEntry.empty(producerId), validateSequenceNumbers = true,
+      loadingFromLog = false)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     producerAppendInfo.append(producerEpoch, seq, seq, time.milliseconds(), offset, isTransactional = true)
 
     // use some other offset to simulate a follower append where the log offset metadata won't typically

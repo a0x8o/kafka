@@ -113,7 +113,11 @@ public class WorkerSinkTaskTest {
     private SinkTask sinkTask;
     private Capture<WorkerSinkTaskContext> sinkTaskContext = EasyMock.newCapture();
     private WorkerConfig workerConfig;
+<<<<<<< HEAD
     private MockConnectMetrics metrics;
+=======
+    private ConnectMetrics metrics;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Mock
     private PluginClassLoader pluginLoader;
     @Mock
@@ -144,7 +148,11 @@ public class WorkerSinkTaskTest {
         workerProps.put("offset.storage.file.filename", "/tmp/connect.offsets");
         workerConfig = new StandaloneConfig(workerProps);
         pluginLoader = PowerMock.createMock(PluginClassLoader.class);
+<<<<<<< HEAD
         metrics = new MockConnectMetrics(time);
+=======
+        metrics = new MockConnectMetrics();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         recordsReturnedTp1 = 0;
         recordsReturnedTp3 = 0;
     }
@@ -974,6 +982,7 @@ public class WorkerSinkTaskTest {
         sinkTaskContext.getValue().requestCommit();
         workerTask.iteration(); // iter 3 -- commit in progress
 
+<<<<<<< HEAD
         assertSinkMetricValue("partition-count", 3);
         assertSinkMetricValue("sink-record-read-total", 3.0);
         assertSinkMetricValue("sink-record-send-total", 3.0);
@@ -993,6 +1002,8 @@ public class WorkerSinkTaskTest {
         assertTaskMetricValue("offset-commit-failure-percentage", 0.0);
         assertTaskMetricValue("offset-commit-success-percentage", 1.0);
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         assertTrue(asyncCallbackRan.get());
         assertTrue(rebalanced.get());
 
@@ -1008,6 +1019,7 @@ public class WorkerSinkTaskTest {
         assertEquals(postRebalanceCurrentOffsets, Whitebox.getInternalState(workerTask, "currentOffsets"));
         assertEquals(postRebalanceCurrentOffsets, Whitebox.getInternalState(workerTask, "lastCommittedOffsets"));
 
+<<<<<<< HEAD
         assertSinkMetricValue("partition-count", 3);
         assertSinkMetricValue("sink-record-read-total", 4.0);
         assertSinkMetricValue("sink-record-send-total", 4.0);
@@ -1027,6 +1039,8 @@ public class WorkerSinkTaskTest {
         assertTaskMetricValue("offset-commit-failure-percentage", 0.0);
         assertTaskMetricValue("offset-commit-success-percentage", 1.0);
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         PowerMock.verifyAll();
     }
 
@@ -1079,7 +1093,11 @@ public class WorkerSinkTaskTest {
         assertFalse(sinkTaskContext.getValue().isCommitRequested()); // should have been cleared
         assertEquals(offsets, Whitebox.<Map<TopicPartition, OffsetAndMetadata>>getInternalState(workerTask, "lastCommittedOffsets"));
         assertEquals(0, workerTask.commitFailures());
+<<<<<<< HEAD
         assertEquals(1.0, metrics.currentMetricValueAsDouble(workerTask.taskMetricsGroup().metricGroup(), "batch-size-max"), 0.0001);
+=======
+        assertEquals(1.0, workerTask.taskMetricsGroup().currentMetricValue("batch-size-max"), 0.0001);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         PowerMock.verifyAll();
     }

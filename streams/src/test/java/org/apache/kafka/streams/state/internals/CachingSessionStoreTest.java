@@ -150,8 +150,13 @@ public class CachingSessionStoreTest {
 
         // add one that shouldn't appear in the results
         cachingStore.put(new Windowed<>(keyAA, new SessionWindow(0, 0)), "5".getBytes());
+<<<<<<< HEAD
 
 
+=======
+
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final List<KeyValue<Windowed<Bytes>, byte[]>> results = toList(cachingStore.fetch(keyA));
         verifyKeyValueList(expected, results);
     }
@@ -243,6 +248,7 @@ public class CachingSessionStoreTest {
         cachingStore.flush();
         
         cachingStore.put(a, "2".getBytes());
+<<<<<<< HEAD
         cachingStore.flush();
 
         cachingStore.remove(a);
@@ -269,12 +275,15 @@ public class CachingSessionStoreTest {
         cachingStore.flush();
 
         cachingStore.put(a, "2".getBytes());
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         cachingStore.flush();
 
         cachingStore.remove(a);
         cachingStore.flush();
 
         assertEquals(flushed, Arrays.asList(KeyValue.pair(aDeserialized, new Change<>("1", null)),
+<<<<<<< HEAD
                                             KeyValue.pair(aDeserialized, new Change<>("2", null)),
                                             KeyValue.pair(aDeserialized, new Change<>(null, "2"))));
     }
@@ -300,6 +309,10 @@ public class CachingSessionStoreTest {
 
         assertEquals(flushed, Arrays.asList(KeyValue.pair(aDeserialized, new Change<>("1", null)),
                                             KeyValue.pair(aDeserialized, new Change<>("2", null))));
+=======
+                                            KeyValue.pair(aDeserialized, new Change<>("2", "1")),
+                                            KeyValue.pair(aDeserialized, new Change<>(null, "2"))));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test

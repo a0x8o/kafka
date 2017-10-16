@@ -29,7 +29,10 @@ public abstract class AbstractOptions<T extends AbstractOptions> {
      * Set the request timeout in milliseconds for this operation or {@code null} if the default request timeout for the
      * AdminClient should be used.
      */
+<<<<<<< HEAD
     @SuppressWarnings("unchecked")
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public T timeoutMs(Integer timeoutMs) {
         this.timeoutMs = timeoutMs;
         return (T) this;

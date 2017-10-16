@@ -40,7 +40,11 @@ trait KafkaMetricsGroup extends Logging {
    * @param tags Additional attributes which mBean will have.
    * @return Sanitized metric name object.
    */
+<<<<<<< HEAD
   def metricName(name: String, tags: scala.collection.Map[String, String]): MetricName = {
+=======
+  private def metricName(name: String, tags: scala.collection.Map[String, String]) = {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val klass = this.getClass
     val pkg = if (klass.getPackage == null) "" else klass.getPackage.getName
     val simpleName = klass.getSimpleName.replaceAll("\\$$", "")
@@ -49,6 +53,7 @@ trait KafkaMetricsGroup extends Logging {
   }
 
 
+<<<<<<< HEAD
   protected def explicitMetricName(group: String, typeName: String, name: String,
       tags: scala.collection.Map[String, String]): MetricName = {
 
@@ -56,6 +61,9 @@ trait KafkaMetricsGroup extends Logging {
     def quoteIfRequired(value: String) = if (value.contains(':')) ObjectName.quote(value) else value
     val metricTags = tags.map(kv => (kv._1, quoteIfRequired(kv._2)))
 
+=======
+  private def explicitMetricName(group: String, typeName: String, name: String, tags: scala.collection.Map[String, String]) = {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val nameBuilder: StringBuilder = new StringBuilder
 
     nameBuilder.append(group)

@@ -18,7 +18,6 @@
 package kafka.server
 
 import java.util.concurrent.locks.ReentrantLock
-
 import kafka.cluster.BrokerEndPoint
 import kafka.utils.{DelayedItem, Pool, ShutdownableThread}
 import org.apache.kafka.common.errors.KafkaStorageException
@@ -28,12 +27,10 @@ import kafka.utils.CoreUtils.inLock
 import org.apache.kafka.common.errors.CorruptRecordException
 import org.apache.kafka.common.protocol.Errors
 import AbstractFetcherThread._
-
 import scala.collection.{Map, Set, mutable}
 import scala.collection.JavaConverters._
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-
 import com.yammer.metrics.core.Gauge
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.internals.{FatalExitError, PartitionStates}
@@ -196,10 +193,17 @@ abstract class AbstractFetcherThread(name: String,
                       // 2. If the message is corrupt due to a transient state in the log (truncation, partial writes can cause this), we simply continue and
                       // should get fixed in the subsequent fetches
                       logger.error(s"Found invalid messages during fetch for partition $topicPartition offset ${currentPartitionFetchState.fetchOffset} error ${ime.getMessage}")
+<<<<<<< HEAD
                       partitionsWithError += topicPartition
                     case e: KafkaStorageException =>
                       logger.error(s"Error while processing data for partition $topicPartition", e)
                       partitionsWithError += topicPartition
+=======
+                      updatePartitionsWithError(topicPartition)
+                    case e: KafkaStorageException =>
+                      logger.error(s"Error while processing data for partition $topicPartition", e)
+                      updatePartitionsWithError(topicPartition)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     case e: Throwable =>
                       throw new KafkaException(s"Error processing data for partition $topicPartition " +
                         s"offset ${currentPartitionFetchState.fetchOffset}", e)
@@ -213,12 +217,20 @@ abstract class AbstractFetcherThread(name: String,
                     case e: FatalExitError => throw e
                     case e: Throwable =>
                       error(s"Error getting offset for partition $topicPartition to broker ${sourceBroker.id}", e)
+<<<<<<< HEAD
                       partitionsWithError += topicPartition
+=======
+                      updatePartitionsWithError(topicPartition)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                   }
                 case _ =>
                   if (isRunning.get) {
                     error(s"Error for partition $topicPartition to broker %${sourceBroker.id}:${partitionData.exception.get}")
+<<<<<<< HEAD
                     partitionsWithError += topicPartition
+=======
+                    updatePartitionsWithError(topicPartition)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                   }
               }
             })

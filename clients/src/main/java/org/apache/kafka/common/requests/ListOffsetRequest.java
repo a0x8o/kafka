@@ -120,8 +120,13 @@ public class ListOffsetRequest extends AbstractRequest {
             return new Builder(minVersion, ApiKeys.LIST_OFFSETS.latestVersion(), CONSUMER_REPLICA_ID, isolationLevel);
         }
 
+<<<<<<< HEAD
         private Builder(short oldestAllowedVersion, short latestAllowedVersion, int replicaId, IsolationLevel isolationLevel) {
             super(ApiKeys.LIST_OFFSETS, oldestAllowedVersion, latestAllowedVersion);
+=======
+        private Builder(short minVersion, short maxVersion, int replicaId, IsolationLevel isolationLevel) {
+            super(ApiKeys.LIST_OFFSETS, minVersion, maxVersion);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             this.replicaId = replicaId;
             this.isolationLevel = isolationLevel;
         }

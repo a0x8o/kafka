@@ -24,7 +24,11 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.metrics.Metrics;
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.security.authenticator.CredentialCache;
 import org.apache.kafka.common.utils.MockTime;
@@ -79,8 +83,12 @@ public class NetworkTestUtils {
         assertTrue(selector.isChannelReady(node));
     }
 
+<<<<<<< HEAD
     public static ChannelState waitForChannelClose(Selector selector, String node, ChannelState.State channelState)
             throws IOException {
+=======
+    public static void waitForChannelClose(Selector selector, String node, ChannelState.State channelState) throws IOException {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         boolean closed = false;
         for (int i = 0; i < 30; i++) {
             selector.poll(1000L);
@@ -90,8 +98,12 @@ public class NetworkTestUtils {
             }
         }
         assertTrue("Channel was not closed by timeout", closed);
+<<<<<<< HEAD
         ChannelState finalState = selector.disconnected().get(node);
         assertEquals(channelState, finalState.state());
         return finalState;
+=======
+        assertEquals(channelState, selector.disconnected().get(node).state());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 }

@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GENERATION_ID;
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.MEMBER_ID;
@@ -39,6 +40,14 @@ import static org.apache.kafka.common.protocol.CommonFields.PARTITION_ID;
 import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
 import static org.apache.kafka.common.protocol.types.Type.INT64;
 import static org.apache.kafka.common.protocol.types.Type.NULLABLE_STRING;
+=======
+import static org.apache.kafka.common.protocol.CommonFields.PARTITION_ID;
+import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
+import static org.apache.kafka.common.protocol.types.Type.INT32;
+import static org.apache.kafka.common.protocol.types.Type.INT64;
+import static org.apache.kafka.common.protocol.types.Type.NULLABLE_STRING;
+import static org.apache.kafka.common.protocol.types.Type.STRING;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 /**
  * This wrapper supports both v0 and v1 of OffsetCommitRequest.
@@ -87,6 +96,7 @@ public class OffsetCommitRequest extends AbstractRequest {
             new Field(PARTITIONS_KEY_NAME, new ArrayOf(OFFSET_COMMIT_REQUEST_PARTITION_V2), "Partitions to commit offsets."));
 
     private static final Schema OFFSET_COMMIT_REQUEST_V0 = new Schema(
+<<<<<<< HEAD
             GROUP_ID,
             new Field(TOPICS_KEY_NAME, new ArrayOf(OFFSET_COMMIT_REQUEST_TOPIC_V0), "Topics to commit offsets."));
 
@@ -100,6 +110,21 @@ public class OffsetCommitRequest extends AbstractRequest {
             GROUP_ID,
             GENERATION_ID,
             MEMBER_ID,
+=======
+            new Field(GROUP_ID_KEY_NAME, STRING, "The group id."),
+            new Field(TOPICS_KEY_NAME, new ArrayOf(OFFSET_COMMIT_REQUEST_TOPIC_V0), "Topics to commit offsets."));
+
+    private static final Schema OFFSET_COMMIT_REQUEST_V1 = new Schema(
+            new Field(GROUP_ID_KEY_NAME, STRING, "The group id."),
+            new Field(GENERATION_ID_KEY_NAME, INT32, "The generation of the group."),
+            new Field(MEMBER_ID_KEY_NAME, STRING, "The member id assigned by the group coordinator."),
+            new Field(TOPICS_KEY_NAME, new ArrayOf(OFFSET_COMMIT_REQUEST_TOPIC_V1), "Topics to commit offsets."));
+
+    private static final Schema OFFSET_COMMIT_REQUEST_V2 = new Schema(
+            new Field(GROUP_ID_KEY_NAME, STRING, "The group id."),
+            new Field(GENERATION_ID_KEY_NAME, INT32, "The generation of the consumer group."),
+            new Field(MEMBER_ID_KEY_NAME, STRING, "The consumer id assigned by the group coordinator."),
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(RETENTION_TIME_KEY_NAME, INT64, "Time period in ms to retain the offset."),
             new Field(TOPICS_KEY_NAME, new ArrayOf(OFFSET_COMMIT_REQUEST_TOPIC_V2), "Topics to commit offsets."));
 

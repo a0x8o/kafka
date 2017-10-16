@@ -72,7 +72,11 @@ RELEASE_BRANCH_PREFIX = "0."
 
 DEV_BRANCH_NAME = "trunk"
 
+<<<<<<< HEAD
 DEFAULT_FIX_VERSION = os.environ.get("DEFAULT_FIX_VERSION", "1.1.0")
+=======
+DEFAULT_FIX_VERSION = os.environ.get("DEFAULT_FIX_VERSION", "1.0.0")
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 def get_json(url):
     try:

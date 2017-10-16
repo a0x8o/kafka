@@ -21,6 +21,10 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.common.utils.Time;
+<<<<<<< HEAD
+=======
+import org.apache.kafka.streams.processor.StateStoreSupplier;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.state.internals.InMemoryKeyValueStore;
 import org.apache.kafka.streams.state.internals.InMemoryKeyValueStoreSupplier;
 import org.apache.kafka.streams.state.internals.InMemoryLRUCacheStoreSupplier;
@@ -223,7 +227,11 @@ public class Stores {
      *
      * @param name the name of the store
      * @return the factory that can be used to specify other options or configurations for the store; never null
+<<<<<<< HEAD
      * @deprecated use {@link #persistentKeyValueStore(String)}, {@link #persistentWindowStore(String, long, int, long, boolean)}
+=======
+     * @deprected use {@link #persistentKeyValueStore(String)}, {@link #persistentWindowStore(String, long, int, long, boolean)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * {@link #persistentSessionStore(String, long)}, {@link #lruMap(String, int)}, or {@link #inMemoryKeyValueStore(String)}
      */
     @Deprecated
@@ -270,7 +278,11 @@ public class Stores {
                                     }
 
                                     @Override
+<<<<<<< HEAD
                                     public org.apache.kafka.streams.processor.StateStoreSupplier build() {
+=======
+                                    public StateStoreSupplier build() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                         log.trace("Defining InMemory Store name={} capacity={} logged={}", name, capacity, logged);
                                         if (capacity < Integer.MAX_VALUE) {
                                             return new InMemoryLRUCacheStoreSupplier<>(name, capacity, keySerde, valueSerde, logged, logConfig);
@@ -334,7 +346,11 @@ public class Stores {
                                     }
 
                                     @Override
+<<<<<<< HEAD
                                     public org.apache.kafka.streams.processor.StateStoreSupplier build() {
+=======
+                                    public StateStoreSupplier build() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                         log.trace("Defining RocksDb Store name={} numSegments={} logged={}", name, numSegments, logged);
                                         if (sessionWindows) {
                                             return new RocksDBSessionStoreSupplier<>(name, retentionPeriod, keySerde, valueSerde, logged, logConfig, cachingEnabled);

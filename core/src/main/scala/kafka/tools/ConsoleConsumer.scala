@@ -340,10 +340,13 @@ object ConsoleConsumer extends Logging {
       .ofType(classOf[String])
       .defaultsTo("read_uncommitted")
 
+<<<<<<< HEAD
     val groupIdOpt = parser.accepts("group", "The consumer group id of the consumer.")
       .withRequiredArg
       .describedAs("consumer group id")
       .ofType(classOf[String])
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     if (args.length == 0)
       CommandLineUtils.printUsageAndDie(parser, "The console consumer is a tool that reads data from Kafka and outputs it to standard output.")

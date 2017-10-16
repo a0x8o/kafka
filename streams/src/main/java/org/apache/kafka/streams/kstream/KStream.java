@@ -291,7 +291,11 @@ public interface KStream<K, V> {
      * {@link Integer} etc. to get meaningful information.
      *
      * @param label the name used to label the key/value pairs printed to the console
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toSysOut()}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void print(final String label);
@@ -309,7 +313,11 @@ public interface KStream<K, V> {
      *
      * @param keySerde key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde value serde used to deserialize value if type is {@code byte[]},
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toSysOut().withKeyValueMapper(...)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void print(final Serde<K> keySerde,
@@ -327,7 +335,11 @@ public interface KStream<K, V> {
      * @param keySerde   key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde   value serde used to deserialize value if type is {@code byte[]},
      * @param label the name used to label the key/value pairs printed to the console
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toSysOut().withLabel(label).withKeyValueMapper(...)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void print(final Serde<K> keySerde,
@@ -343,6 +355,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -352,7 +368,11 @@ public interface KStream<K, V> {
      * The KeyValueMapper's mapped value type must be {@code String}.
      *
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toSysOut().withKeyValueMapper(mapper)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper);
@@ -366,6 +386,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -376,7 +400,11 @@ public interface KStream<K, V> {
      *
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
      * @param label The given name which labels output will be printed.
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toSysOut().withLabel(label).withKeyValueMapper(mapper)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper, final String label);
@@ -390,6 +418,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -402,9 +434,15 @@ public interface KStream<K, V> {
      * {@link Integer} etc. to get meaningful information.
      *
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+<<<<<<< HEAD
      * @param keySerde a {@link Serde} used to deserialize key if type is {@code byte[]}.
      * @param valSerde a {@link Serde} used to deserialize value if type is {@code byte[]}.
      * @deprecated use {@link #print(Printed) print(Printed.toSysOut().withKeyValueMapper(mapper)}
+=======
+     * @param keySerde a {@link Serde<K>} used to deserialize key if type is {@code byte[]}.
+     * @param valSerde a {@link Serde<V>} used to deserialize value if type is {@code byte[]}.
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper, final Serde<K> keySerde, final Serde<V> valSerde);
@@ -418,6 +456,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -430,10 +472,17 @@ public interface KStream<K, V> {
      * {@link Integer} etc. to get meaningful information.
      *
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+<<<<<<< HEAD
      * @param keySerde a {@link Serde} used to deserialize key if type is {@code byte[]}.
      * @param valSerde a {@link Serde} used to deserialize value if type is {@code byte[]}.
      * @param label The given name which labels output will be printed.
      * @deprecated use {@link #print(Printed) print(Printed.toSysOut().withLabel(label).withKeyValueMapper(mapper)}
+=======
+     * @param keySerde a {@link Serde<K>} used to deserialize key if type is {@code byte[]}.
+     * @param valSerde a {@link Serde<V>} used to deserialize value if type is {@code byte[]}.
+     * @param label The given name which labels output will be printed.
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void print(final KeyValueMapper<? super K, ? super V, String> mapper, final Serde<K> keySerde, final Serde<V> valSerde, final String label);
@@ -452,7 +501,11 @@ public interface KStream<K, V> {
      * Relative order is preserved within each input stream though (ie, records within one input
      * stream are processed in order).
      *
+<<<<<<< HEAD
      * @param stream a stream which is to be merged into this stream
+=======
+     * @param a stream which is to be merged into this stream
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @return a merged stream containing all records from this and the provided {@code KStream}
      */
     KStream<K, V> merge(final KStream<K, V> stream);
@@ -469,7 +522,11 @@ public interface KStream<K, V> {
      * {@link Integer} etc. to get meaningful information.
      *
      * @param filePath name of the file to write to
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void writeAsText(final String filePath);
@@ -486,7 +543,11 @@ public interface KStream<K, V> {
      *
      * @param filePath   name of the file to write to
      * @param label the name used to label the key/value pairs written to the file
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath).withLabel(label)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void writeAsText(final String filePath,
@@ -506,7 +567,11 @@ public interface KStream<K, V> {
      * @param filePath name of the file to write to
      * @param keySerde key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde value serde used to deserialize value if type is {@code byte[]},
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath).withKeyValueMapper(...)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void writeAsText(final String filePath,
@@ -527,7 +592,11 @@ public interface KStream<K, V> {
      * @param label the name used to label the key/value pairs written to the file
      * @param keySerde   key serde used to deserialize key if type is {@code byte[]},
      * @param valSerde   value serde used deserialize value if type is {@code byte[]},
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath).withLabel(label).withKeyValueMapper(...)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void writeAsText(final String filePath,
@@ -546,6 +615,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -556,7 +629,11 @@ public interface KStream<K, V> {
      *
      * @param filePath path of the file to write to.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath).withKeyValueMapper(mapper)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void writeAsText(final String filePath, final KeyValueMapper<? super K, ? super V, String> mapper);
@@ -572,6 +649,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -583,7 +664,11 @@ public interface KStream<K, V> {
      * @param filePath path of the file to write to.
      * @param label the name used to label records written to file.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath).withLabel(label).withKeyValueMapper(mapper)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void writeAsText(final String filePath, final String label, final KeyValueMapper<? super K, ? super V, String> mapper);
@@ -599,6 +684,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -614,7 +703,11 @@ public interface KStream<K, V> {
      * @param keySerde key serde used to deserialize key if type is {@code byte[]}.
      * @param valSerde value serde used to deserialize value if type is {@code byte[]}.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath).withKeyValueMapper(mapper)}
+=======
+     * @deprecated use {@code print(Printed)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void writeAsText(final String filePath, final Serde<K> keySerde, final Serde<V> valSerde, final KeyValueMapper<? super K, ? super V, String> mapper);
@@ -630,6 +723,10 @@ public interface KStream<K, V> {
      * The example below shows the way to customize output data.
      * <pre>{@code
      * final KeyValueMapper<Integer, String, String> mapper = new KeyValueMapper<Integer, String, String>() {
+<<<<<<< HEAD
+=======
+     *     @Override
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *     public String apply(Integer key, String value) {
      *         return String.format("(%d, %s)", key, value);
      *     }
@@ -646,9 +743,14 @@ public interface KStream<K, V> {
      * @param keySerde key serde used to deserialize key if type is {@code byte[]}.
      * @param valSerde value serde used to deserialize value if type is {@code byte[]}.
      * @param mapper a {@link KeyValueMapper} that computes output type {@code String}.
+<<<<<<< HEAD
      * @deprecated use {@link #print(Printed) print(Printed.toFile(filePath).withLabel(label).withKeyValueMapper(mapper)}
      */
     @Deprecated
+=======
+     * @deprecated use {@code print(Printed)}
+     */
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     void writeAsText(final String filePath, final String label, final Serde<K> keySerde, final Serde<V> valSerde, final KeyValueMapper<? super K, ? super V, String> mapper);
 
     /**
@@ -698,7 +800,12 @@ public interface KStream<K, V> {
      * started).
      * <p>
      * This is equivalent to calling {@link #to(String) #to(someTopicName)} and
+<<<<<<< HEAD
      * {@link StreamsBuilder#stream(String) StreamsBuilder#stream(someTopicName)}.
+=======
+     * {@link StreamsBuilder#stream(String)
+     * StreamsBuilder#stream(someTopicName)}.
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *
      * @param topic the topic name
      * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
@@ -718,7 +825,11 @@ public interface KStream<K, V> {
      *                    if not specified producer's {@link DefaultPartitioner} will be used
      * @param topic       the topic name
      * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
+<<<<<<< HEAD
      * @deprecated use {@link #through(String, Produced) through(topic, Produced.withStreamPartitioner(partitioner))}
+=======
+     * @deprecated use {@code through(String, Produced)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     KStream<K, V> through(final StreamPartitioner<? super K, ? super V> partitioner,
@@ -733,7 +844,7 @@ public interface KStream<K, V> {
      * used&mdash;otherwise producer's {@link DefaultPartitioner} is used.
      * <p>
      * This is equivalent to calling {@link #to(Serde, Serde, String) #to(keySerde, valSerde, someTopicName)} and
-     * {@link KStreamBuilder#stream(Serde, Serde, String...) KStreamBuilder#stream(keySerde, valSerde, someTopicName)}.
+     * {@link StreamsBuilder#stream(Serde, Serde, String...) StreamsBuilder#stream(keySerde, valSerde, someTopicName)}.
      *
      * @param keySerde key serde used to send key-value pairs,
      *                 if not specified the default key serde defined in the configuration will be used
@@ -741,7 +852,11 @@ public interface KStream<K, V> {
      *                 if not specified the default value serde defined in the configuration will be used
      * @param topic    the topic name
      * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
+<<<<<<< HEAD
      * @deprecated use {@link #through(String, Produced) through(topic, Produced.with(keySerde, valSerde))}
+=======
+     * @deprecated use {@code through(String, Produced)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     KStream<K, V> through(final Serde<K> keySerde,
@@ -755,8 +870,8 @@ public interface KStream<K, V> {
      * started).
      * <p>
      * This is equivalent to calling {@link #to(Serde, Serde, StreamPartitioner, String) #to(keySerde, valSerde,
-     * StreamPartitioner, someTopicName)} and {@link KStreamBuilder#stream(Serde, Serde, String...)
-     * KStreamBuilder#stream(keySerde, valSerde, someTopicName)}.
+     * StreamPartitioner, someTopicName)} and {@link StreamsBuilder#stream(Serde, Serde, String...)
+     * StreamsBuilder#stream(keySerde, valSerde, someTopicName)}.
      *
      * @param keySerde    key serde used to send key-value pairs,
      *                    if not specified the default key serde defined in the configuration will be used
@@ -768,7 +883,11 @@ public interface KStream<K, V> {
      *                    be used
      * @param topic       the topic name
      * @return a {@code KStream} that contains the exact same (and potentially repartitioned) records as this {@code KStream}
+<<<<<<< HEAD
      * @deprecated use {@link #through(String, Produced) through(topic, Produced.with(keySerde, valSerde, partitioner))}
+=======
+     * @deprecated use {@code through(String, Produced)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     KStream<K, V> through(final Serde<K> keySerde,
@@ -784,7 +903,12 @@ public interface KStream<K, V> {
      * started).
      * <p>
      * This is equivalent to calling {@link #to(String, Produced) to(someTopic, Produced.with(keySerde, valueSerde)}
+<<<<<<< HEAD
      * and {@link StreamsBuilder#stream(String, Consumed) StreamsBuilder#stream(someTopicName, Consumed.with(keySerde, valueSerde))}.
+=======
+     * and {@link StreamsBuilder#stream(Serde, Serde, String...)
+     * StreamsBuilder#stream(keySerde, valSerde, someTopicName)}.
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *
      * @param topic
      * @param produced
@@ -812,7 +936,11 @@ public interface KStream<K, V> {
      * @param partitioner the function used to determine how records are distributed among partitions of the topic,
      *                    if not specified producer's {@link DefaultPartitioner} will be used
      * @param topic       the topic name
+<<<<<<< HEAD
      * @deprecated use {@link #to(String, Produced) to(topic, Produced.withStreamPartitioner(partitioner))}
+=======
+     * @deprecated use {@code to(String, Produced}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void to(final StreamPartitioner<? super K, ? super V> partitioner,
@@ -830,7 +958,11 @@ public interface KStream<K, V> {
      * @param valSerde value serde used to send key-value pairs,
      *                 if not specified the default serde defined in the configs will be used
      * @param topic    the topic name
+<<<<<<< HEAD
      * @deprecated use {@link #to(String, Produced) to(topic, Produced.with(keySerde, valSerde))}
+=======
+     * @deprecated use {@code to(String, Produced}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void to(final Serde<K> keySerde,
@@ -852,7 +984,11 @@ public interface KStream<K, V> {
      *                    {@link WindowedStreamPartitioner} will be used&mdash;otherwise {@link DefaultPartitioner} will
      *                    be used
      * @param topic       the topic name
+<<<<<<< HEAD
      * @deprecated use {@link #to(String, Produced) to(topic, Produced.with(keySerde, valSerde, partitioner)}
+=======
+     * @deprecated use {@code to(String, Produced}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     void to(final Serde<K> keySerde,
@@ -1151,7 +1287,11 @@ public interface KStream<K, V> {
      * @param valSerde value serdes for materializing this stream,
      *                 if not specified the default serdes defined in the configs will be used
      * @return a {@link KGroupedStream} that contains the grouped records of the original {@code KStream}
+<<<<<<< HEAD
      * @deprecated use {@link #groupByKey(Serialized) groupByKey(Serialized.with(keySerde, valSerde))}
+=======
+     * @deprecated use {@code groupByKey(Serialized)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     KGroupedStream<K, V> groupByKey(final Serde<K> keySerde,
@@ -1236,7 +1376,11 @@ public interface KStream<K, V> {
      * @param <KR>     the key type of the result {@link KGroupedStream}
      * @return a {@link KGroupedStream} that contains the grouped records of the original {@code KStream}
      * @see #groupByKey()
+<<<<<<< HEAD
      * @deprecated use {@link #groupBy(KeyValueMapper, Serialized) groupBy(selector, Serialized.with(keySerde, valSerde))}
+=======
+     * @deprecated use {@code groupBy(KeyValueMapper, Serialized}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     <KR> KGroupedStream<KR, V> groupBy(final KeyValueMapper<? super K, ? super V, KR> selector,
@@ -1472,7 +1616,11 @@ public interface KStream<K, V> {
      * {@link ValueJoiner}, one for each matched record-pair with the same key and within the joining window intervals
      * @see #leftJoin(KStream, ValueJoiner, JoinWindows, Joined)
      * @see #outerJoin(KStream, ValueJoiner, JoinWindows, Joined)
+<<<<<<< HEAD
      * @deprecated use {@link #join(KStream, ValueJoiner, JoinWindows, Joined) join(otherStream, joiner, windows, Joined.with(keySerde, thisValueSerde, otherValueSerde))}
+=======
+     * @deprecated use {@link #join(KStream, ValueJoiner, JoinWindows, Joined)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     <VO, VR> KStream<K, VR> join(final KStream<K, VO> otherStream,
@@ -1726,7 +1874,11 @@ public interface KStream<K, V> {
      * this {@code KStream} and within the joining window intervals
      * @see #join(KStream, ValueJoiner, JoinWindows, Joined)
      * @see #outerJoin(KStream, ValueJoiner, JoinWindows, Joined)
+<<<<<<< HEAD
      * @deprecated use {@link #leftJoin(KStream, ValueJoiner, JoinWindows, Joined) leftJoin(otherStream, joiner, windows, Joined.with(keySerde, thisValSerde, otherValueSerde))}
+=======
+     * @deprecated use {@link #leftJoin(KStream, ValueJoiner, JoinWindows, Joined}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     <VO, VR> KStream<K, VR> leftJoin(final KStream<K, VO> otherStream,
@@ -1980,7 +2132,11 @@ public interface KStream<K, V> {
      * both {@code KStream}s and within the joining window intervals
      * @see #join(KStream, ValueJoiner, JoinWindows, Joined)
      * @see #leftJoin(KStream, ValueJoiner, JoinWindows, Joined)
+<<<<<<< HEAD
      * @deprecated use {@link #outerJoin(KStream, ValueJoiner, JoinWindows, Joined) outerJoin(otherStream, joiner, windows, Joined.with(keySerde, thisValueSerde, otherValueSerde))}
+=======
+     * @deprecated use {@link #outerJoin(KStream, ValueJoiner, JoinWindows, Joined)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     <VO, VR> KStream<K, VR> outerJoin(final KStream<K, VO> otherStream,
@@ -2214,7 +2370,11 @@ public interface KStream<K, V> {
      * {@link ValueJoiner}, one for each matched record-pair with the same key
      * @see #leftJoin(KTable, ValueJoiner, Joined)
      * @see #join(GlobalKTable, KeyValueMapper, ValueJoiner)
+<<<<<<< HEAD
      * @deprecated use {@link #join(KTable, ValueJoiner, Joined) join(table, joiner, Joined.with(keySerde, valSerde, null))}
+=======
+     * @deprecated use {@link #join(KTable, ValueJoiner, Joined)}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Deprecated
     <VT, VR> KStream<K, VR> join(final KTable<K, VT> table,

@@ -51,6 +51,7 @@ import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.common.metrics.Sanitizer;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.network.ChannelBuilder;
 import org.apache.kafka.common.network.Selector;
@@ -316,6 +317,10 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             if (clientId.length() <= 0)
                 clientId = "producer-" + PRODUCER_CLIENT_ID_SEQUENCE.getAndIncrement();
             this.clientId = clientId;
+<<<<<<< HEAD
+=======
+            String sanitizedClientId = Sanitizer.sanitize(clientId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
             String transactionalId = userProvidedConfigs.containsKey(ProducerConfig.TRANSACTIONAL_ID_CONFIG) ?
                     (String) userProvidedConfigs.get(ProducerConfig.TRANSACTIONAL_ID_CONFIG) : null;
@@ -327,7 +332,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             log = logContext.logger(KafkaProducer.class);
             log.trace("Starting the Kafka producer");
 
+<<<<<<< HEAD
             Map<String, String> metricTags = Collections.singletonMap("client-id", clientId);
+=======
+            Map<String, String> metricTags = Collections.singletonMap("client-id", sanitizedClientId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             MetricConfig metricConfig = new MetricConfig().samples(config.getInt(ProducerConfig.METRICS_NUM_SAMPLES_CONFIG))
                     .timeWindow(config.getLong(ProducerConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG), TimeUnit.MILLISECONDS)
                     .recordLevel(Sensor.RecordingLevel.forName(config.getString(ProducerConfig.METRICS_RECORDING_LEVEL_CONFIG)))
@@ -336,7 +345,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                     MetricsReporter.class);
             reporters.add(new JmxReporter(JMX_PREFIX));
             this.metrics = new Metrics(metricConfig, reporters, time);
+<<<<<<< HEAD
             ProducerMetrics metricsRegistry = new ProducerMetrics(this.metrics);
+=======
+            ProducerMetrics metricsRegistry = new ProducerMetrics(metricTags.keySet(), "producer");
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             this.partitioner = config.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
             long retryBackoffMs = config.getLong(ProducerConfig.RETRY_BACKOFF_MS_CONFIG);
             if (keySerializer == null) {
@@ -389,7 +402,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(config.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
             this.metadata.update(Cluster.bootstrap(addresses), Collections.<String>emptySet(), time.milliseconds());
             ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config);
+<<<<<<< HEAD
             Sensor throttleTimeSensor = Sender.throttleTimeSensor(metricsRegistry.senderMetrics);
+=======
+            Sensor throttleTimeSensor = Sender.throttleTimeSensor(metrics, metricsRegistry.senderMetrics);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             NetworkClient client = new NetworkClient(
                     new Selector(config.getLong(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG),
                             this.metrics, time, "producer", channelBuilder, logContext),
@@ -414,6 +431,10 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                     config.getInt(ProducerConfig.MAX_REQUEST_SIZE_CONFIG),
                     acks,
                     retries,
+<<<<<<< HEAD
+=======
+                    this.metrics,
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     metricsRegistry.senderMetrics,
                     Time.SYSTEM,
                     this.requestTimeoutMs,
@@ -425,7 +446,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             this.ioThread.start();
             this.errors = this.metrics.sensor("errors");
             config.logUnused();
+<<<<<<< HEAD
             AppInfoParser.registerAppInfo(JMX_PREFIX, clientId, metrics);
+=======
+            AppInfoParser.registerAppInfo(JMX_PREFIX, sanitizedClientId);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             log.debug("Kafka producer started");
         } catch (Throwable t) {
             // call close methods if internal objects are already constructed this is to prevent resource leak. see KAFKA-2121
@@ -599,11 +624,19 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
 
     /**
      * Commits the ongoing transaction. This method will flush any unsent records before actually committing the transaction.
+<<<<<<< HEAD
      *
      * Further, if any of the {@link #send(ProducerRecord)} calls which were part of the transaction hit irrecoverable
      * errors, this method will throw the last received exception immediately and the transaction will not be committed.
      * So all {@link #send(ProducerRecord)} calls in a transaction must succeed in order for this method to succeed.
      *
+=======
+     *
+     * Further, if any of the {@link #send(ProducerRecord)} calls which were part of the transaction hit irrecoverable
+     * errors, this method will throw the last received exception immediately and the transaction will not be committed.
+     * So all {@link #send(ProducerRecord)} calls in a transaction must succeed in order for this method to succeed.
+     *
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @throws IllegalStateException if no transactional.id has been configured or no transaction has been started
      * @throws ProducerFencedException fatal error indicating another producer with the same transactional.id is active
      * @throws org.apache.kafka.common.errors.UnsupportedVersionException fatal error indicating the broker
@@ -1073,7 +1106,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
         ClientUtils.closeQuietly(keySerializer, "producer keySerializer", firstException);
         ClientUtils.closeQuietly(valueSerializer, "producer valueSerializer", firstException);
         ClientUtils.closeQuietly(partitioner, "producer partitioner", firstException);
+<<<<<<< HEAD
         AppInfoParser.unregisterAppInfo(JMX_PREFIX, clientId, metrics);
+=======
+        AppInfoParser.unregisterAppInfo(JMX_PREFIX, Sanitizer.sanitize(clientId));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         log.debug("Kafka producer has been closed");
         if (firstException.get() != null && !swallowException)
             throw new KafkaException("Failed to close kafka producer", firstException.get());

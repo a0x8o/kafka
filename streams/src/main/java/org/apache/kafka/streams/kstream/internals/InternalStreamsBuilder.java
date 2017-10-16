@@ -22,6 +22,10 @@ import org.apache.kafka.streams.kstream.GlobalKTable;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.processor.ProcessorSupplier;
+<<<<<<< HEAD
+=======
+import org.apache.kafka.streams.processor.StateStoreSupplier;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.internals.InternalTopologyBuilder;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -32,7 +36,11 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+<<<<<<< HEAD
 public class InternalStreamsBuilder implements InternalNameProvider {
+=======
+public class InternalStreamsBuilder {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     final InternalTopologyBuilder internalTopologyBuilder;
 
@@ -44,7 +52,11 @@ public class InternalStreamsBuilder implements InternalNameProvider {
 
     public <K, V> KStream<K, V> stream(final Collection<String> topics,
                                        final ConsumedInternal<K, V> consumed) {
+<<<<<<< HEAD
         final String name = newProcessorName(KStreamImpl.SOURCE_NAME);
+=======
+        final String name = newName(KStreamImpl.SOURCE_NAME);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         internalTopologyBuilder.addSource(consumed.offsetResetPolicy(),
                                           name,
@@ -57,7 +69,11 @@ public class InternalStreamsBuilder implements InternalNameProvider {
     }
 
     public <K, V> KStream<K, V> stream(final Pattern topicPattern, final ConsumedInternal<K, V> consumed) {
+<<<<<<< HEAD
         final String name = newProcessorName(KStreamImpl.SOURCE_NAME);
+=======
+        final String name = newName(KStreamImpl.SOURCE_NAME);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         internalTopologyBuilder.addSource(consumed.offsetResetPolicy(),
                                           name,
@@ -69,6 +85,7 @@ public class InternalStreamsBuilder implements InternalNameProvider {
         return new KStreamImpl<>(this, name, Collections.singleton(name), false);
     }
 
+<<<<<<< HEAD
     @SuppressWarnings("deprecation")
     public <K, V> KTable<K, V> table(final String topic,
                                      final ConsumedInternal<K, V> consumed,
@@ -76,6 +93,14 @@ public class InternalStreamsBuilder implements InternalNameProvider {
         Objects.requireNonNull(storeSupplier, "storeSupplier can't be null");
         final String source = newProcessorName(KStreamImpl.SOURCE_NAME);
         final String name = newProcessorName(KTableImpl.SOURCE_NAME);
+=======
+    public <K, V> KTable<K, V> table(final String topic,
+                                     final ConsumedInternal<K, V> consumed,
+                                     final StateStoreSupplier<KeyValueStore> storeSupplier) {
+        Objects.requireNonNull(storeSupplier, "storeSupplier can't be null");
+        final String source = newName(KStreamImpl.SOURCE_NAME);
+        final String name = newName(KTableImpl.SOURCE_NAME);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         final KTable<K, V> kTable = createKTable(consumed,
                                                  topic,
@@ -94,11 +119,18 @@ public class InternalStreamsBuilder implements InternalNameProvider {
     public <K, V> KTable<K, V> table(final String topic,
                                      final ConsumedInternal<K, V> consumed,
                                      final MaterializedInternal<K, V, KeyValueStore<Bytes, byte[]>> materialized) {
+<<<<<<< HEAD
         final StoreBuilder<KeyValueStore<K, V>> storeBuilder = new KeyValueStoreMaterializer<>(materialized)
                 .materialize();
 
         final String source = newProcessorName(KStreamImpl.SOURCE_NAME);
         final String name = newProcessorName(KTableImpl.SOURCE_NAME);
+=======
+        final StoreBuilder<KeyValueStore<K, V>> storeBuilder = new KeyValueStoreMaterializer<>(materialized).materialize();
+
+        final String source = newName(KStreamImpl.SOURCE_NAME);
+        final String name = newName(KTableImpl.SOURCE_NAME);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KTable<K, V> kTable = createKTable(consumed,
                                                  topic,
                                                  storeBuilder.name(),
@@ -133,7 +165,10 @@ public class InternalStreamsBuilder implements InternalNameProvider {
                                 consumed.keySerde(), consumed.valueSerde(), Collections.singleton(source), storeName, isQueryable);
     }
 
+<<<<<<< HEAD
     @SuppressWarnings("unchecked")
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public <K, V> GlobalKTable<K, V> globalTable(final String topic,
                                                  final ConsumedInternal<K, V> consumed,
                                                  final MaterializedInternal<K, V, KeyValueStore<Bytes, byte[]>> materialized) {
@@ -142,8 +177,13 @@ public class InternalStreamsBuilder implements InternalNameProvider {
         // explicitly disable logging for global stores
         materialized.withLoggingDisabled();
         final StoreBuilder storeBuilder = new KeyValueStoreMaterializer<>(materialized).materialize();
+<<<<<<< HEAD
         final String sourceName = newProcessorName(KStreamImpl.SOURCE_NAME);
         final String processorName = newProcessorName(KTableImpl.SOURCE_NAME);
+=======
+        final String sourceName = newName(KStreamImpl.SOURCE_NAME);
+        final String processorName = newName(KTableImpl.SOURCE_NAME);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KTableSource<K, V> tableSource = new KTableSource<>(storeBuilder.name());
 
 
@@ -161,12 +201,19 @@ public class InternalStreamsBuilder implements InternalNameProvider {
         return new GlobalKTableImpl<>(new KTableSourceValueGetterSupplier<K, V>(storeBuilder.name()));
     }
 
+<<<<<<< HEAD
     @Override
     public String newProcessorName(final String prefix) {
         return prefix + String.format("%010d", index.getAndIncrement());
     }
 
     @Override
+=======
+    String newName(final String prefix) {
+        return prefix + String.format("%010d", index.getAndIncrement());
+    }
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public String newStoreName(final String prefix) {
         return prefix + String.format(KTableImpl.STATE_STORE_NAME + "%010d", index.getAndIncrement());
     }

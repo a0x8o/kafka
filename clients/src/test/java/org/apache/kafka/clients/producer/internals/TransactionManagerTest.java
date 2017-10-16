@@ -123,11 +123,17 @@ public class TransactionManagerTest {
         this.transactionManager = new TransactionManager(logContext, transactionalId, transactionTimeoutMs,
                 DEFAULT_RETRY_BACKOFF_MS);
         Metrics metrics = new Metrics(metricConfig, time);
+<<<<<<< HEAD
         SenderMetricsRegistry senderMetrics = new SenderMetricsRegistry(metrics);
 
         this.accumulator = new RecordAccumulator(logContext, batchSize, 1024 * 1024, CompressionType.NONE, 0L, 0L, metrics, time, apiVersions, transactionManager);
         this.sender = new Sender(logContext, this.client, this.metadata, this.accumulator, true, MAX_REQUEST_SIZE, ACKS_ALL,
                 MAX_RETRIES, senderMetrics, this.time, REQUEST_TIMEOUT, 50, transactionManager, apiVersions);
+=======
+        this.accumulator = new RecordAccumulator(logContext, batchSize, 1024 * 1024, CompressionType.NONE, 0L, 0L, metrics, time, apiVersions, transactionManager);
+        this.sender = new Sender(logContext, this.client, this.metadata, this.accumulator, true, MAX_REQUEST_SIZE, ACKS_ALL,
+                MAX_RETRIES, metrics, new SenderMetricsRegistry(metricTags.keySet()), this.time, REQUEST_TIMEOUT, 50, transactionManager, apiVersions);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         this.metadata.update(this.cluster, Collections.<String>emptySet(), time.milliseconds());
         client.setNode(brokerNode);
     }

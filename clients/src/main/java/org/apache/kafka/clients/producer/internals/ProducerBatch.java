@@ -165,7 +165,11 @@ public final class ProducerBatch {
      * @param exception The exception that occurred (or null if the request was successful)
      * @return true if the batch was completed successfully and false if the batch was previously aborted
      */
+<<<<<<< HEAD
     public boolean done(long baseOffset, long logAppendTime, RuntimeException exception) {
+=======
+    public void done(long baseOffset, long logAppendTime, RuntimeException exception) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final FinalState finalState;
         if (exception == null) {
             log.trace("Successfully produced messages to {} with base offset {}.", topicPartition, baseOffset);
@@ -178,14 +182,21 @@ public final class ProducerBatch {
         if (!this.finalState.compareAndSet(null, finalState)) {
             if (this.finalState.get() == FinalState.ABORTED) {
                 log.debug("ProduceResponse returned for {} after batch had already been aborted.", topicPartition);
+<<<<<<< HEAD
                 return false;
+=======
+                return;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             } else {
                 throw new IllegalStateException("Batch has already been completed in final state " + this.finalState.get());
             }
         }
 
         completeFutureAndFireCallbacks(baseOffset, logAppendTime, exception);
+<<<<<<< HEAD
         return true;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     private void completeFutureAndFireCallbacks(long baseOffset, long logAppendTime, RuntimeException exception) {

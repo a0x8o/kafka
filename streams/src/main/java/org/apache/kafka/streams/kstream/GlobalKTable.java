@@ -61,7 +61,11 @@ import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
  * @param <K> Type of primary keys
  * @param <V> Type of value changes
  * @see KTable
+<<<<<<< HEAD
  * @see StreamsBuilder#globalTable(String)
+=======
+ * @see StreamsBuilder#globalTable(String, String)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
  * @see KStream#join(GlobalKTable, KeyValueMapper, ValueJoiner)
  * @see KStream#leftJoin(GlobalKTable, KeyValueMapper, ValueJoiner)
  */

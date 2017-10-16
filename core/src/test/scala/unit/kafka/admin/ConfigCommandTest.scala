@@ -23,14 +23,20 @@ import kafka.common.InvalidConfigException
 import kafka.server.ConfigEntityName
 import kafka.utils.{Logging, ZkUtils}
 import kafka.zk.ZooKeeperTestHarness
+<<<<<<< HEAD
 import org.apache.kafka.common.security.scram.ScramCredentialUtils
 import org.apache.kafka.common.utils.Sanitizer
+=======
+
+import org.apache.kafka.common.security.scram.ScramCredentialUtils
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.easymock.EasyMock
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
+import org.apache.kafka.common.metrics.Sanitizer
 
 class ConfigCommandTest extends ZooKeeperTestHarness with Logging {
   @Test
@@ -370,8 +376,13 @@ class ConfigCommandTest extends ZooKeeperTestHarness with Logging {
     checkEntity("clients", Sanitizer.sanitize("<default>"),
         "--entity-type", "clients", "--entity-name", "<default>",
         "--alter", "--add-config", "a=b,c=d")
+<<<<<<< HEAD
 
 
+=======
+
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     checkEntity("users", Sanitizer.sanitize("CN=user1") + "/clients/client1",
         "--entity-type", "users", "--entity-name", "CN=user1", "--entity-type", "clients", "--entity-name", "client1",
         "--alter", "--add-config", "a=b,c=d")

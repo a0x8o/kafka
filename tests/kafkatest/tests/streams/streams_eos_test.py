@@ -19,6 +19,10 @@ from ducktape.mark import ignore
 from kafkatest.tests.kafka_test import KafkaTest
 from kafkatest.services.streams import StreamsEosTestDriverService, StreamsEosTestJobRunnerService, \
     StreamsComplexEosTestJobRunnerService, StreamsEosTestVerifyRunnerService, StreamsComplexEosTestVerifyRunnerService
+<<<<<<< HEAD
+=======
+import time
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 
 class StreamsEosTest(KafkaTest):
@@ -28,6 +32,7 @@ class StreamsEosTest(KafkaTest):
 
     def __init__(self, test_context):
         super(StreamsEosTest, self).__init__(test_context, num_zk=1, num_brokers=3, topics={
+<<<<<<< HEAD
             'data': {'partitions': 5, 'replication-factor': 2},
             'echo': {'partitions': 5, 'replication-factor': 2},
             'min': {'partitions': 5, 'replication-factor': 2},
@@ -35,10 +40,20 @@ class StreamsEosTest(KafkaTest):
             'repartition': {'partitions': 5, 'replication-factor': 2},
             'max': {'partitions': 5, 'replication-factor': 2},
             'cnt': {'partitions': 5, 'replication-factor': 2}
+=======
+            'data' : { 'partitions': 5, 'replication-factor': 2 },
+            'echo' : { 'partitions': 5, 'replication-factor': 2 },
+            'min' : { 'partitions': 5, 'replication-factor': 2 },
+            'sum' : { 'partitions': 5, 'replication-factor': 2 },
+            'repartition' : { 'partitions': 5, 'replication-factor': 2 },
+            'max' : { 'partitions': 5, 'replication-factor': 2 },
+            'cnt' : { 'partitions': 5, 'replication-factor': 2 }
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         })
         self.driver = StreamsEosTestDriverService(test_context, self.kafka)
         self.test_context = test_context
 
+<<<<<<< HEAD
     @cluster(num_nodes=9)
     def test_rebalance_simple(self):
         self.run_rebalance(StreamsEosTestJobRunnerService(self.test_context, self.kafka),
@@ -54,12 +69,30 @@ class StreamsEosTest(KafkaTest):
                            StreamsComplexEosTestVerifyRunnerService(self.test_context, self.kafka))
 
     def run_rebalance(self, processor1, processor2, processor3, verifier):
+=======
+    @ignore
+    @cluster(num_nodes=8)
+    def test_rebalance_simple(self):
+        self.run_rebalance(StreamsEosTestJobRunnerService(self.test_context, self.kafka),
+                           StreamsEosTestJobRunnerService(self.test_context, self.kafka),
+                           StreamsEosTestVerifyRunnerService(self.test_context, self.kafka))
+
+    @ignore
+    @cluster(num_nodes=8)
+    def test_rebalance_complex(self):
+        self.run_rebalance(StreamsComplexEosTestJobRunnerService(self.test_context, self.kafka),
+                           StreamsComplexEosTestJobRunnerService(self.test_context, self.kafka),
+                           StreamsComplexEosTestVerifyRunnerService(self.test_context, self.kafka))
+
+    def run_rebalance(self, processor1, processor2, verifier):
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         """
         Starts and stops two test clients a few times.
         Ensure that all records are delivered exactly-once.
         """
 
         self.driver.start()
+<<<<<<< HEAD
 
         self.add_streams(processor1)
         self.add_streams2(processor1, processor2)
@@ -92,12 +125,57 @@ class StreamsEosTest(KafkaTest):
                                       StreamsComplexEosTestVerifyRunnerService(self.test_context, self.kafka))
 
     def run_failure_and_recovery(self, processor1, processor2, processor3, verifier):
+=======
+        processor1.start()
+
+        time.sleep(120)
+
+        processor2.start()
+
+        time.sleep(120)
+        processor1.stop()
+
+        time.sleep(120)
+        processor1.start()
+
+        time.sleep(120)
+        processor2.stop()
+
+        time.sleep(120)
+
+        self.driver.stop()
+
+        processor1.stop()
+        processor2.stop()
+
+        verifier.start()
+        verifier.wait()
+
+        verifier.node.account.ssh("grep ALL-RECORDS-DELIVERED %s" % verifier.STDOUT_FILE, allow_fail=False)
+
+    @ignore
+    @cluster(num_nodes=8)
+    def test_failure_and_recovery(self):
+        self.run_failure_and_recovery(StreamsEosTestJobRunnerService(self.test_context, self.kafka),
+                                      StreamsEosTestJobRunnerService(self.test_context, self.kafka),
+                                      StreamsEosTestVerifyRunnerService(self.test_context, self.kafka))
+
+    @ignore
+    @cluster(num_nodes=8)
+    def test_failure_and_recovery_complex(self):
+        self.run_failure_and_recovery(StreamsComplexEosTestJobRunnerService(self.test_context, self.kafka),
+                                      StreamsComplexEosTestJobRunnerService(self.test_context, self.kafka),
+                                      StreamsComplexEosTestVerifyRunnerService(self.test_context, self.kafka))
+
+    def run_failure_and_recovery(self, processor1, processor2, verifier):
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         """
         Starts two test clients, then abort (kill -9) and restart them a few times.
         Ensure that all records are delivered exactly-once.
         """
 
         self.driver.start()
+<<<<<<< HEAD
 
         self.add_streams(processor1)
         self.add_streams2(processor1, processor2)
@@ -112,10 +190,32 @@ class StreamsEosTest(KafkaTest):
 
         self.driver.stop()
 
+=======
+        processor1.start()
+        processor2.start()
+
+        time.sleep(120)
+        processor1.abortThenRestart()
+
+        time.sleep(120)
+        processor1.abortThenRestart()
+
+        time.sleep(120)
+        processor2.abortThenRestart()
+
+        time.sleep(120)
+
+        self.driver.stop()
+
+        processor1.stop()
+        processor2.stop()
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         verifier.start()
         verifier.wait()
 
         verifier.node.account.ssh("grep ALL-RECORDS-DELIVERED %s" % verifier.STDOUT_FILE, allow_fail=False)
+<<<<<<< HEAD
 
     def add_streams(self, processor):
         processor.start()
@@ -163,3 +263,5 @@ class StreamsEosTest(KafkaTest):
         monitor.wait_until(output,
                            timeout_sec=300,
                            err_msg=("Never saw output '%s' on " % output) + str(processor.node.account))
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d

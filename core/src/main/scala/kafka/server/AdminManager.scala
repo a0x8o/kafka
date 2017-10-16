@@ -25,7 +25,11 @@ import kafka.metrics.KafkaMetricsGroup
 import kafka.utils._
 import org.apache.kafka.clients.admin.NewPartitions
 import org.apache.kafka.common.config.{AbstractConfig, ConfigDef, ConfigException, ConfigResource}
+<<<<<<< HEAD
 import org.apache.kafka.common.errors.{ApiException, InvalidPartitionsException, InvalidReplicaAssignmentException, InvalidRequestException, PolicyViolationException, ReassignmentInProgressException, UnknownTopicOrPartitionException}
+=======
+import org.apache.kafka.common.errors.{ApiException, InvalidPartitionsException, InvalidReplicaAssignmentException, InvalidRequestException, InvalidTopicException, PolicyViolationException, ReassignmentInProgressException, UnknownTopicOrPartitionException}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.internals.Topic
 import org.apache.kafka.common.metrics.Metrics
 import org.apache.kafka.common.network.ListenerName
@@ -122,7 +126,11 @@ class AdminManager(val config: KafkaConfig,
             else
               AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkUtils, topic, assignments, configs, update = false)
         }
+<<<<<<< HEAD
         CreatePartitionsMetadata(topic, assignments, ApiError.NONE)
+=======
+        CreateTopicMetadata(topic, assignments, ApiError.NONE)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       } catch {
         // Log client errors at a lower level than unexpected exceptions
         case e@ (_: PolicyViolationException | _: ApiException) =>
@@ -219,7 +227,11 @@ class AdminManager(val config: KafkaConfig,
           case (topicPartition, replicas) => topicPartition.partition -> replicas
         }
         if (existingAssignment.isEmpty)
+<<<<<<< HEAD
           throw new UnknownTopicOrPartitionException(s"The topic '$topic' does not exist.")
+=======
+          throw new UnknownTopicOrPartitionException(s"The topic '$topic' does not exist")
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         val oldNumPartitions = existingAssignment.size
         val newNumPartitions = newPartition.totalCount
@@ -238,7 +250,11 @@ class AdminManager(val config: KafkaConfig,
               s"Unknown broker(s) in replica assignment: ${unknownBrokers.mkString(", ")}.")
 
           if (assignments.size != numPartitionsIncrement)
+<<<<<<< HEAD
             throw new InvalidReplicaAssignmentException(
+=======
+            throw new InvalidRequestException(
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
               s"Increasing the number of partitions by $numPartitionsIncrement " +
                 s"but ${assignments.size} assignments provided.")
 
@@ -249,12 +265,21 @@ class AdminManager(val config: KafkaConfig,
 
         val updatedReplicaAssignment = AdminUtils.addPartitions(zkUtils, topic, existingAssignment, allBrokers,
           newPartition.totalCount, reassignment, validateOnly = validateOnly)
+<<<<<<< HEAD
         CreatePartitionsMetadata(topic, updatedReplicaAssignment, ApiError.NONE)
       } catch {
         case e: AdminOperationException =>
           CreatePartitionsMetadata(topic, Map.empty, ApiError.fromThrowable(e))
         case e: ApiException =>
           CreatePartitionsMetadata(topic, Map.empty, ApiError.fromThrowable(e))
+=======
+        CreateTopicMetadata(topic, updatedReplicaAssignment, ApiError.NONE)
+      } catch {
+        case e: AdminOperationException =>
+          CreateTopicMetadata(topic, Map.empty, ApiError.fromThrowable(e))
+        case e: ApiException =>
+          CreateTopicMetadata(topic, Map.empty, ApiError.fromThrowable(e))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       }
     }
 

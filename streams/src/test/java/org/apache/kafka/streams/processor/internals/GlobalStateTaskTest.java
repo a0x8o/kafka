@@ -94,7 +94,11 @@ public class GlobalStateTaskTest {
         offsets.put(t1, 50L);
         offsets.put(t2, 100L);
         stateMgr = new GlobalStateManagerStub(storeNames, offsets);
+<<<<<<< HEAD
         globalStateTask = new GlobalStateUpdateTask(topology, context, stateMgr, new LogAndFailExceptionHandler(), logContext);
+=======
+        globalStateTask = new GlobalStateUpdateTask(topology, context, stateMgr, new LogAndFailExceptionHandler());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test
@@ -177,12 +181,17 @@ public class GlobalStateTaskTest {
 
     @Test
     public void shouldNotThrowStreamsExceptionWhenKeyDeserializationFailsWithSkipHandler() throws Exception {
+<<<<<<< HEAD
         final GlobalStateUpdateTask globalStateTask2 = new GlobalStateUpdateTask(
             topology,
             context,
             stateMgr,
             new LogAndContinueExceptionHandler(),
             logContext);
+=======
+        final GlobalStateUpdateTask globalStateTask2 = new GlobalStateUpdateTask(topology, context, stateMgr,
+            new LogAndContinueExceptionHandler());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final byte[] key = new LongSerializer().serialize("t2", 1L);
         final byte[] recordValue = new IntegerSerializer().serialize("t2", 10);
 
@@ -191,12 +200,17 @@ public class GlobalStateTaskTest {
 
     @Test
     public void shouldNotThrowStreamsExceptionWhenValueDeserializationFails() throws Exception {
+<<<<<<< HEAD
         final GlobalStateUpdateTask globalStateTask2 = new GlobalStateUpdateTask(
             topology,
             context,
             stateMgr,
             new LogAndContinueExceptionHandler(),
             logContext);
+=======
+        final GlobalStateUpdateTask globalStateTask2 = new GlobalStateUpdateTask(topology, context, stateMgr,
+            new LogAndContinueExceptionHandler());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final byte[] key = new IntegerSerializer().serialize("t2", 1);
         final byte[] recordValue = new LongSerializer().serialize("t2", 10L);
 

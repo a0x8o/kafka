@@ -27,6 +27,7 @@ public class MaterializedInternal<K, V, S extends StateStore> extends Materializ
 
     private final boolean queryable;
 
+<<<<<<< HEAD
 
     public MaterializedInternal(final Materialized<K, V, S> materialized,
                                 final InternalNameProvider nameProvider,
@@ -45,6 +46,23 @@ public class MaterializedInternal<K, V, S extends StateStore> extends Materializ
             return storeSupplier.name();
         }
         return storeName;
+=======
+    public MaterializedInternal(final Materialized<K, V, S> materialized) {
+        this(materialized, true);
+    }
+    
+    public MaterializedInternal(final Materialized<K, V, S> materialized,
+                                final boolean queryable) {
+        super(materialized);
+        this.queryable = queryable;
+    }
+
+    public String storeName() {
+        if (storeName != null) {
+            return storeName;
+        }
+        return storeSupplier.name();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     public StoreSupplier<S> storeSupplier() {

@@ -18,6 +18,10 @@
 package kafka.api.test
 
 import java.util.{Collection, Collections, Properties}
+<<<<<<< HEAD
+=======
+import scala.collection.JavaConverters._
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import scala.collection.JavaConverters._
 import org.junit.runners.Parameterized
@@ -30,7 +34,11 @@ import kafka.server.{KafkaConfig, KafkaServer}
 import kafka.zk.ZooKeeperTestHarness
 import kafka.utils.TestUtils
 import org.apache.kafka.common.TopicPartition
+<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
 @RunWith(value = classOf[Parameterized])

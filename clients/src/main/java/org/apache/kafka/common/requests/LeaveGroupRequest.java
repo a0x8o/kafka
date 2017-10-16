@@ -18,18 +18,37 @@ package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
+<<<<<<< HEAD
+=======
+import org.apache.kafka.common.protocol.types.Field;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
+<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.MEMBER_ID;
+=======
+import static org.apache.kafka.common.protocol.types.Type.STRING;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 public class LeaveGroupRequest extends AbstractRequest {
     private static final Schema LEAVE_GROUP_REQUEST_V0 = new Schema(
             GROUP_ID,
             MEMBER_ID);
+
+    /* v1 request is the same as v0. Throttle time has been added to response */
+    private static final Schema LEAVE_GROUP_REQUEST_V1 = LEAVE_GROUP_REQUEST_V0;
+
+    public static Schema[] schemaVersions() {
+        return new Schema[] {LEAVE_GROUP_REQUEST_V0, LEAVE_GROUP_REQUEST_V1};
+    }
+
+    private static final Schema LEAVE_GROUP_REQUEST_V0 = new Schema(
+            new Field(GROUP_ID_KEY_NAME, STRING, "The group id."),
+            new Field(MEMBER_ID_KEY_NAME, STRING, "The member id assigned by the group coordinator."));
 
     /* v1 request is the same as v0. Throttle time has been added to response */
     private static final Schema LEAVE_GROUP_REQUEST_V1 = LEAVE_GROUP_REQUEST_V0;

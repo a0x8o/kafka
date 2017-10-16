@@ -16,7 +16,10 @@
  */
 package org.apache.kafka.streams.kstream;
 
+<<<<<<< HEAD
 import org.apache.kafka.common.serialization.Serdes;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
@@ -100,8 +103,12 @@ public interface TimeWindowedKStream<K, V> {
      * }</pre>
      * For non-local keys, a custom RPC mechanism must be implemented using {@link KafkaStreams#allMetadata()} to
      * query the value of the key on a parallel running instance of your Kafka Streams application.
+<<<<<<< HEAD
      ** @param materialized  an instance of {@link Materialized} used to materialize a state store. Cannot be {@code null}.
      *                      Note: the valueSerde will be automatically set to {@link Serdes#Long()} if there is no valueSerde provided
+=======
+     *
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @return a {@link KTable} that contains "update" records with unmodified keys and {@link Long} values that
      * represent the latest (rolling) count (i.e., number of records) for each key
      */

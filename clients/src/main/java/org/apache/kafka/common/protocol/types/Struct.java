@@ -83,10 +83,13 @@ public class Struct {
         return getInt(field.name);
     }
 
+<<<<<<< HEAD
     public Long get(Field.Int64 field) {
         return getLong(field.name);
     }
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public Short get(Field.Int16 field) {
         return getShort(field.name);
     }
@@ -117,12 +120,15 @@ public class Struct {
         return alternative;
     }
 
+<<<<<<< HEAD
     public String getOrElse(Field.Str field, String alternative) {
         if (hasField(field.name))
             return getString(field.name);
         return alternative;
     }
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     /**
      * Get the record value for the field with the given name by doing a hash table lookup (slower!)
      *
@@ -280,10 +286,13 @@ public class Struct {
         return set(def.name, value);
     }
 
+<<<<<<< HEAD
     public Struct set(Field.Int64 def, long value) {
         return set(def.name, value);
     }
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public Struct set(Field.Int16 def, short value) {
         return set(def.name, value);
     }

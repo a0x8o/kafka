@@ -26,7 +26,10 @@ import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
+<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.apache.kafka.common.protocol.types.Type.INT8;
 import static org.apache.kafka.common.protocol.types.Type.STRING;
 
@@ -34,7 +37,12 @@ public class FindCoordinatorRequest extends AbstractRequest {
     private static final String COORDINATOR_KEY_KEY_NAME = "coordinator_key";
     private static final String COORDINATOR_TYPE_KEY_NAME = "coordinator_type";
 
+<<<<<<< HEAD
     private static final Schema FIND_COORDINATOR_REQUEST_V0 = new Schema(GROUP_ID);
+=======
+    private static final Schema FIND_COORDINATOR_REQUEST_V0 = new Schema(
+            new Field("group_id", STRING, "The unique group id."));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     private static final Schema FIND_COORDINATOR_REQUEST_V1 = new Schema(
             new Field("coordinator_key", STRING, "Id to use for finding the coordinator (for groups, this is the groupId, " +

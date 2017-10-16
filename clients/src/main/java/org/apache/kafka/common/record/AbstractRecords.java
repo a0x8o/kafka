@@ -59,6 +59,7 @@ public abstract class AbstractRecords implements Records {
      * If a client requests records in v1 format starting from the middle of an uncompressed batch in v2 format, we
      * need to drop records from the batch during the conversion. Some versions of librdkafka rely on this for
      * correctness.
+<<<<<<< HEAD
      *
      * The temporaryMemoryBytes computation assumes that the batches are not loaded into the heap
      * (via classes like FileChannelRecordBatch) before this method is called. This is the case in the broker (we
@@ -67,6 +68,10 @@ public abstract class AbstractRecords implements Records {
      */
     protected ConvertedRecords<MemoryRecords> downConvert(Iterable<? extends RecordBatch> batches, byte toMagic,
             long firstOffset, Time time) {
+=======
+     */
+    protected MemoryRecords downConvert(Iterable<? extends RecordBatch> batches, byte toMagic, long firstOffset) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         // maintain the batch along with the decompressed records to avoid the need to decompress again
         List<RecordBatchAndRecords> recordBatchAndRecordsList = new ArrayList<>();
         int totalSizeEstimate = 0;
@@ -209,8 +214,12 @@ public abstract class AbstractRecords implements Records {
      * Get an upper bound estimate on the batch size needed to hold a record with the given fields. This is only
      * an estimate because it does not take into account overhead from the compression algorithm.
      */
+<<<<<<< HEAD
     public static int estimateSizeInBytesUpperBound(byte magic, CompressionType compressionType, ByteBuffer key,
                                                     ByteBuffer value, Header[] headers) {
+=======
+    public static int estimateSizeInBytesUpperBound(byte magic, CompressionType compressionType, ByteBuffer key, ByteBuffer value, Header[] headers) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         if (magic >= RecordBatch.MAGIC_VALUE_V2)
             return DefaultRecordBatch.estimateBatchSizeUpperBound(key, value, headers);
         else if (compressionType != CompressionType.NONE)

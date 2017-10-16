@@ -48,11 +48,19 @@ import java.util.regex.Pattern
 
 object LogAppendInfo {
   val UnknownLogAppendInfo = LogAppendInfo(-1, -1, RecordBatch.NO_TIMESTAMP, -1L, RecordBatch.NO_TIMESTAMP, -1L,
+<<<<<<< HEAD
     RecordsProcessingStats.EMPTY, NoCompressionCodec, NoCompressionCodec, -1, -1, offsetsMonotonic = false)
 
   def unknownLogAppendInfoWithLogStartOffset(logStartOffset: Long): LogAppendInfo =
     LogAppendInfo(-1, -1, RecordBatch.NO_TIMESTAMP, -1L, RecordBatch.NO_TIMESTAMP, logStartOffset,
       RecordsProcessingStats.EMPTY, NoCompressionCodec, NoCompressionCodec, -1, -1, offsetsMonotonic = false)
+=======
+    NoCompressionCodec, NoCompressionCodec, -1, -1, offsetsMonotonic = false)
+
+  def unknownLogAppendInfoWithLogStartOffset(logStartOffset: Long): LogAppendInfo =
+    LogAppendInfo(-1, -1, RecordBatch.NO_TIMESTAMP, -1L, RecordBatch.NO_TIMESTAMP, logStartOffset,
+      NoCompressionCodec, NoCompressionCodec, -1, -1, offsetsMonotonic = false)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 }
 
 /**
@@ -65,7 +73,10 @@ object LogAppendInfo {
  * @param offsetOfMaxTimestamp The offset of the message with the maximum timestamp.
  * @param logAppendTime The log append time (if used) of the message set, otherwise Message.NoTimestamp
  * @param logStartOffset The start offset of the log at the time of this append.
+<<<<<<< HEAD
  * @param recordsProcessingStats Statistics collected during record processing, `null` if `assignOffsets` is `false`
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
  * @param sourceCodec The source codec used in the message set (send by the producer)
  * @param targetCodec The target codec of the message set(after applying the broker compression configuration if any)
  * @param shallowCount The number of shallow messages
@@ -78,7 +89,10 @@ case class LogAppendInfo(var firstOffset: Long,
                          var offsetOfMaxTimestamp: Long,
                          var logAppendTime: Long,
                          var logStartOffset: Long,
+<<<<<<< HEAD
                          var recordsProcessingStats: RecordsProcessingStats,
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                          sourceCodec: CompressionCodec,
                          targetCodec: CompressionCodec,
                          shallowCount: Int,
@@ -163,11 +177,14 @@ class Log(@volatile var dir: File,
       0
   }
 
+<<<<<<< HEAD
   private def checkIfLogOffline(): Unit = {
     if (isClosed)
       throw new KafkaStorageException(s"The log for partition $topicPartition is offline")
   }
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   @volatile private var nextOffsetMetadata: LogOffsetMetadata = _
 
   /* The earliest offset which is part of an incomplete transaction. This is used to compute the
@@ -354,11 +371,14 @@ class Log(@volatile var dir: File,
         loadProducersFromLog(stateManager, fetchDataInfo.records)
     }
     stateManager.updateMapEndOffset(segment.baseOffset)
+<<<<<<< HEAD
 
     // take a snapshot for the first recovered segment to avoid reloading all the segments if we shutdown before we
     // checkpoint the recovery point
     stateManager.takeSnapshot()
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val bytesTruncated = segment.recover(stateManager, leaderEpochCache)
 
     // once we have recovered the segment's data, take a snapshot to ensure that we won't
@@ -393,9 +413,15 @@ class Log(@volatile var dir: File,
     }
   }
 
+<<<<<<< HEAD
   // Load the log segments from the log files on disk and return the next offset
   // This method does not need to convert IOException to KafkaStorageException because it is only called before all logs are loaded
   private def loadSegments(): Long = {
+=======
+  // Load the log segments from the log files on disk
+  // This method does not need to convert IOException to KafkaStorageException because it is only called before all logs are loaded
+  private def loadSegments() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     // first do a pass through the files in the log directory and remove any temporary files
     // and find any interrupted swap operations
     val swapFiles = removeTempFilesAndCollectSwapFiles()
@@ -410,6 +436,7 @@ class Log(@volatile var dir: File,
 
     if (logSegments.isEmpty) {
       // no existing segments, create a new mutable segment beginning at offset 0
+<<<<<<< HEAD
       addSegment(new LogSegment(dir = dir,
         startOffset = 0,
         indexIntervalBytes = config.indexInterval,
@@ -420,6 +447,17 @@ class Log(@volatile var dir: File,
         initFileSize = this.initFileSize,
         preallocate = config.preallocate))
       0
+=======
+      segments.put(0L, new LogSegment(dir = dir,
+                                      startOffset = 0,
+                                      indexIntervalBytes = config.indexInterval,
+                                      maxIndexSize = config.maxIndexSize,
+                                      rollJitterMs = config.randomSegmentJitter,
+                                      time = time,
+                                      fileAlreadyExists = false,
+                                      initFileSize = this.initFileSize(),
+                                      preallocate = config.preallocate))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     } else if (!dir.getAbsolutePath.endsWith(Log.DeleteDirSuffix)) {
       val nextOffset = recoverLog()
       // reset the index size of the currently active log segment to allow more entries
@@ -433,6 +471,7 @@ class Log(@volatile var dir: File,
     nextOffsetMetadata = new LogOffsetMetadata(messageOffset, activeSegment.baseOffset, activeSegment.size)
   }
 
+<<<<<<< HEAD
   /**
    * Recover the log segments and return the next offset after recovery.
    *
@@ -440,6 +479,10 @@ class Log(@volatile var dir: File,
    * logs are loaded.
    */
   private def recoverLog(): Long = {
+=======
+  // This method does not need to convert IOException to KafkaStorageException because it is only called before all logs are loaded
+  private def recoverLog() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     // if we have the clean shutdown marker, skip recovery
     if (!hasCleanShutdownFile) {
       // okay we need to actually recovery this log
@@ -470,7 +513,10 @@ class Log(@volatile var dir: File,
   }
 
   private def loadProducerState(lastOffset: Long, reloadFromCleanShutdown: Boolean): Unit = lock synchronized {
+<<<<<<< HEAD
     checkIfLogOffline()
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val messageFormatVersion = config.messageFormatVersion.messageFormatVersion
     info(s"Loading producer state from offset $lastOffset for partition $topicPartition with message " +
       s"format version $messageFormatVersion")
@@ -530,7 +576,11 @@ class Log(@volatile var dir: File,
     val completedTxns = ListBuffer.empty[CompletedTxn]
     records.batches.asScala.foreach { batch =>
       if (batch.hasProducerId) {
+<<<<<<< HEAD
         val maybeCompletedTxn = updateProducers(batch, loadedProducers, isFromClient = false)
+=======
+        val maybeCompletedTxn = updateProducers(batch, loadedProducers, loadingFromLog = true)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         maybeCompletedTxn.foreach(completedTxns += _)
       }
     }
@@ -561,8 +611,11 @@ class Log(@volatile var dir: File,
   def close() {
     debug(s"Closing log $name")
     lock synchronized {
+<<<<<<< HEAD
       checkIfLogOffline()
       isClosed = true
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       // We take a snapshot at the last written offset to hopefully avoid the need to scan the log
       // after restarting and to ensure that we cannot inadvertently hit the upgrade optimization
       // (the clean shutdown file is written after the logs are all closed).
@@ -577,7 +630,10 @@ class Log(@volatile var dir: File,
   def closeHandlers() {
     debug(s"Closing handlers of log $name")
     lock synchronized {
+<<<<<<< HEAD
       isClosed = true
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       logSegments.foreach(_.closeHandlers())
     }
   }
@@ -761,7 +817,10 @@ class Log(@volatile var dir: File,
   }
 
   private def updateFirstUnstableOffset(): Unit = lock synchronized {
+<<<<<<< HEAD
     checkIfLogOffline()
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val updatedFirstStableOffset = producerStateManager.firstUnstableOffset match {
       case Some(logOffsetMetadata) if logOffsetMetadata.messageOffsetOnly || logOffsetMetadata.messageOffset < logStartOffset =>
         val offset = math.max(logOffsetMetadata.messageOffset, logStartOffset)
@@ -786,7 +845,10 @@ class Log(@volatile var dir: File,
     // in an unclean manner within log.flush.start.offset.checkpoint.interval.ms. The chance of this happening is low.
     maybeHandleIOException(s"Exception while increasing log start offset for $topicPartition to $newLogStartOffset in dir ${dir.getParent}") {
       lock synchronized {
+<<<<<<< HEAD
         checkIfLogOffline()
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         if (newLogStartOffset > logStartOffset) {
           info(s"Incrementing log start offset of partition $topicPartition to $newLogStartOffset in dir ${dir.getParent}")
           logStartOffset = newLogStartOffset
@@ -812,7 +874,11 @@ class Log(@volatile var dir: File,
           return (updatedProducers, completedTxns.toList, Some(duplicate))
         }
 
+<<<<<<< HEAD
       val maybeCompletedTxn = updateProducers(batch, updatedProducers, isFromClient = isFromClient)
+=======
+      val maybeCompletedTxn = updateProducers(batch, updatedProducers, loadingFromLog = false)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       maybeCompletedTxn.foreach(completedTxns += _)
     }
     (updatedProducers, completedTxns.toList, None)
@@ -893,15 +959,26 @@ class Log(@volatile var dir: File,
 
     // Apply broker-side compression if any
     val targetCodec = BrokerCompressionCodec.getTargetCompressionCodec(config.compressionType, sourceCodec)
+<<<<<<< HEAD
     LogAppendInfo(firstOffset, lastOffset, maxTimestamp, offsetOfMaxTimestamp, RecordBatch.NO_TIMESTAMP, logStartOffset,
       RecordsProcessingStats.EMPTY, sourceCodec, targetCodec, shallowMessageCount, validBytesCount, monotonic)
+=======
+    LogAppendInfo(firstOffset, lastOffset, maxTimestamp, offsetOfMaxTimestamp, RecordBatch.NO_TIMESTAMP, logStartOffset, sourceCodec,
+      targetCodec, shallowMessageCount, validBytesCount, monotonic)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   private def updateProducers(batch: RecordBatch,
                               producers: mutable.Map[Long, ProducerAppendInfo],
+<<<<<<< HEAD
                               isFromClient: Boolean): Option[CompletedTxn] = {
     val producerId = batch.producerId
     val appendInfo = producers.getOrElseUpdate(producerId, producerStateManager.prepareUpdate(producerId, isFromClient))
+=======
+                              loadingFromLog: Boolean): Option[CompletedTxn] = {
+    val producerId = batch.producerId
+    val appendInfo = producers.getOrElseUpdate(producerId, producerStateManager.prepareUpdate(producerId, loadingFromLog))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     appendInfo.append(batch)
   }
 
@@ -1144,7 +1221,10 @@ class Log(@volatile var dir: File,
         if (segments.size == numToDelete)
           roll()
         lock synchronized {
+<<<<<<< HEAD
           checkIfLogOffline()
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
           // remove the segments for lookups
           deletable.foreach(deleteSegment)
           maybeIncrementLogStartOffset(segments.firstEntry.getValue.baseOffset)
@@ -1294,7 +1374,10 @@ class Log(@volatile var dir: File,
     maybeHandleIOException(s"Error while rolling log segment for $topicPartition in dir ${dir.getParent}") {
       val start = time.nanoseconds
       lock synchronized {
+<<<<<<< HEAD
         checkIfLogOffline()
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         val newOffset = math.max(expectedNextOffset, logEndOffset)
         val logFile = Log.logFile(dir, newOffset)
         val offsetIdxFile = offsetIndexFile(dir, newOffset)
@@ -1303,6 +1386,7 @@ class Log(@volatile var dir: File,
         for (file <- List(logFile, offsetIdxFile, timeIdxFile, txnIdxFile) if file.exists) {
           warn("Newly rolled segment file " + file.getName + " already exists; deleting it first")
           file.delete()
+<<<<<<< HEAD
         }
 
         Option(segments.lastEntry).foreach { entry =>
@@ -1313,6 +1397,21 @@ class Log(@volatile var dir: File,
           seg.log.trim()
         }
 
+=======
+        }
+
+        segments.lastEntry() match {
+          case null =>
+          case entry => {
+            val seg = entry.getValue
+            seg.onBecomeInactiveSegment()
+            seg.index.trimToValidSize()
+            seg.timeIndex.trimToValidSize()
+            seg.log.trim()
+          }
+        }
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         // take a snapshot of the producer state to facilitate recovery. It is useful to have the snapshot
         // offset align with the new segment offset since this ensures we can recover the segment by beginning
         // with the corresponding snapshot file and scanning the segment data. Because the segment base offset
@@ -1369,9 +1468,19 @@ class Log(@volatile var dir: File,
         time.milliseconds + " unflushed = " + unflushedMessages)
       for (segment <- logSegments(this.recoveryPoint, offset))
         segment.flush()
+<<<<<<< HEAD
 
       lock synchronized {
         checkIfLogOffline()
+=======
+
+      // now that we have flushed, we can cleanup old producer snapshots. However, it is useful to retain
+      // the snapshots from the recent segments in case we need to truncate and rebuild the producer state.
+      // Otherwise, we would always need to rebuild from the earliest segment.
+      producerStateManager.deleteSnapshotsBefore(minSnapshotOffsetToRetain(offset))
+
+      lock synchronized {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         if (offset > this.recoveryPoint) {
           this.recoveryPoint = offset
           lastflushedTime.set(time.milliseconds)
@@ -1422,7 +1531,10 @@ class Log(@volatile var dir: File,
   private[log] def delete() {
     maybeHandleIOException(s"Error while deleting log for $topicPartition in dir ${dir.getParent}") {
       lock synchronized {
+<<<<<<< HEAD
         checkIfLogOffline()
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         logSegments.foreach(_.delete())
         segments.clear()
         leaderEpochCache.clear()
@@ -1458,12 +1570,17 @@ class Log(@volatile var dir: File,
    * @param targetOffset The offset to truncate to, an upper bound on all offsets in the log after truncation is complete.
    * @return True iff targetOffset < logEndOffset
    */
+<<<<<<< HEAD
   private[log] def truncateTo(targetOffset: Long): Boolean = {
+=======
+  private[log] def truncateTo(targetOffset: Long) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     maybeHandleIOException(s"Error while truncating log to offset $targetOffset for $topicPartition in dir ${dir.getParent}") {
       if (targetOffset < 0)
         throw new IllegalArgumentException("Cannot truncate to a negative offset (%d).".format(targetOffset))
       if (targetOffset >= logEndOffset) {
         info("Truncating %s to %d has no effect as the largest offset in the log is %d.".format(name, targetOffset, logEndOffset - 1))
+<<<<<<< HEAD
         false
       } else {
         info("Truncating log %s to offset %d.".format(name, targetOffset))
@@ -1482,6 +1599,23 @@ class Log(@volatile var dir: File,
             loadProducerState(targetOffset, reloadFromCleanShutdown = false)
           }
           true
+=======
+        return
+      }
+      info("Truncating log %s to offset %d.".format(name, targetOffset))
+      lock synchronized {
+        if (segments.firstEntry.getValue.baseOffset > targetOffset) {
+          truncateFullyAndStartAt(targetOffset)
+        } else {
+          val deletable = logSegments.filter(segment => segment.baseOffset > targetOffset)
+          deletable.foreach(deleteSegment)
+          activeSegment.truncateTo(targetOffset)
+          updateLogEndOffset(targetOffset)
+          this.recoveryPoint = math.min(targetOffset, this.recoveryPoint)
+          this.logStartOffset = math.min(targetOffset, this.logStartOffset)
+          leaderEpochCache.clearAndFlushLatest(targetOffset)
+          loadProducerState(targetOffset, reloadFromCleanShutdown = false)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
       }
     }
@@ -1496,7 +1630,10 @@ class Log(@volatile var dir: File,
     maybeHandleIOException(s"Error while truncating the entire log for $topicPartition in dir ${dir.getParent}") {
       debug(s"Truncate and start log '$name' at offset $newOffset")
       lock synchronized {
+<<<<<<< HEAD
         checkIfLogOffline()
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         val segmentsToDelete = logSegments.toList
         segmentsToDelete.foreach(deleteSegment)
         addSegment(new LogSegment(dir,
@@ -1797,6 +1934,15 @@ object Log {
     val filename = file.getName
     filename.substring(0, filename.indexOf('.')).toLong
   }
+
+  /**
+    * Calculate a log's size (in bytes) based on its log segments
+    *
+    * @param segments The log segments to calculate the size of
+    * @return Sum of the log segments' sizes (in bytes)
+    */
+  def sizeInBytes(segments: Iterable[LogSegment]): Long =
+    segments.map(_.size.toLong).sum
 
   /**
     * Calculate a log's size (in bytes) based on its log segments

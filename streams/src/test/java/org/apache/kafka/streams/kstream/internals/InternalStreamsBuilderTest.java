@@ -61,9 +61,14 @@ public class InternalStreamsBuilderTest {
 
     private KStreamTestDriver driver = null;
     private final ConsumedInternal<String, String> consumed = new ConsumedInternal<>();
+<<<<<<< HEAD
     private final String storePrefix = "prefix-";
     private MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
             = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("test-store"), builder, storePrefix);
+=======
+    private MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
+            = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("test-store"), false);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     @Before
     public void setUp() {
@@ -80,6 +85,7 @@ public class InternalStreamsBuilderTest {
 
     @Test
     public void testNewName() {
+<<<<<<< HEAD
         assertEquals("X-0000000000", builder.newProcessorName("X-"));
         assertEquals("Y-0000000001", builder.newProcessorName("Y-"));
         assertEquals("Z-0000000002", builder.newProcessorName("Z-"));
@@ -89,6 +95,17 @@ public class InternalStreamsBuilderTest {
         assertEquals("X-0000000000", newBuilder.newProcessorName("X-"));
         assertEquals("Y-0000000001", newBuilder.newProcessorName("Y-"));
         assertEquals("Z-0000000002", newBuilder.newProcessorName("Z-"));
+=======
+        assertEquals("X-0000000000", builder.newName("X-"));
+        assertEquals("Y-0000000001", builder.newName("Y-"));
+        assertEquals("Z-0000000002", builder.newName("Z-"));
+
+        final InternalStreamsBuilder newBuilder = new InternalStreamsBuilder(new InternalTopologyBuilder());
+
+        assertEquals("X-0000000000", newBuilder.newName("X-"));
+        assertEquals("Y-0000000001", newBuilder.newName("Y-"));
+        assertEquals("Z-0000000002", newBuilder.newName("Z-"));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test
@@ -142,18 +159,30 @@ public class InternalStreamsBuilderTest {
         KTable table1 = builder.table("topic2",
                                       consumed,
                                       new MaterializedInternal<>(
+<<<<<<< HEAD
                                               Materialized.<String, String, KeyValueStore<Bytes, byte[]>>with(null, null),
                                               builder,
                                               storePrefix));
+=======
+                                              Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("topic2"),
+                                              false));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         final ProcessorTopology topology = builder.internalTopologyBuilder.build(null);
 
         assertEquals(1, topology.stateStores().size());
+<<<<<<< HEAD
         final String storeName = "prefix-STATE-STORE-0000000000";
         assertEquals(storeName, topology.stateStores().get(0).name());
 
         assertEquals(1, topology.storeToChangelogTopic().size());
         assertEquals("topic2", topology.storeToChangelogTopic().get(storeName));
+=======
+        assertEquals("topic2", topology.stateStores().get(0).name());
+
+        assertEquals(1, topology.storeToChangelogTopic().size());
+        assertEquals("topic2", topology.storeToChangelogTopic().get("topic2"));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         assertNull(table1.queryableStoreName());
     }
 
@@ -163,8 +192,12 @@ public class InternalStreamsBuilderTest {
                             consumed,
                             new MaterializedInternal<>(
                                     Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("globalTable"),
+<<<<<<< HEAD
                                     builder,
                                     storePrefix));
+=======
+                                    false));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         final ProcessorTopology topology = builder.internalTopologyBuilder.buildGlobalStateTopology();
         final List<StateStore> stateStores = topology.globalStateStores();
@@ -188,11 +221,19 @@ public class InternalStreamsBuilderTest {
         builder.globalTable("table",
                             consumed,
                             new MaterializedInternal<>(
+<<<<<<< HEAD
                                     Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("global1"), builder, storePrefix));
         builder.globalTable("table2",
                             consumed,
                             new MaterializedInternal<>(
                                     Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("global2"), builder, storePrefix));
+=======
+                                    Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("global1")));
+        builder.globalTable("table2",
+                            consumed,
+                            new MaterializedInternal<>(
+                                    Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("global2")));
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         doBuildGlobalTopologyWithAllGlobalTables();
     }
@@ -205,6 +246,7 @@ public class InternalStreamsBuilderTest {
         final GlobalKTable<String, String> globalTable = builder.globalTable("table",
                                                                              consumed,
                                                                              new MaterializedInternal<>(
+<<<<<<< HEAD
                                                                                      Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as(one), builder, storePrefix));
         final GlobalKTable<String, String> globalTable2 = builder.globalTable("table2",
                                                                               consumed,
@@ -213,6 +255,16 @@ public class InternalStreamsBuilderTest {
 
         final MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
                 = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("not-global"), builder, storePrefix);
+=======
+                                                                                     Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as(one)));
+        final GlobalKTable<String, String> globalTable2 = builder.globalTable("table2",
+                                                                              consumed,
+                                                                              new MaterializedInternal<>(
+                                                                                      Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as(two)));
+
+        final MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
+                = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("not-global"), false);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         builder.table("not-global", consumed, materialized);
 
         final KeyValueMapper<String, String, String> kvMapper = new KeyValueMapper<String, String, String>() {
@@ -247,7 +299,11 @@ public class InternalStreamsBuilderTest {
         final KStream<String, String> playEvents = builder.stream(Collections.singleton("events"), consumed);
 
         final MaterializedInternal<String, String, KeyValueStore<Bytes, byte[]>> materialized
+<<<<<<< HEAD
                 = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("table-store"), builder, storePrefix);
+=======
+                = new MaterializedInternal<>(Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("table-store"), false);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final KTable<String, String> table = builder.table("table-topic", consumed, materialized);
         assertEquals(Collections.singletonList("table-topic"), builder.internalTopologyBuilder.stateStoreNameToSourceTopics().get("table-store"));
 

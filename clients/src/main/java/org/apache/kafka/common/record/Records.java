@@ -99,11 +99,18 @@ public interface Records {
      * deep iteration since all of the deep records must also be converted to the desired format.
      * @param toMagic The magic value to convert to
      * @param firstOffset The starting offset for returned records. This only impacts some cases. See
+<<<<<<< HEAD
      *                    {@link AbstractRecords#downConvert(Iterable, byte, long, Time) for an explanation.
      * @param time instance used for reporting stats
      * @return A ConvertedRecords instance which may or may not contain the same instance in its records field.
      */
     ConvertedRecords<? extends Records> downConvert(byte toMagic, long firstOffset, Time time);
+=======
+     *                    {@link AbstractRecords#downConvert(Iterable, byte, long)} for an explanation.
+     * @return A Records instance (which may or may not be the same instance)
+     */
+    Records downConvert(byte toMagic, long firstOffset);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     /**
      * Get an iterator over the records in this log. Note that this generally requires decompression,

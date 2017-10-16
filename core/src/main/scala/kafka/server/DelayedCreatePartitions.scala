@@ -26,13 +26,21 @@ import scala.collection._
 /**
   * The create metadata maintained by the delayed create topic or create partitions operations.
   */
+<<<<<<< HEAD
 case class CreatePartitionsMetadata(topic: String, replicaAssignments: Map[Int, Seq[Int]], error: ApiError)
+=======
+case class CreateTopicMetadata(topic: String, replicaAssignments: Map[Int, Seq[Int]], error: ApiError)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 /**
   * A delayed create topic or create partitions operation that is stored in the topic purgatory.
   */
 class DelayedCreatePartitions(delayMs: Long,
+<<<<<<< HEAD
                               createMetadata: Seq[CreatePartitionsMetadata],
+=======
+                              createMetadata: Seq[CreateTopicMetadata],
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                               adminManager: AdminManager,
                               responseCallback: Map[String, ApiError] => Unit)
   extends DelayedOperation(delayMs) {

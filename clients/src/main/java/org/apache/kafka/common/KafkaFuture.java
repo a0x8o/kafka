@@ -91,7 +91,11 @@ public abstract class KafkaFuture<T> implements Future<T> {
      */
     public static KafkaFuture<Void> allOf(KafkaFuture<?>... futures) {
         KafkaFuture<Void> allOfFuture = new KafkaFutureImpl<>();
+<<<<<<< HEAD
         AllOfAdapter<Object> allOfWaiter = new AllOfAdapter<>(futures.length, allOfFuture);
+=======
+        AllOfAdapter allOfWaiter = new AllOfAdapter(futures.length, allOfFuture);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         for (KafkaFuture<?> future : futures) {
             future.addWaiter(allOfWaiter);
         }

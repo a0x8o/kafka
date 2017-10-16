@@ -47,8 +47,13 @@ import scala.collection.mutable.ArrayBuffer
  * A background thread handles log retention by periodically truncating excess log segments.
  */
 @threadsafe
+<<<<<<< HEAD
 class LogManager(logDirs: Seq[File],
                  initialOfflineDirs: Seq[File],
+=======
+class LogManager(logDirs: Array[File],
+                 initialOfflineDirs: Array[File],
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                  val topicConfigs: Map[String, LogConfig], // note that this doesn't get updated after creation
                  val defaultConfig: LogConfig,
                  val cleanerConfig: CleanerConfig,
@@ -63,9 +68,14 @@ class LogManager(logDirs: Seq[File],
                  brokerTopicStats: BrokerTopicStats,
                  logDirFailureChannel: LogDirFailureChannel,
                  time: Time) extends Logging with KafkaMetricsGroup {
+<<<<<<< HEAD
 
   import LogManager._
 
+=======
+  val RecoveryPointCheckpointFile = "recovery-point-offset-checkpoint"
+  val LogStartOffsetCheckpointFile = "log-start-offset-checkpoint"
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   val LockFile = ".lock"
   val InitialTaskDelayMs = 30 * 1000
 
@@ -75,11 +85,19 @@ class LogManager(logDirs: Seq[File],
 
   private val _liveLogDirs: ConcurrentLinkedQueue[File] = createAndValidateLogDirs(logDirs, initialOfflineDirs)
 
+<<<<<<< HEAD
   def liveLogDirs: Seq[File] = {
     if (_liveLogDirs.size == logDirs.size)
       logDirs
     else
       _liveLogDirs.asScala.toBuffer
+=======
+  def liveLogDirs: Array[File] = {
+    if (_liveLogDirs.size == logDirs.size)
+      logDirs
+    else
+      _liveLogDirs.asScala.toArray
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   private val dirLocks = lockLogDirs(liveLogDirs)
@@ -88,6 +106,7 @@ class LogManager(logDirs: Seq[File],
   @volatile private var logStartOffsetCheckpoints = liveLogDirs.map(dir =>
     (dir, new OffsetCheckpointFile(new File(dir, LogStartOffsetCheckpointFile), logDirFailureChannel))).toMap
 
+<<<<<<< HEAD
   private val preferredLogDirs = new ConcurrentHashMap[TopicPartition, String]()
 
   private def offlineLogDirs: Iterable[File] = {
@@ -96,6 +115,11 @@ class LogManager(logDirs: Seq[File],
     logDirsSet
   }
 
+=======
+  private def offlineLogDirs = logDirs.filterNot(_liveLogDirs.contains)
+  private val preferredLogDirs = new ConcurrentHashMap[TopicPartition, String]()
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   loadLogs()
 
 
@@ -109,7 +133,11 @@ class LogManager(logDirs: Seq[File],
   val offlineLogDirectoryCount = newGauge(
     "OfflineLogDirectoryCount",
     new Gauge[Int] {
+<<<<<<< HEAD
       def value = offlineLogDirs.size
+=======
+      def value = offlineLogDirs.length
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
   )
 
@@ -137,11 +165,16 @@ class LogManager(logDirs: Seq[File],
 
     val liveLogDirs = new ConcurrentLinkedQueue[File]()
 
+<<<<<<< HEAD
     for (dir <- dirs) {
       try {
         if (initialOfflineDirs.contains(dir))
           throw new IOException(s"Failed to load ${dir.getAbsolutePath} during broker startup")
 
+=======
+    for (dir <- dirs if !initialOfflineDirs.contains(dir)) {
+      try {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         if (!dir.exists) {
           info("Log directory '" + dir.getAbsolutePath + "' not found, creating it.")
           val created = dir.mkdirs()
@@ -153,6 +186,7 @@ class LogManager(logDirs: Seq[File],
         liveLogDirs.add(dir)
       } catch {
         case e: IOException =>
+<<<<<<< HEAD
           logDirFailureChannel.maybeAddOfflineLogDir(dir.getAbsolutePath, s"Failed to create or validate data directory ${dir.getAbsolutePath}", e)
       }
     }
@@ -184,12 +218,47 @@ class LogManager(logDirs: Seq[File],
       }
 
       offlineTopicPartitions.foreach { topicPartition =>
+=======
+          error(s"Failed to create or validate data directory $dir.getAbsolutePath", e)
+      }
+    }
+    if (liveLogDirs.isEmpty) {
+      fatal(s"Shutdown broker because none of the specified log dirs from " + dirs.mkString(", ") + " can be created or validated")
+      Exit.halt(1)
+    }
+
+    liveLogDirs
+  }
+
+  // dir should be an absolute path
+  def handleLogDirFailure(dir: String) {
+    info(s"Stopping serving logs in dir $dir")
+    logCreationOrDeletionLock synchronized {
+      _liveLogDirs.remove(new File(dir))
+      if (_liveLogDirs.isEmpty) {
+        fatal(s"Shutdown broker because all log dirs in ${logDirs.mkString(", ")} have failed")
+        Exit.halt(1)
+      }
+
+      recoveryPointCheckpoints = recoveryPointCheckpoints.filterKeys(file => file.getAbsolutePath != dir)
+      logStartOffsetCheckpoints = logStartOffsetCheckpoints.filterKeys(file => file.getAbsolutePath != dir)
+      if (cleaner != null)
+        cleaner.handleLogDirFailure(dir)
+
+      val offlineTopicPartitions = logs.filter { case (tp, log) => log.dir.getParent == dir}.map { case (tp, log) => tp }
+
+      offlineTopicPartitions.foreach(topicPartition => {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         val removedLog = logs.remove(topicPartition)
         if (removedLog != null) {
           removedLog.closeHandlers()
           removedLog.removeLogMetrics()
         }
+<<<<<<< HEAD
       }
+=======
+      })
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       info(s"Partitions ${offlineTopicPartitions.mkString(",")} are offline due to failure on log directory $dir")
       dirLocks.filter(_.file.getParent == dir).foreach(dir => CoreUtils.swallow(dir.destroy()))
     }
@@ -211,6 +280,7 @@ class LogManager(logDirs: Seq[File],
           logDirFailureChannel.maybeAddOfflineLogDir(dir.getAbsolutePath, s"Disk error while locking directory $dir", e)
           None
       }
+<<<<<<< HEAD
     }
   }
 
@@ -245,6 +315,42 @@ class LogManager(logDirs: Seq[File],
     }
   }
 
+=======
+    }
+  }
+
+  private def loadLogs(logDir: File, recoveryPoints: Map[TopicPartition, Long], logStartOffsets: Map[TopicPartition, Long]): Unit = {
+    debug("Loading log '" + logDir.getName + "'")
+    val topicPartition = Log.parseTopicPartitionName(logDir)
+    val config = topicConfigs.getOrElse(topicPartition.topic, defaultConfig)
+    val logRecoveryPoint = recoveryPoints.getOrElse(topicPartition, 0L)
+    val logStartOffset = logStartOffsets.getOrElse(topicPartition, 0L)
+
+    val current = Log(
+      dir = logDir,
+      config = config,
+      logStartOffset = logStartOffset,
+      recoveryPoint = logRecoveryPoint,
+      maxProducerIdExpirationMs = maxPidExpirationMs,
+      producerIdExpirationCheckIntervalMs = LogManager.ProducerIdExpirationCheckIntervalMs,
+      scheduler = scheduler,
+      time = time,
+      brokerTopicStats = brokerTopicStats,
+      logDirFailureChannel = logDirFailureChannel)
+
+    if (logDir.getName.endsWith(Log.DeleteDirSuffix)) {
+      this.logsToBeDeleted.add(current)
+    } else {
+      val previous = this.logs.put(topicPartition, current)
+      if (previous != null) {
+        throw new IllegalArgumentException(
+          "Duplicate log directories found: %s, %s!".format(
+            current.dir.getAbsolutePath, previous.dir.getAbsolutePath))
+      }
+    }
+  }
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   /**
    * Recover and load all logs in the given data directories
    */
@@ -261,6 +367,7 @@ class LogManager(logDirs: Seq[File],
         threadPools.append(pool)
 
         val cleanShutdownFile = new File(dir, Log.CleanShutdownFile)
+<<<<<<< HEAD
 
         if (cleanShutdownFile.exists) {
           debug(s"Found clean shutdown file. Skipping recovery for all logs in data directory: ${dir.getAbsolutePath}")
@@ -286,13 +393,47 @@ class LogManager(logDirs: Seq[File],
             warn("Error occurred while reading log-start-offset-checkpoint file of directory " + dir, e)
         }
 
+=======
+
+        if (cleanShutdownFile.exists) {
+          debug(
+            "Found clean shutdown file. " +
+              "Skipping recovery for all logs in data directory: " +
+              dir.getAbsolutePath)
+        } else {
+          // log recovery itself is being performed by `Log` class during initialization
+          brokerState.newState(RecoveringFromUncleanShutdown)
+        }
+
+        var recoveryPoints = Map[TopicPartition, Long]()
+        try {
+          recoveryPoints = this.recoveryPointCheckpoints(dir).read
+        } catch {
+          case e: Exception =>
+            warn("Error occurred while reading recovery-point-offset-checkpoint file of directory " + dir, e)
+            warn("Resetting the recovery checkpoint to 0")
+        }
+
+        var logStartOffsets = Map[TopicPartition, Long]()
+        try {
+          logStartOffsets = this.logStartOffsetCheckpoints(dir).read
+        } catch {
+          case e: Exception =>
+            warn("Error occurred while reading log-start-offset-checkpoint file of directory " + dir, e)
+        }
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         val jobsForDir = for {
           dirContent <- Option(dir.listFiles).toList
           logDir <- dirContent if logDir.isDirectory
         } yield {
           CoreUtils.runnable {
             try {
+<<<<<<< HEAD
               loadLog(logDir, recoveryPoints, logStartOffsets)
+=======
+              loadLogs(logDir, recoveryPoints, logStartOffsets)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             } catch {
               case e: IOException =>
                 offlineDirs.append((dir.getAbsolutePath, e))
@@ -454,8 +595,12 @@ class LogManager(logDirs: Seq[File],
         if (needToStopCleaner)
           cleaner.abortAndPauseCleaning(topicPartition)
         try {
+<<<<<<< HEAD
           if (log.truncateTo(truncateOffset))
             truncated = true
+=======
+          log.truncateTo(truncateOffset)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
           if (needToStopCleaner)
             cleaner.maybeTruncateCheckpoint(log.dir.getParentFile, topicPartition, log.activeSegment.baseOffset)
         } finally {
@@ -464,9 +609,13 @@ class LogManager(logDirs: Seq[File],
         }
       }
     }
+<<<<<<< HEAD
 
     if (truncated)
       checkpointLogRecoveryOffsets()
+=======
+    checkpointLogRecoveryOffsets()
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   /**
@@ -510,6 +659,7 @@ class LogManager(logDirs: Seq[File],
    * Make a checkpoint for all logs in provided directory.
    */
   private def checkpointLogRecoveryOffsetsInDir(dir: File): Unit = {
+<<<<<<< HEAD
     for {
       partitionToLog <- logsByDir.get(dir.getAbsolutePath)
       checkpoint <- recoveryPointCheckpoints.get(dir)
@@ -521,6 +671,15 @@ class LogManager(logDirs: Seq[File],
         case e: IOException =>
           logDirFailureChannel.maybeAddOfflineLogDir(dir.getAbsolutePath, s"Disk error while writing to recovery point " +
             s"file in directory $dir", e)
+=======
+    val recoveryPoints = this.logsByDir.get(dir.toString)
+    if (recoveryPoints.isDefined) {
+      try {
+        this.recoveryPointCheckpoints.get(dir).foreach(_.write(recoveryPoints.get.mapValues(_.recoveryPoint)))
+      } catch {
+        case e: IOException =>
+          logDirFailureChannel.maybeAddOfflineLogDir(dir.getAbsolutePath, s"Disk error while writing to recovery point file in directory $dir", e)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       }
     }
   }
@@ -529,6 +688,7 @@ class LogManager(logDirs: Seq[File],
    * Checkpoint log start offset for all logs in provided directory.
    */
   private def checkpointLogStartOffsetsInDir(dir: File): Unit = {
+<<<<<<< HEAD
     for {
       partitionToLog <- logsByDir.get(dir.getAbsolutePath)
       checkpoint <- logStartOffsetCheckpoints.get(dir)
@@ -538,6 +698,14 @@ class LogManager(logDirs: Seq[File],
           log.logStartOffset > log.logSegments.head.baseOffset
         }.mapValues(_.logStartOffset)
         checkpoint.write(logStartOffsets)
+=======
+    val logs = this.logsByDir.get(dir.getAbsolutePath)
+    if (logs.isDefined) {
+      try {
+        this.logStartOffsetCheckpoints.get(dir).foreach(_.write(
+          logs.get.filter { case (tp, log) => log.logStartOffset > log.logSegments.head.baseOffset }.mapValues(_.logStartOffset)
+        ))
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       } catch {
         case e: IOException =>
           logDirFailureChannel.maybeAddOfflineLogDir(dir.getAbsolutePath, s"Disk error while writing to logStartOffset file in directory $dir", e)
@@ -747,6 +915,15 @@ class LogManager(logDirs: Seq[File],
     _liveLogDirs.contains(new File(logDir))
   }
 
+  // logDir should be an absolute path
+  def isLogDirOnline(logDir: String): Boolean = {
+    // The logDir should be an absolute path
+    if (!logDirs.exists(_.getAbsolutePath == logDir))
+      throw new LogDirNotFoundException(s"Log dir $logDir is not found in the config.")
+
+    _liveLogDirs.contains(new File(logDir))
+  }
+
   /**
    * Flush any log which has exceeded its flush interval and has unwritten messages.
    */
@@ -770,8 +947,11 @@ class LogManager(logDirs: Seq[File],
 
 object LogManager {
 
+<<<<<<< HEAD
   val RecoveryPointCheckpointFile = "recovery-point-offset-checkpoint"
   val LogStartOffsetCheckpointFile = "log-start-offset-checkpoint"
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   val ProducerIdExpirationCheckIntervalMs = 10 * 60 * 1000
 
   def apply(config: KafkaConfig,
@@ -799,8 +979,13 @@ object LogManager {
       backOffMs = config.logCleanerBackoffMs,
       enableCleaner = config.logCleanerEnable)
 
+<<<<<<< HEAD
     new LogManager(logDirs = config.logDirs.map(new File(_).getAbsoluteFile),
       initialOfflineDirs = initialOfflineDirs.map(new File(_).getAbsoluteFile),
+=======
+    new LogManager(logDirs = config.logDirs.map(new File(_).getAbsoluteFile).toArray,
+      initialOfflineDirs = initialOfflineDirs.map(new File(_).getAbsoluteFile).toArray,
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       topicConfigs = topicConfigs,
       defaultConfig = defaultLogConfig,
       cleanerConfig = cleanerConfig,

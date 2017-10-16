@@ -16,7 +16,10 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
+<<<<<<< HEAD
 import org.apache.kafka.clients.producer.Callback;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
@@ -34,6 +37,10 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Deque;
+<<<<<<< HEAD
+=======
+import java.util.Iterator;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.kafka.common.record.RecordBatch.MAGIC_VALUE_V0;
@@ -64,12 +71,17 @@ public class ProducerBatchTest {
     @Test
     public void testBatchAbort() throws Exception {
         ProducerBatch batch = new ProducerBatch(new TopicPartition("topic", 1), memoryRecordsBuilder, now);
+<<<<<<< HEAD
         MockCallback callback = new MockCallback();
         FutureRecordMetadata future = batch.tryAppend(now, null, new byte[10], Record.EMPTY_HEADERS, callback, now);
+=======
+        FutureRecordMetadata future = batch.tryAppend(now, null, new byte[10], Record.EMPTY_HEADERS, null, now);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         KafkaException exception = new KafkaException();
         batch.abort(exception);
         assertTrue(future.isDone());
+<<<<<<< HEAD
         assertEquals(1, callback.invocations);
         assertEquals(exception, callback.exception);
         assertNull(callback.metadata);
@@ -78,6 +90,12 @@ public class ProducerBatchTest {
         assertFalse(batch.done(500L, 2342342341L, null));
         assertFalse(batch.done(-1, -1, new KafkaException()));
         assertEquals(1, callback.invocations);
+=======
+
+        // subsequent completion should be ignored
+        batch.done(500L, 2342342341L, null);
+        batch.done(-1, -1, new KafkaException());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         assertTrue(future.isDone());
         try {
@@ -91,6 +109,7 @@ public class ProducerBatchTest {
     @Test
     public void testBatchCannotAbortTwice() throws Exception {
         ProducerBatch batch = new ProducerBatch(new TopicPartition("topic", 1), memoryRecordsBuilder, now);
+<<<<<<< HEAD
         MockCallback callback = new MockCallback();
         FutureRecordMetadata future = batch.tryAppend(now, null, new byte[10], Record.EMPTY_HEADERS, callback, now);
         KafkaException exception = new KafkaException();
@@ -98,6 +117,11 @@ public class ProducerBatchTest {
         assertEquals(1, callback.invocations);
         assertEquals(exception, callback.exception);
         assertNull(callback.metadata);
+=======
+        FutureRecordMetadata future = batch.tryAppend(now, null, new byte[10], Record.EMPTY_HEADERS, null, now);
+        KafkaException exception = new KafkaException();
+        batch.abort(exception);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         try {
             batch.abort(new KafkaException());
@@ -106,7 +130,10 @@ public class ProducerBatchTest {
             // expected
         }
 
+<<<<<<< HEAD
         assertEquals(1, callback.invocations);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         assertTrue(future.isDone());
         try {
             future.get();
@@ -119,12 +146,17 @@ public class ProducerBatchTest {
     @Test
     public void testBatchCannotCompleteTwice() throws Exception {
         ProducerBatch batch = new ProducerBatch(new TopicPartition("topic", 1), memoryRecordsBuilder, now);
+<<<<<<< HEAD
         MockCallback callback = new MockCallback();
         FutureRecordMetadata future = batch.tryAppend(now, null, new byte[10], Record.EMPTY_HEADERS, callback, now);
         batch.done(500L, 10L, null);
         assertEquals(1, callback.invocations);
         assertNull(callback.exception);
         assertNotNull(callback.metadata);
+=======
+        FutureRecordMetadata future = batch.tryAppend(now, null, new byte[10], Record.EMPTY_HEADERS, null, now);
+        batch.done(500L, 10L, null);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         try {
             batch.done(1000L, 20L, null);
@@ -180,7 +212,13 @@ public class ProducerBatchTest {
 
             for (ProducerBatch splitProducerBatch : batches) {
                 for (RecordBatch splitBatch : splitProducerBatch.records().batches()) {
+<<<<<<< HEAD
                     for (Record record : splitBatch) {
+=======
+                    Iterator<Record> iter = splitBatch.iterator();
+                    while (iter.hasNext()) {
+                        Record record = iter.next();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                         assertTrue("Header size should be 1.", record.headers().length == 1);
                         assertTrue("Header key should be 'header-key'.", record.headers()[0].key().equals("header-key"));
                         assertTrue("Header value should be 'header-value'.", new String(record.headers()[0].value()).equals("header-value"));

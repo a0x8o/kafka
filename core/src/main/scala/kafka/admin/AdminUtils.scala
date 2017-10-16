@@ -290,6 +290,7 @@ object AdminUtils extends Logging with AdminUtilities {
       validateReplicaAssignment(proposedReplicaAssignment, existingAssignmentPartition0,
         allBrokers.map(_.id).toSet)
     }
+<<<<<<< HEAD
 
     val proposedAssignmentForNewPartitions = replicaAssignment.getOrElse {
       val startIndex = math.max(0, allBrokers.indexWhere(_.id >= existingAssignmentPartition0.head))
@@ -305,6 +306,22 @@ object AdminUtils extends Logging with AdminUtilities {
     }
     proposedAssignment
 
+=======
+
+    val proposedAssignmentForNewPartitions = replicaAssignment.getOrElse {
+      val startIndex = math.max(0, allBrokers.indexWhere(_.id >= existingAssignmentPartition0.head))
+      AdminUtils.assignReplicasToBrokers(allBrokers, partitionsToAdd, existingAssignmentPartition0.size,
+        startIndex, existingAssignment.size)
+    }
+    val proposedAssignment = existingAssignment ++ proposedAssignmentForNewPartitions
+    if (!validateOnly) {
+      info(s"Creating $partitionsToAdd partitions for '$topic' with the following replica assignment: " +
+        s"$proposedAssignmentForNewPartitions.")
+      // add the combined new list
+      AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkUtils, topic, proposedAssignment, update = true)
+    }
+    proposedAssignment
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   /**
@@ -355,7 +372,11 @@ object AdminUtils extends Logging with AdminUtilities {
       val repFactors = sortedBadRepFactors.map { case (_, rf) => rf }
       throw new InvalidReplicaAssignmentException(s"Inconsistent replication factor between partitions, " +
         s"partition 0 has ${existingAssignmentPartition0.size} while partitions [${partitions.mkString(", ")}] have " +
+<<<<<<< HEAD
         s"replication factors [${repFactors.mkString(", ")}], respectively.")
+=======
+        s"replication factors [${repFactors.mkString(", ")}], respectively")
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
   }
 

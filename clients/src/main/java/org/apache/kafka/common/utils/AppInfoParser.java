@@ -55,7 +55,11 @@ public class AppInfoParser {
         return COMMIT_ID;
     }
 
+<<<<<<< HEAD
     public static synchronized void registerAppInfo(String prefix, String id, Metrics metrics) {
+=======
+    public static synchronized void registerAppInfo(String prefix, String id) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         try {
             ObjectName name = new ObjectName(prefix + ":type=app-info,id=" + Sanitizer.sanitize(id));
             AppInfo mBean = new AppInfo();
@@ -67,7 +71,11 @@ public class AppInfoParser {
         }
     }
 
+<<<<<<< HEAD
     public static synchronized void unregisterAppInfo(String prefix, String id, Metrics metrics) {
+=======
+    public static synchronized void unregisterAppInfo(String prefix, String id) {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         MBeanServer server = ManagementFactory.getPlatformMBeanServer();
         try {
             ObjectName name = new ObjectName(prefix + ":type=app-info,id=" + Sanitizer.sanitize(id));

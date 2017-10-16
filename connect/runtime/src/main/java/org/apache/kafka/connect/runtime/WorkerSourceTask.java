@@ -135,7 +135,10 @@ class WorkerSourceTask extends WorkerTask {
 
     @Override
     protected void releaseResources() {
+<<<<<<< HEAD
         sourceTaskMetricsGroup.close();
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Override
@@ -175,7 +178,10 @@ class WorkerSourceTask extends WorkerTask {
 
                 if (toSend == null) {
                     log.trace("{} Nothing to send to Kafka. Polling source for additional records", this);
+<<<<<<< HEAD
                     long start = time.milliseconds();
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     toSend = task.poll();
                     if (toSend != null) {
                         recordPollReturned(toSend.size(), time.milliseconds() - start);
@@ -206,7 +212,10 @@ class WorkerSourceTask extends WorkerTask {
     private boolean sendRecords() {
         int processed = 0;
         recordBatch(toSend.size());
+<<<<<<< HEAD
         final SourceRecordWriteCounter counter = new SourceRecordWriteCounter(toSend.size(), sourceTaskMetricsGroup);
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         for (final SourceRecord preTransformRecord : toSend) {
             final SourceRecord record = transformationChain.apply(preTransformRecord);
 

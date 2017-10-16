@@ -16,6 +16,11 @@
  */
 package org.apache.kafka.common.security.auth;
 
+<<<<<<< HEAD
+=======
+import org.apache.kafka.common.protocol.SecurityProtocol;
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import javax.security.sasl.SaslServer;
 import java.net.InetAddress;
 
@@ -35,8 +40,13 @@ public class SaslAuthenticationContext implements AuthenticationContext {
     }
 
     @Override
+<<<<<<< HEAD
     public SecurityProtocol securityProtocol() {
         return securityProtocol;
+=======
+    public String securityProtocolName() {
+        return securityProtocol.name;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Override

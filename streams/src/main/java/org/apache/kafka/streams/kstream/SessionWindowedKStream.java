@@ -16,7 +16,10 @@
  */
 package org.apache.kafka.streams.kstream;
 
+<<<<<<< HEAD
 import org.apache.kafka.common.serialization.Serdes;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
@@ -91,8 +94,12 @@ public interface SessionWindowedKStream<K, V> {
      * For non-local keys, a custom RPC mechanism must be implemented using {@link KafkaStreams#allMetadata()} to
      * query the value of the key on a parallel running instance of your Kafka Streams application.
      *
+<<<<<<< HEAD
      * @param materialized  an instance of {@link Materialized} used to materialize a state store. Cannot be {@code null}.
      *                      Note: the valueSerde will be automatically set to {@link Serdes#Long()} if there is no valueSerde provided
+=======
+     * @param materialized an instance of {@link Materialized} used to materialize a state store. Cannot be {@code null}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @return a windowed {@link KTable} that contains "update" records with unmodified keys and {@link Long} values
      * that represent the latest (rolling) count (i.e., number of records) for each key within a window
      */
@@ -127,6 +134,7 @@ public interface SessionWindowedKStream<K, V> {
      * @param initializer    the instance of {@link Initializer}
      * @param aggregator     the instance of {@link Aggregator}
      * @param sessionMerger  the instance of {@link Merger}
+<<<<<<< HEAD
      * @param <VR>            the value type of the resulting {@link KTable}
      * @return a windowed {@link KTable} that contains "update" records with unmodified keys, and values that represent
      * the latest (rolling) aggregate for each key within a window
@@ -134,6 +142,15 @@ public interface SessionWindowedKStream<K, V> {
     <VR> KTable<Windowed<K>, VR> aggregate(final Initializer<VR> initializer,
                                            final Aggregator<? super K, ? super V, VR> aggregator,
                                            final Merger<? super K, VR> sessionMerger);
+=======
+     * @param <T>           the value type of the resulting {@link KTable}
+     * @return a windowed {@link KTable} that contains "update" records with unmodified keys, and values that represent
+     * the latest (rolling) aggregate for each key within a window
+     */
+    <T> KTable<Windowed<K>, T> aggregate(final Initializer<T> initializer,
+                                         final Aggregator<? super K, ? super V, T> aggregator,
+                                         final Merger<? super K, T> sessionMerger);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     /**
      * Aggregate the values of records in this stream by the grouped key and defined {@link SessionWindows}.
@@ -222,10 +239,17 @@ public interface SessionWindowedKStream<K, V> {
      * <pre>{@code
      * // At the example of a Reducer<Long>
      * new Reducer<Long>() {
+<<<<<<< HEAD
      *   public Long apply(Long aggValue, Long currValue) {
      *     return aggValue + currValue;
      *   }
      * }
+=======
+     *   @Override
+     *   public Long apply(Long aggValue, Long currValue) {
+     *     return aggValue + currValue;
+     *   }
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * }</pre>
      * <p>
      * If there is no current aggregate the {@link Reducer} is not applied and the new aggregate will be the record's
@@ -260,8 +284,13 @@ public interface SessionWindowedKStream<K, V> {
      * {@link StreamsConfig#APPLICATION_ID_CONFIG APPLICATION_ID_CONFIG}, "queryableStoreName" is the
      * provide {@code queryableStoreName}, and "-changelog" is a fixed suffix.
      * You can retrieve all generated internal topic names via {@link KafkaStreams#toString()}.
+<<<<<<< HEAD
      * @param reducer a {@link Reducer} that computes a new aggregate result. Cannot be {@code null}.
      * @param materializedAs an instance of {@link Materialized} used to materialize a state store. Cannot be {@code null}
+=======
+     * @param reducer           a {@link Reducer} that computes a new aggregate result. Cannot be {@code null}.
+     * @param materialized     an instance of {@link Materialized} used to materialize a state store. Cannot be {@code null}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * @return a windowed {@link KTable} that contains "update" records with unmodified keys, and values that represent
      * the latest (rolling) aggregate for each key within a window
      */

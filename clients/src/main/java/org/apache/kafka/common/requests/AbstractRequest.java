@@ -39,6 +39,7 @@ public abstract class AbstractRequest extends AbstractRequestResponse {
             this(apiKey, apiKey.oldestVersion(), apiKey.latestVersion());
         }
 
+<<<<<<< HEAD
         /**
          * Construct a new builder which allows only a specific version
          */
@@ -49,6 +50,12 @@ public abstract class AbstractRequest extends AbstractRequestResponse {
         /**
          * Construct a new builder which allows an inclusive range of versions
          */
+=======
+        public Builder(ApiKeys apiKey, short desiredVersion) {
+            this(apiKey, desiredVersion, desiredVersion);
+        }
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         public Builder(ApiKeys apiKey, short oldestAllowedVersion, short latestAllowedVersion) {
             this.apiKey = apiKey;
             this.oldestAllowedVersion = oldestAllowedVersion;
@@ -122,6 +129,7 @@ public abstract class AbstractRequest extends AbstractRequestResponse {
     public abstract AbstractResponse getErrorResponse(int throttleTimeMs, Throwable e);
 
     /**
+<<<<<<< HEAD
      * Get the error counts corresponding to an error response. This is overridden for requests
      * where response may be null (e.g produce with acks=0).
      */
@@ -134,6 +142,8 @@ public abstract class AbstractRequest extends AbstractRequestResponse {
     }
 
     /**
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * Factory method for getting a request object based on ApiKey ID and a version
      */
     public static AbstractRequest parseRequest(ApiKeys apiKey, short apiVersion, Struct struct) {
@@ -206,8 +216,13 @@ public abstract class AbstractRequest extends AbstractRequestResponse {
                 return new DescribeConfigsRequest(struct, apiVersion);
             case ALTER_CONFIGS:
                 return new AlterConfigsRequest(struct, apiVersion);
+<<<<<<< HEAD
             case ALTER_REPLICA_LOG_DIRS:
                 return new AlterReplicaLogDirsRequest(struct, apiVersion);
+=======
+            case ALTER_REPLICA_DIR:
+                return new AlterReplicaDirRequest(struct, apiVersion);
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             case DESCRIBE_LOG_DIRS:
                 return new DescribeLogDirsRequest(struct, apiVersion);
             case SASL_AUTHENTICATE:

@@ -26,8 +26,13 @@ import kafka.common.KafkaException
 import org.junit.Assert._
 import org.junit.{After, Before, Test}
 import kafka.utils._
+<<<<<<< HEAD
 import kafka.server.{BrokerTopicStats, FetchDataInfo, KafkaConfig, LogDirFailureChannel}
 import kafka.server.epoch.{EpochEntry, LeaderEpochCache, LeaderEpochFileCache}
+=======
+import kafka.server.{BrokerTopicStats, KafkaConfig, LogDirFailureChannel}
+import kafka.server.epoch.{EpochEntry, LeaderEpochFileCache}
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.record.MemoryRecords.RecordFilter
 import org.apache.kafka.common.record.MemoryRecords.RecordFilter.BatchRetention
@@ -155,7 +160,11 @@ class LogTest {
     // simulate the upgrade path by creating a new log with several segments, deleting the
     // snapshot files, and then reloading the log
     val logConfig = createLogConfig(segmentBytes = 64 * 10)
+<<<<<<< HEAD
     var log = createLog(logDir, logConfig)
+=======
+    val log = createLog(logDir, logConfig)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     assertEquals(None, log.oldestProducerSnapshotOffset)
 
     for (i <- 0 to 100) {
@@ -206,6 +215,7 @@ class LogTest {
       log.appendAsLeader(TestUtils.records(List(record)), leaderEpoch = 0)
     }
 
+<<<<<<< HEAD
     assertTrue(log.logSegments.size >= 5)
     val segmentOffsets = log.logSegments.toVector.map(_.baseOffset)
     val activeSegmentOffset = segmentOffsets.last
@@ -252,6 +262,12 @@ class LogTest {
           super.addSegment(wrapper)
         }
       }
+=======
+    val reloadedLog = createLog(logDir, logConfig)
+    val expectedSnapshotsOffsets = log.logSegments.toSeq.reverse.take(2).map(_.baseOffset) ++ Seq(reloadedLog.logEndOffset)
+    expectedSnapshotsOffsets.foreach { offset =>
+      assertTrue(Log.producerSnapshotFile(logDir, offset).exists)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     // Retain snapshots for the last 2 segments
@@ -296,7 +312,24 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testProducerIdMapOffsetUpdatedForNonIdempotentData() {
+=======
+  def testSizeForLargeLogs(): Unit = {
+    val largeSize = Int.MaxValue.toLong * 2
+    val logSegment = EasyMock.createMock(classOf[LogSegment])
+
+    EasyMock.expect(logSegment.size).andReturn(Int.MaxValue).anyTimes
+    EasyMock.replay(logSegment)
+
+    assertEquals(Int.MaxValue, Log.sizeInBytes(Seq(logSegment)))
+    assertEquals(largeSize, Log.sizeInBytes(Seq(logSegment, logSegment)))
+    assertTrue(Log.sizeInBytes(Seq(logSegment, logSegment)) > Int.MaxValue)
+  }
+
+  @Test
+  def testPidMapOffsetUpdatedForNonIdempotentData() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val logConfig = createLogConfig(segmentBytes = 2048 * 5)
     val log = createLog(logDir, logConfig)
     val records = TestUtils.records(List(new SimpleRecord(mockTime.milliseconds, "key".getBytes, "value".getBytes)))
@@ -447,7 +480,11 @@ class LogTest {
       logDirFailureChannel = null)
 
     EasyMock.verify(stateManager)
+<<<<<<< HEAD
     Utils.delete(cleanShutdownFile)
+=======
+    cleanShutdownFile.delete()
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   @Test
@@ -483,11 +520,19 @@ class LogTest {
       logDirFailureChannel = null)
 
     EasyMock.verify(stateManager)
+<<<<<<< HEAD
     Utils.delete(cleanShutdownFile)
   }
 
   @Test
   def testRebuildProducerIdMapWithCompactedData() {
+=======
+    cleanShutdownFile.delete()
+  }
+
+  @Test
+  def testRebuildPidMapWithCompactedData() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val logConfig = createLogConfig(segmentBytes = 2048 * 5)
     val log = createLog(logDir, logConfig)
     val pid = 1L
@@ -524,6 +569,7 @@ class LogTest {
 
     val activeProducers = log.activeProducersWithLastSequence
     assertTrue(activeProducers.contains(pid))
+<<<<<<< HEAD
 
     val lastSeq = activeProducers(pid)
     assertEquals(3, lastSeq)
@@ -561,6 +607,45 @@ class LogTest {
     moreRecords.batches.asScala.foreach(_.setPartitionLeaderEpoch(0))
     log.appendAsFollower(moreRecords)
 
+=======
+
+    val lastSeq = activeProducers(pid)
+    assertEquals(3, lastSeq)
+  }
+
+  @Test
+  def testRebuildProducerStateWithEmptyCompactedBatch() {
+    val logConfig = createLogConfig(segmentBytes = 2048 * 5)
+    val log = createLog(logDir, logConfig)
+    val pid = 1L
+    val epoch = 0.toShort
+    val seq = 0
+    val baseOffset = 23L
+
+    // create an empty batch
+    val records = TestUtils.records(producerId = pid, producerEpoch = epoch, sequence = seq, baseOffset = baseOffset, records = List(
+      new SimpleRecord(System.currentTimeMillis(), "key".getBytes, "a".getBytes),
+      new SimpleRecord(System.currentTimeMillis(), "key".getBytes, "b".getBytes)))
+    records.batches.asScala.foreach(_.setPartitionLeaderEpoch(0))
+
+    val filtered = ByteBuffer.allocate(2048)
+    records.filterTo(new TopicPartition("foo", 0), new RecordFilter {
+      override def checkBatchRetention(batch: RecordBatch): BatchRetention = RecordFilter.BatchRetention.RETAIN_EMPTY
+      override def shouldRetainRecord(recordBatch: RecordBatch, record: Record): Boolean = false
+    }, filtered, Int.MaxValue, BufferSupplier.NO_CACHING)
+    filtered.flip()
+    val filteredRecords = MemoryRecords.readableRecords(filtered)
+
+    log.appendAsFollower(filteredRecords)
+
+    // append some more data and then truncate to force rebuilding of the PID map
+    val moreRecords = TestUtils.records(baseOffset = baseOffset + 2, records = List(
+      new SimpleRecord(System.currentTimeMillis(), "e".getBytes),
+      new SimpleRecord(System.currentTimeMillis(), "f".getBytes)))
+    moreRecords.batches.asScala.foreach(_.setPartitionLeaderEpoch(0))
+    log.appendAsFollower(moreRecords)
+
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     log.truncateTo(baseOffset + 2)
 
     val activeProducers = log.activeProducersWithLastSequence
@@ -571,7 +656,11 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testUpdateProducerIdMapWithCompactedData() {
+=======
+  def testUpdatePidMapWithCompactedData() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val logConfig = createLogConfig(segmentBytes = 2048 * 5)
     val log = createLog(logDir, logConfig)
     val pid = 1L
@@ -604,7 +693,11 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testProducerIdMapTruncateTo() {
+=======
+  def testPidMapTruncateTo() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val logConfig = createLogConfig(segmentBytes = 2048 * 5)
     val log = createLog(logDir, logConfig)
     log.appendAsLeader(TestUtils.records(List(new SimpleRecord("a".getBytes))), leaderEpoch = 0)
@@ -624,7 +717,11 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testProducerIdMapTruncateToWithNoSnapshots() {
+=======
+  def testPidMapTruncateToWithNoSnapshots() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     // This ensures that the upgrade optimization path cannot be hit after initial loading
     val logConfig = createLogConfig(segmentBytes = 2048 * 5)
     val log = createLog(logDir, logConfig)
@@ -636,7 +733,14 @@ class LogTest {
     log.appendAsLeader(TestUtils.records(List(new SimpleRecord("b".getBytes)), producerId = pid,
       producerEpoch = epoch, sequence = 1), leaderEpoch = 0)
 
+<<<<<<< HEAD
     deleteProducerSnapshotFiles()
+=======
+    // Delete all snapshots prior to truncating
+    logDir.listFiles.filter(f => f.isFile && f.getName.endsWith(Log.PidSnapshotFileSuffix)).foreach { file =>
+      Files.delete(file.toPath)
+    }
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     log.truncateTo(1L)
     assertEquals(1, log.activeProducersWithLastSequence.size)
@@ -713,7 +817,11 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testProducerIdMapTruncateFullyAndStartAt() {
+=======
+  def testPidMapTruncateFullyAndStartAt() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val records = TestUtils.singletonRecords("foo".getBytes)
     val logConfig = createLogConfig(segmentBytes = records.sizeInBytes, retentionBytes = records.sizeInBytes * 2)
     val log = createLog(logDir, logConfig)
@@ -761,7 +869,11 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testTakeSnapshotOnRollAndDeleteSnapshotOnRecoveryPointCheckpoint() {
+=======
+  def testTakeSnapshotOnRollAndDeleteSnapshotOnFlush() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val logConfig = createLogConfig(segmentBytes = 2048 * 5)
     val log = createLog(logDir, logConfig)
     log.appendAsLeader(TestUtils.singletonRecords("a".getBytes), leaderEpoch = 0)
@@ -832,7 +944,11 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testPeriodicProducerIdExpiration() {
+=======
+  def testPeriodicPidExpiration() {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val maxProducerIdExpirationMs = 200
     val producerIdExpirationCheckIntervalMs = 100
 
@@ -927,7 +1043,11 @@ class LogTest {
   }
 
   @Test
+<<<<<<< HEAD
   def testMultipleProducerIdsPerMemoryRecord() : Unit = {
+=======
+  def testMultiplePidsPerMemoryRecord() : Unit = {
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     // create a log
     val log = createLog(logDir, LogConfig())
 
@@ -972,7 +1092,11 @@ class LogTest {
     }
   }
 
+<<<<<<< HEAD
   @Test
+=======
+  @Test(expected = classOf[DuplicateSequenceException])
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   def testDuplicateAppendToFollower() : Unit = {
     val logConfig = createLogConfig(segmentBytes = 1024 * 1024 * 5)
     val log = createLog(logDir, logConfig)
@@ -993,7 +1117,11 @@ class LogTest {
     assertEquals(4L, log.logEndOffset)
   }
 
+<<<<<<< HEAD
   @Test
+=======
+  @Test(expected = classOf[DuplicateSequenceException])
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   def testMultipleProducersWithDuplicatesInSingleAppend() : Unit = {
     val logConfig = createLogConfig(segmentBytes = 1024 * 1024 * 5)
     val log = createLog(logDir, logConfig)
@@ -1179,6 +1307,7 @@ class LogTest {
 
     assertEquals("A read should now return the last message in the log", log.logEndOffset - 1,
       log.readUncommitted(1, 200, None).records.batches.iterator.next().lastOffset)
+<<<<<<< HEAD
   }
 
   @Test(expected = classOf[KafkaStorageException])
@@ -1187,6 +1316,8 @@ class LogTest {
     val log = createLog(logDir,  logConfig)
     log.closeHandlers()
     log.roll(1)
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   @Test
@@ -1497,12 +1628,20 @@ class LogTest {
     }
 
     log = createLog(logDir, logConfig, recoveryPoint = lastOffset)
+<<<<<<< HEAD
     verifyRecoveredLog(log, lastOffset)
+=======
+    verifyRecoveredLog(log)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     log.close()
 
     // test recovery case
     log = createLog(logDir, logConfig)
+<<<<<<< HEAD
     verifyRecoveredLog(log, lastOffset)
+=======
+    verifyRecoveredLog(log)
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     log.close()
   }
 
@@ -3039,6 +3178,7 @@ class LogTest {
     assertTrue(".kafka_cleanshutdown must exist", cleanShutdownFile.exists())
     cleanShutdownFile
   }
+<<<<<<< HEAD
 
   private def deleteProducerSnapshotFiles(): Unit = {
     val files = logDir.listFiles.filter(f => f.isFile && f.getName.endsWith(Log.ProducerSnapshotFileSuffix))
@@ -3048,4 +3188,6 @@ class LogTest {
   private def listProducerSnapshotOffsets: Seq[Long] =
     ProducerStateManager.listSnapshotFiles(logDir).map(Log.offsetFromFile).sorted
 
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 }

@@ -37,7 +37,11 @@ public interface ChangelogReader {
      * Restore all registered state stores by reading from their changelogs.
      * @return all topic partitions that have been restored
      */
+<<<<<<< HEAD
     Collection<TopicPartition> restore(final RestoringTasks active);
+=======
+    Collection<TopicPartition> restore();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     /**
      * @return the restored offsets for all persistent stores.

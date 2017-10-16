@@ -25,8 +25,14 @@ import java.net.InetAddress;
 public interface AuthenticationContext {
     /**
      * Underlying security protocol of the authentication session.
+<<<<<<< HEAD
      */
     SecurityProtocol securityProtocol();
+=======
+     * @return The name of the security protocol (i.e. PLAINTEXT, SASL_PLAINTEXT, SASL_SSL, SSL)
+     */
+    String securityProtocolName();
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     /**
      * Address of the authenticated client

@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.common.network;
 
+<<<<<<< HEAD
 import static org.junit.Assert.assertEquals;
 
 import org.apache.kafka.common.MetricName;
@@ -23,13 +24,21 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+=======
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.protocol.SecurityProtocol;
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.security.authenticator.CredentialCache;
 import org.apache.kafka.common.security.scram.ScramCredentialUtils;
 import org.apache.kafka.common.security.scram.ScramMechanism;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.MockTime;
+<<<<<<< HEAD
 import org.apache.kafka.test.TestCondition;
 import org.apache.kafka.test.TestUtils;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -42,7 +51,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+<<<<<<< HEAD
 import java.util.Map;
+=======
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 /**
  * Non-blocking EchoServer implementation that uses ChannelBuilder to create channels
@@ -78,8 +90,12 @@ public class NioEchoServer extends Thread {
             ScramCredentialUtils.createCache(credentialCache, ScramMechanism.mechanismNames());
         if (channelBuilder == null)
             channelBuilder = ChannelBuilders.serverChannelBuilder(listenerName, securityProtocol, config, credentialCache);
+<<<<<<< HEAD
         this.metrics = new Metrics();
         this.selector = new Selector(5000, metrics, new MockTime(), "MetricGroup", channelBuilder, new LogContext());
+=======
+        this.selector = new Selector(5000, new Metrics(), new MockTime(), "MetricGroup", channelBuilder, new LogContext());
+>>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         acceptorThread = new AcceptorThread();
     }
 
