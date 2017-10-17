@@ -17,10 +17,7 @@
 package org.apache.kafka.connect.runtime;
 
 import org.apache.kafka.common.MetricName;
-<<<<<<< HEAD
 import org.apache.kafka.common.MetricNameTemplate;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Sensor;
@@ -29,11 +26,7 @@ import org.apache.kafka.common.metrics.stats.Frequencies;
 import org.apache.kafka.common.metrics.stats.Max;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.connect.runtime.AbstractStatus.State;
-<<<<<<< HEAD
 import org.apache.kafka.connect.runtime.ConnectMetrics.LiteralSupplier;
-=======
-import org.apache.kafka.connect.runtime.ConnectMetrics.IndicatorPredicate;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.connect.runtime.ConnectMetrics.MetricGroup;
 import org.apache.kafka.connect.runtime.isolation.Plugins;
 import org.apache.kafka.connect.util.ConnectorTaskId;
@@ -316,7 +309,6 @@ abstract class WorkerTask implements Runnable {
             delegateListener = statusListener;
             time = connectMetrics.time();
             taskStateTimer = new StateTracker();
-<<<<<<< HEAD
             ConnectMetricsRegistry registry = connectMetrics.registry();
             metricGroup = connectMetrics.group(registry.taskGroupName(),
                     registry.connectorTagName(), id.connector(),
@@ -342,68 +334,13 @@ abstract class WorkerTask implements Runnable {
 
             MetricName offsetCommitFailures = metricGroup.metricName(registry.taskCommitFailurePercentage);
             MetricName offsetCommitSucceeds = metricGroup.metricName(registry.taskCommitSuccessPercentage);
-=======
-            metricGroup = connectMetrics.group("connector-tasks",
-                    "connector", id.connector(), "task", Integer.toString(id.task()));
-
-            addTaskStateMetric(State.UNASSIGNED, "status-unassigned",
-                    "Signals whether the connector task is in the unassigned state.");
-            addTaskStateMetric(State.RUNNING, "status-running",
-                    "Signals whether the connector task is in the running state.");
-            addTaskStateMetric(State.PAUSED, "status-paused",
-                    "Signals whether the connector task is in the paused state.");
-            addTaskStateMetric(State.FAILED, "status-failed",
-                    "Signals whether the connector task is in the failed state.");
-            addTaskStateMetric(State.DESTROYED, "status-destroyed",
-                    "Signals whether the connector task is in the destroyed state.");
-
-            addRatioMetric(State.RUNNING, "running-ratio",
-                    "The fraction of time this task has spent in the running state.");
-            addRatioMetric(State.PAUSED, "pause-ratio",
-                    "The fraction of time this task has spent in the paused state.");
-
-            commitTime = metricGroup.sensor("commit-time");
-            commitTime.add(metricGroup.metricName("offset-commit-max-time-ms",
-                    "The maximum time in milliseconds taken by this task to commit offsets"),
-                    new Max());
-            commitTime.add(metricGroup.metricName("offset-commit-avg-time-ms",
-                    "The average time in milliseconds taken by this task to commit offsets"),
-                    new Avg());
-
-            batchSize = metricGroup.sensor("batch-size");
-            batchSize.add(metricGroup.metricName("batch-size-max",
-                    "The maximum size of the batches processed by the connector"),
-                    new Max());
-            batchSize.add(metricGroup.metricName("batch-size-avg",
-                    "The average size of the batches processed by the connector"),
-                    new Avg());
-
-            MetricName offsetCommitFailures = metricGroup.metricName("offset-commit-failure-percentage",
-                    "The average percentage of this task's offset commit attempts that failed");
-            MetricName offsetCommitSucceeds = metricGroup.metricName("offset-commit-success-percentage",
-                    "The average percentage of this task's offset commit attempts that failed");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             Frequencies commitFrequencies = Frequencies.forBooleanValues(offsetCommitFailures, offsetCommitSucceeds);
             commitAttempts = metricGroup.sensor("offset-commit-completion");
             commitAttempts.add(commitFrequencies);
         }
 
-<<<<<<< HEAD
         private void addRatioMetric(final State matchingState, MetricNameTemplate template) {
             MetricName metricName = metricGroup.metricName(template);
-=======
-        private void addTaskStateMetric(final State matchingState, String name, String description) {
-            metricGroup.addIndicatorMetric(name, description, new IndicatorPredicate() {
-                @Override
-                public boolean matches() {
-                    return matchingState == taskStateTimer.currentState();
-                }
-            });
-        }
-
-        private void addRatioMetric(final State matchingState, String name, String description) {
-            MetricName metricName = metricGroup.metricName(name, description);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             if (metricGroup.metrics().metric(metricName) == null) {
                 metricGroup.metrics().addMetric(metricName, new Measurable() {
                     @Override
@@ -478,14 +415,8 @@ abstract class WorkerTask implements Runnable {
             return taskStateTimer.currentState();
         }
 
-<<<<<<< HEAD
         protected MetricGroup metricGroup() {
             return metricGroup;
-=======
-        double currentMetricValue(String name) {
-            MetricName metricName = metricGroup.metricName(name, "desc");
-            return metricGroup.metrics().metric(metricName).value();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 }

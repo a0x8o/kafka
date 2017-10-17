@@ -73,7 +73,6 @@ private[log] case class TxnMetadata(producerId: Long, var firstOffset: LogOffset
 private[log] object ProducerIdEntry {
   private[log] val NumBatchesToRetain = 5
   def empty(producerId: Long) = new ProducerIdEntry(producerId, mutable.Queue[BatchMetadata](), RecordBatch.NO_PRODUCER_EPOCH, -1, None)
-<<<<<<< HEAD
 }
 
 private[log] case class BatchMetadata(lastSeq: Int, lastOffset: Long, offsetDelta: Int, timestamp: Long) {
@@ -90,24 +89,6 @@ private[log] case class BatchMetadata(lastSeq: Int, lastOffset: Long, offsetDelt
   }
 }
 
-=======
-}
-
-private[log] case class BatchMetadata(lastSeq: Int, lastOffset: Long, offsetDelta: Int, timestamp: Long) {
-  def firstSeq = lastSeq - offsetDelta
-  def firstOffset = lastOffset - offsetDelta
-
-  override def toString: String = {
-    "BatchMetadata(" +
-      s"firstSeq=$firstSeq, " +
-      s"lastSeq=$lastSeq, " +
-      s"firstOffset=$firstOffset, " +
-      s"lastOffset=$lastOffset, " +
-      s"timestamp=$timestamp)"
-  }
-}
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 // the batchMetadata is ordered such that the batch with the lowest sequence is at the head of the queue while the
 // batch with the highest sequence is at the tail of the queue. We will retain at most ProducerIdEntry.NumBatchesToRetain
 // elements in the queue. When the queue is at capacity, we remove the first element to make space for the incoming batch.
@@ -180,7 +161,6 @@ private[log] class ProducerIdEntry(val producerId: Long, val batchMetadata: muta
  *                      the most recent appends made by the producer. Validation of the first incoming append will
  *                      be made against the lastest append in the current entry. New appends will replace older appends
  *                      in the current entry so that the space overhead is constant.
-<<<<<<< HEAD
  * @param validationType Indicates the extent of validation to perform on the appends on this instance. Offset commits
  *                       coming from the producer should have ValidationType.EpochOnly. Appends which aren't from a client
  *                       should have ValidationType.None. Appends coming from a client for produce requests should have
@@ -222,50 +202,6 @@ private[log] class ProducerAppendInfo(val producerId: Long,
           throw new UnknownProducerIdException(s"Found no record of producerId=$producerId on the broker. It is possible " +
             s"that the last message with the producerId=$producerId has been removed due to hitting the retention limit.")
         }
-=======
- * @param validateSequenceNumbers Whether or not sequence numbers should be validated. The only current use
- *                                of this is the consumer offsets topic which uses producer ids from incoming
- *                                TxnOffsetCommit, but has no sequence number to validate and does not depend
- *                                on the deduplication which sequence numbers provide.
- * @param loadingFromLog This parameter indicates whether the new append is being loaded directly from the log.
- *                       This is used to repopulate producer state when the broker is initialized. The only
- *                       difference in behavior is that we do not validate the sequence number of the first append
- *                       since we may have lost previous sequence numbers when segments were removed due to log
- *                       retention enforcement.
- */
-private[log] class ProducerAppendInfo(val producerId: Long,
-                                      currentEntry: ProducerIdEntry,
-                                      validateSequenceNumbers: Boolean,
-                                      loadingFromLog: Boolean) {
-
-  private val transactions = ListBuffer.empty[TxnMetadata]
-
-  private def validateAppend(producerEpoch: Short, firstSeq: Int, lastSeq: Int) = {
-    if (isFenced(producerEpoch)) {
-      throw new ProducerFencedException(s"Producer's epoch is no longer valid. There is probably another producer " +
-        s"with a newer epoch. $producerEpoch (request epoch), ${currentEntry.producerEpoch} (server epoch)")
-    } else if (validateSequenceNumbers) {
-      if (producerEpoch != currentEntry.producerEpoch) {
-        if (firstSeq != 0) {
-          if (currentEntry.producerEpoch != RecordBatch.NO_PRODUCER_EPOCH) {
-            throw new OutOfOrderSequenceException(s"Invalid sequence number for new epoch: $producerEpoch " +
-              s"(request epoch), $firstSeq (seq. number)")
-          } else {
-            throw new UnknownProducerIdException(s"Found no record of producerId=$producerId on the broker. It is possible " +
-              s"that the last message with the producerId=$producerId has been removed due to hitting the retention limit.")
-          }
-        }
-      } else if (currentEntry.lastSeq == RecordBatch.NO_SEQUENCE && firstSeq != 0) {
-        // the epoch was bumped by a control record, so we expect the sequence number to be reset
-        throw new OutOfOrderSequenceException(s"Out of order sequence number for producerId $producerId: found $firstSeq " +
-          s"(incoming seq. number), but expected 0")
-      } else if (isDuplicate(firstSeq, lastSeq)) {
-        throw new DuplicateSequenceException(s"Duplicate sequence number for producerId $producerId: (incomingBatch.firstSeq, " +
-          s"incomingBatch.lastSeq): ($firstSeq, $lastSeq).")
-      } else if (!inSequence(firstSeq, lastSeq)) {
-        throw new OutOfOrderSequenceException(s"Out of order sequence number for producerId $producerId: $firstSeq " +
-          s"(incoming seq. number), ${currentEntry.lastSeq} (current end sequence number)")
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       }
     } else if (currentEntry.lastSeq == RecordBatch.NO_SEQUENCE && firstSeq != 0) {
       // the epoch was bumped by a control record, so we expect the sequence number to be reset
@@ -312,14 +248,7 @@ private[log] class ProducerAppendInfo(val producerId: Long,
              lastTimestamp: Long,
              lastOffset: Long,
              isTransactional: Boolean): Unit = {
-<<<<<<< HEAD
     maybeValidateAppend(epoch, firstSeq, lastSeq)
-=======
-    if (epoch != RecordBatch.NO_PRODUCER_EPOCH && !loadingFromLog)
-      // skip validation if this is the first entry when loading from the log. Log retention
-      // will generally have removed the beginning entries from each producer id
-      validateAppend(epoch, firstSeq, lastSeq)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     currentEntry.addBatchMetadata(epoch, lastSeq, lastOffset, lastSeq - firstSeq, lastTimestamp)
 
@@ -597,11 +526,7 @@ class ProducerStateManager(val topicPartition: TopicPartition,
               isProducerRetained(producerEntry, logStartOffset) && !isProducerExpired(currentTime, producerEntry)
             }
             loadedProducers.foreach(loadProducerEntry)
-<<<<<<< HEAD
             lastSnapOffset = offsetFromFile(file)
-=======
-            lastSnapOffset = offsetFromFilename(file.getName)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             lastMapOffset = lastSnapOffset
             return
           } catch {
@@ -645,15 +570,9 @@ class ProducerStateManager(val topicPartition: TopicPartition,
    */
   def truncateAndReload(logStartOffset: Long, logEndOffset: Long, currentTimeMs: Long) {
     // remove all out of range snapshots
-<<<<<<< HEAD
     deleteSnapshotFiles(logDir, { snapOffset =>
       snapOffset > logEndOffset || snapOffset <= logStartOffset
     })
-=======
-    deleteSnapshotFiles { snapOffset =>
-      snapOffset > logEndOffset || snapOffset <= logStartOffset
-    }
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     if (logEndOffset != mapEndOffset) {
       producers.clear()
@@ -668,7 +587,6 @@ class ProducerStateManager(val topicPartition: TopicPartition,
     }
   }
 
-<<<<<<< HEAD
   def prepareUpdate(producerId: Long, isFromClient: Boolean): ProducerAppendInfo = {
     val validationToPerform =
       if (!isFromClient)
@@ -680,11 +598,6 @@ class ProducerStateManager(val topicPartition: TopicPartition,
 
     new ProducerAppendInfo(producerId, lastEntry(producerId).getOrElse(ProducerIdEntry.empty(producerId)), validationToPerform)
   }
-=======
-  def prepareUpdate(producerId: Long, loadingFromLog: Boolean): ProducerAppendInfo =
-    new ProducerAppendInfo(producerId, lastEntry(producerId).getOrElse(ProducerIdEntry.empty(producerId)), validateSequenceNumbers,
-      loadingFromLog)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   /**
    * Update the mapping with the given append information
@@ -735,11 +648,6 @@ class ProducerStateManager(val topicPartition: TopicPartition,
    * Get the last offset (exclusive) of the oldest snapshot file.
    */
   def oldestSnapshotOffset: Option[Long] = oldestSnapshotFile.map(file => offsetFromFile(file))
-
-  private def isProducerRetained(producerIdEntry: ProducerIdEntry, logStartOffset: Long): Boolean = {
-    producerIdEntry.removeBatchesOlderThan(logStartOffset)
-    producerIdEntry.lastDataOffset >= logStartOffset
-  }
 
   private def isProducerRetained(producerIdEntry: ProducerIdEntry, logStartOffset: Long): Boolean = {
     producerIdEntry.removeBatchesOlderThan(logStartOffset)
@@ -819,24 +727,7 @@ class ProducerStateManager(val topicPartition: TopicPartition,
   }
 
   @threadsafe
-<<<<<<< HEAD
   def deleteSnapshotsBefore(offset: Long): Unit = ProducerStateManager.deleteSnapshotsBefore(logDir, offset)
-=======
-  def deleteSnapshotsBefore(offset: Long): Unit = {
-    deleteSnapshotFiles(_ < offset)
-  }
-
-  private def listSnapshotFiles: List[File] = {
-    if (logDir.exists && logDir.isDirectory) {
-      val files = logDir.listFiles
-      if (files != null)
-        files.filter(f => f.isFile && isSnapshotFile(f.getName)).toList
-      else
-        List.empty[File]
-    } else
-      List.empty[File]
-  }
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   private def oldestSnapshotFile: Option[File] = {
     val files = listSnapshotFiles
@@ -854,13 +745,6 @@ class ProducerStateManager(val topicPartition: TopicPartition,
       None
   }
 
-<<<<<<< HEAD
   private def listSnapshotFiles: Seq[File] = ProducerStateManager.listSnapshotFiles(logDir)
-=======
-  private def deleteSnapshotFiles(predicate: Long => Boolean = _ => true) {
-    listSnapshotFiles.filter(file => predicate(offsetFromFilename(file.getName)))
-      .foreach(file => Files.deleteIfExists(file.toPath))
-  }
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 }

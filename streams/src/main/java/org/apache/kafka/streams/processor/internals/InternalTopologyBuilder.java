@@ -23,10 +23,6 @@ import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.errors.TopologyException;
 import org.apache.kafka.streams.processor.ProcessorSupplier;
 import org.apache.kafka.streams.processor.StateStore;
-<<<<<<< HEAD
-=======
-import org.apache.kafka.streams.processor.StateStoreSupplier;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.StreamPartitioner;
 import org.apache.kafka.streams.processor.TimestampExtractor;
 import org.apache.kafka.streams.processor.internals.StreamPartitionAssignor.SubscriptionUpdates;
@@ -181,17 +177,11 @@ public class InternalTopologyBuilder {
     }
 
     private static class StateStoreSupplierFactory extends AbstractStateStoreFactory {
-<<<<<<< HEAD
         @SuppressWarnings("deprecation")
         private final org.apache.kafka.streams.processor.StateStoreSupplier supplier;
 
         @SuppressWarnings("deprecation")
         StateStoreSupplierFactory(final org.apache.kafka.streams.processor.StateStoreSupplier<?> supplier) {
-=======
-        private final StateStoreSupplier supplier;
-
-        StateStoreSupplierFactory(final StateStoreSupplier<?> supplier) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             super(supplier.name(),
                   supplier.loggingEnabled(),
                   supplier instanceof WindowStoreSupplier,
@@ -205,10 +195,7 @@ public class InternalTopologyBuilder {
             return supplier.get();
         }
 
-<<<<<<< HEAD
         @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         @Override
         public long retentionPeriod() {
             if (!isWindowStore()) {
@@ -510,12 +497,8 @@ public class InternalTopologyBuilder {
         nodeGrouper.unite(name, predecessorNames);
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
     public final void addStateStore(final org.apache.kafka.streams.processor.StateStoreSupplier supplier,
-=======
-    public final void addStateStore(final StateStoreSupplier supplier,
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                     final String... processorNames) {
         Objects.requireNonNull(supplier, "supplier can't be null");
         if (stateFactories.containsKey(supplier.name())) {
@@ -547,12 +530,8 @@ public class InternalTopologyBuilder {
         }
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
     public final void addGlobalStore(final org.apache.kafka.streams.processor.StateStoreSupplier<KeyValueStore> storeSupplier,
-=======
-    public final void addGlobalStore(final StateStoreSupplier<KeyValueStore> storeSupplier,
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                      final String sourceName,
                                      final TimestampExtractor timestampExtractor,
                                      final Deserializer keyDeserializer,
@@ -946,10 +925,7 @@ public class InternalTopologyBuilder {
         return new ProcessorTopology(processorNodes, topicSourceMap, topicSinkMap, new ArrayList<>(stateStoreMap.values()), storeToChangelogTopic, new ArrayList<>(globalStateStores.values()));
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("unchecked")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private void buildSinkNode(final Map<String, ProcessorNode> processorMap,
                                final Map<String, SinkNode> topicSinkMap,
                                final SinkNodeFactory sinkNodeFactory,
@@ -1641,13 +1617,8 @@ public class InternalTopologyBuilder {
             return Collections.unmodifiableSet(nodes);
         }
 
-<<<<<<< HEAD
         // visible for testing
         Iterator<TopologyDescription.Node> nodesInOrder() {
-=======
-        // only for testing
-        public Iterator<TopologyDescription.Node> nodesInOrder() {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             return nodes.iterator();
         }
 

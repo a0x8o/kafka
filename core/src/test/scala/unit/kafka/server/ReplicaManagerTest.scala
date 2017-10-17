@@ -47,13 +47,8 @@ class ReplicaManagerTest {
   val topic = "test-topic"
   val time = new MockTime
   val metrics = new Metrics
-<<<<<<< HEAD
   var zkClient: ZkClient = _
   var zkUtils: ZkUtils = _
-=======
-  var zkClient : ZkClient = _
-  var zkUtils : ZkUtils = _
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   @Before
   def setUp() {
@@ -138,11 +133,7 @@ class ReplicaManagerTest {
     props.put("log.dir", TestUtils.tempRelativeDir("data").getAbsolutePath)
     val config = KafkaConfig.fromProps(props)
     val logProps = new Properties()
-<<<<<<< HEAD
     val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)), LogConfig(logProps))
-=======
-    val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)).toArray, LogConfig(logProps))
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val aliveBrokers = Seq(createBroker(0, "host0", 0), createBroker(1, "host1", 1))
     val metadataCache = EasyMock.createMock(classOf[MetadataCache])
     EasyMock.expect(metadataCache.getAliveBrokers).andReturn(aliveBrokers).anyTimes()
@@ -322,77 +313,10 @@ class ReplicaManagerTest {
       assertEquals(numRecords + 1, fetchData.records.batches.asScala.size)
     } finally {
       replicaManager.shutdown(checkpointHW = false)
-<<<<<<< HEAD
-=======
     }
   }
 
   @Test
-  def testDelayedFetchIncludesAbortedTransactions(): Unit = {
-    val timer = new MockTimer
-    val replicaManager = setupReplicaManagerWithMockedPurgatories(timer)
-
-    try {
-      val brokerList: java.util.List[Integer] = Seq[Integer](0, 1).asJava
-      val partition = replicaManager.getOrCreatePartition(new TopicPartition(topic, 0))
-      partition.getOrCreateReplica(0)
-
-      // Make this replica the leader.
-      val leaderAndIsrRequest1 = new LeaderAndIsrRequest.Builder(ApiKeys.LEADER_AND_ISR.latestVersion, 0, 0,
-        collection.immutable.Map(new TopicPartition(topic, 0) -> new LeaderAndIsrRequest.PartitionState(0, 0, 0, brokerList, 0, brokerList, true)).asJava,
-        Set(new Node(0, "host1", 0), new Node(1, "host2", 1)).asJava).build()
-      replicaManager.becomeLeaderOrFollower(0, leaderAndIsrRequest1, (_, _) => ())
-      replicaManager.getLeaderReplicaIfLocal(new TopicPartition(topic, 0))
-
-      val producerId = 234L
-      val epoch = 5.toShort
-
-      // write a few batches as part of a transaction
-      val numRecords = 3
-      for (sequence <- 0 until numRecords) {
-        val records = MemoryRecords.withTransactionalRecords(CompressionType.NONE, producerId, epoch, sequence,
-          new SimpleRecord(s"message $sequence".getBytes))
-        appendRecords(replicaManager, new TopicPartition(topic, 0), records).onFire { response =>
-          assertEquals(Errors.NONE, response.error)
-        }
-      }
-
-      // now abort the transaction
-      val endTxnMarker = new EndTransactionMarker(ControlRecordType.ABORT, 0)
-      val abortRecordBatch = MemoryRecords.withEndTransactionMarker(producerId, epoch, endTxnMarker)
-      appendRecords(replicaManager, new TopicPartition(topic, 0), abortRecordBatch, isFromClient = false)
-        .onFire { response => assertEquals(Errors.NONE, response.error) }
-
-      // fetch as follower to advance the high watermark
-      fetchAsFollower(replicaManager, new TopicPartition(topic, 0), new PartitionData(numRecords + 1, 0, 100000),
-        isolationLevel = IsolationLevel.READ_UNCOMMITTED)
-
-      // Set the minBytes in order force this request to enter purgatory. When it returns, we should still
-      // see the newly aborted transaction.
-      val fetchResult = fetchAsConsumer(replicaManager, new TopicPartition(topic, 0), new PartitionData(0, 0, 100000),
-        isolationLevel = IsolationLevel.READ_COMMITTED, minBytes = 10000)
-      assertFalse(fetchResult.isFired)
-
-      timer.advanceClock(1001)
-      val fetchData = fetchResult.assertFired
-
-      assertEquals(Errors.NONE, fetchData.error)
-      assertEquals(Some(numRecords + 1), fetchData.lastStableOffset)
-      assertEquals(numRecords + 1, fetchData.records.records.asScala.size)
-      assertTrue(fetchData.abortedTransactions.isDefined)
-      assertEquals(1, fetchData.abortedTransactions.get.size)
-
-      val abortedTransaction = fetchData.abortedTransactions.get.head
-      assertEquals(0L, abortedTransaction.firstOffset)
-      assertEquals(producerId, abortedTransaction.producerId)
-    } finally {
-      replicaManager.shutdown(checkpointHW = false)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
-    }
-  }
-
-  @Test
-<<<<<<< HEAD
   def testDelayedFetchIncludesAbortedTransactions(): Unit = {
     val timer = new MockTimer
     val replicaManager = setupReplicaManagerWithMockedPurgatories(timer)
@@ -459,27 +383,6 @@ class ReplicaManagerTest {
   def testFetchBeyondHighWatermarkReturnEmptyResponse() {
     val rm = setupReplicaManagerWithMockedPurgatories(new MockTimer, aliveBrokerIds = Seq(0, 1, 2))
     try {
-=======
-  def testFetchBeyondHighWatermarkReturnEmptyResponse() {
-    val props = TestUtils.createBrokerConfig(1, TestUtils.MockZkConnect)
-    props.put("log.dir", TestUtils.tempRelativeDir("data").getAbsolutePath)
-    props.put("broker.id", Int.box(0))
-    val config = KafkaConfig.fromProps(props)
-    val logProps = new Properties()
-    val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)).toArray, LogConfig(logProps))
-    val aliveBrokers = Seq(createBroker(0, "host0", 0), createBroker(1, "host1", 1), createBroker(1, "host2", 2))
-    val metadataCache = EasyMock.createMock(classOf[MetadataCache])
-    EasyMock.expect(metadataCache.getAliveBrokers).andReturn(aliveBrokers).anyTimes()
-    EasyMock.expect(metadataCache.isBrokerAlive(EasyMock.eq(0))).andReturn(true).anyTimes()
-    EasyMock.expect(metadataCache.isBrokerAlive(EasyMock.eq(1))).andReturn(true).anyTimes()
-    EasyMock.expect(metadataCache.isBrokerAlive(EasyMock.eq(2))).andReturn(true).anyTimes()
-    EasyMock.replay(metadataCache)
-    val rm = new ReplicaManager(config, metrics, time, zkUtils, new MockScheduler(time), mockLogMgr,
-      new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time).follower, new BrokerTopicStats,
-      metadataCache, new LogDirFailureChannel(config.logDirs.size), Option(this.getClass.getName))
-
-    try {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       val brokerList = Seq[Integer](0, 1, 2).asJava
 
       val partition = rm.getOrCreatePartition(new TopicPartition(topic, 0))
@@ -511,7 +414,6 @@ class ReplicaManagerTest {
       val consumerFetchData = consumerFetchResult.assertFired
       assertEquals("Should not give an exception", Errors.NONE, consumerFetchData.error)
       assertEquals("Should return empty response", MemoryRecords.EMPTY, consumerFetchData.records)
-<<<<<<< HEAD
     } finally {
       rm.shutdown(checkpointHW = false)
     }
@@ -592,8 +494,6 @@ class ReplicaManagerTest {
       assertTrue(tp1Replica.isDefined)
       assertEquals("hw should not be incremented", 0, tp1Replica.get.highWatermark.messageOffset)
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     } finally {
       replicaManager.shutdown(checkpointHW = false)
     }
@@ -646,56 +546,6 @@ class ReplicaManagerTest {
     result
   }
 
-<<<<<<< HEAD
-=======
-  private class CallbackResult[T] {
-    private var value: Option[T] = None
-    private var fun: Option[T => Unit] = None
-
-    def assertFired: T = {
-      assertTrue("Callback has not been fired", isFired)
-      value.get
-    }
-
-    def isFired: Boolean = {
-      value.isDefined
-    }
-
-    def fire(value: T): Unit = {
-      this.value = Some(value)
-      fun.foreach(f => f(value))
-    }
-
-    def onFire(fun: T => Unit): CallbackResult[T] = {
-      this.fun = Some(fun)
-      if (this.isFired) fire(value.get)
-      this
-    }
-  }
-
-  private def appendRecords(replicaManager: ReplicaManager,
-                            partition: TopicPartition,
-                            records: MemoryRecords,
-                            isFromClient: Boolean = true): CallbackResult[PartitionResponse] = {
-    val result = new CallbackResult[PartitionResponse]()
-    def appendCallback(responses: Map[TopicPartition, PartitionResponse]): Unit = {
-      val response = responses.get(partition)
-      assertTrue(response.isDefined)
-      result.fire(response.get)
-    }
-
-    replicaManager.appendRecords(
-      timeout = 1000,
-      requiredAcks = -1,
-      internalTopicsAllowed = false,
-      isFromClient = isFromClient,
-      entriesPerPartition = Map(partition -> records),
-      responseCallback = appendCallback)
-
-    result
-  }
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   private def fetchAsConsumer(replicaManager: ReplicaManager,
                               partition: TopicPartition,
                               partitionData: PartitionData,
@@ -739,7 +589,6 @@ class ReplicaManagerTest {
     result
   }
 
-<<<<<<< HEAD
   private def setupReplicaManagerWithMockedPurgatories(timer: MockTimer, aliveBrokerIds: Seq[Int] = Seq(0, 1)): ReplicaManager = {
     val props = TestUtils.createBrokerConfig(0, TestUtils.MockZkConnect)
     props.put("log.dir", TestUtils.tempRelativeDir("data").getAbsolutePath)
@@ -752,20 +601,6 @@ class ReplicaManagerTest {
     aliveBrokerIds.foreach { brokerId =>
       EasyMock.expect(metadataCache.isBrokerAlive(EasyMock.eq(brokerId))).andReturn(true).anyTimes()
     }
-=======
-  private def setupReplicaManagerWithMockedPurgatories(timer: MockTimer): ReplicaManager = {
-    val props = TestUtils.createBrokerConfig(1, TestUtils.MockZkConnect)
-    props.put("log.dir", TestUtils.tempRelativeDir("data").getAbsolutePath)
-    props.put("broker.id", Int.box(0))
-    val config = KafkaConfig.fromProps(props)
-    val logProps = new Properties()
-    val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)).toArray, LogConfig(logProps))
-    val aliveBrokers = Seq(createBroker(0, "host0", 0), createBroker(1, "host1", 1))
-    val metadataCache = EasyMock.createMock(classOf[MetadataCache])
-    EasyMock.expect(metadataCache.getAliveBrokers).andReturn(aliveBrokers).anyTimes()
-    EasyMock.expect(metadataCache.isBrokerAlive(EasyMock.eq(0))).andReturn(true).anyTimes()
-    EasyMock.expect(metadataCache.isBrokerAlive(EasyMock.eq(1))).andReturn(true).anyTimes()
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     EasyMock.replay(metadataCache)
 
     val mockProducePurgatory = new DelayedOperationPurgatory[DelayedProduce](

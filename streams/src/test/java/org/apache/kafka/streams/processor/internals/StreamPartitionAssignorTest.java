@@ -23,10 +23,7 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
-<<<<<<< HEAD
 import org.apache.kafka.common.utils.Bytes;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -925,7 +922,6 @@ public class StreamPartitionAssignorTest {
     public void shouldNotAddStandbyTaskPartitionsToPartitionsForHost() throws Exception {
         final String applicationId = "appId";
         final StreamsBuilder builder = new StreamsBuilder();
-<<<<<<< HEAD
 
         final InternalTopologyBuilder internalTopologyBuilder = StreamsBuilderTest.internalTopologyBuilder(builder);
         internalTopologyBuilder.setApplicationId(applicationId);
@@ -939,21 +935,6 @@ public class StreamPartitionAssignorTest {
                                defaultPartitionGrouper,
                                internalTopologyBuilder);
 
-=======
-
-        final InternalTopologyBuilder internalTopologyBuilder = StreamsBuilderTest.internalTopologyBuilder(builder);
-        internalTopologyBuilder.setApplicationId(applicationId);
-
-        builder.stream("topic1").groupByKey().count("count");
-
-        final UUID uuid = UUID.randomUUID();
-        mockThreadDataProvider(Collections.<TaskId>emptySet(),
-                               Collections.<TaskId>emptySet(),
-                               uuid,
-                               defaultPartitionGrouper,
-                               internalTopologyBuilder);
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         configurePartitionAssignor(1, userEndPoint);
         partitionAssignor.setInternalTopicManager(new MockInternalTopicManager(
             config,

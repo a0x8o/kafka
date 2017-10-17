@@ -29,7 +29,7 @@ import kafka.utils.Implicits._
 import kafka.utils.Logging
 import org.apache.kafka.common.config.ConfigDef.Validator
 import org.apache.kafka.common.config.ConfigException
-import org.apache.kafka.common.metrics.{Quota, Sanitizer}
+import org.apache.kafka.common.metrics.Quota
 import org.apache.kafka.common.metrics.Quota._
 import org.apache.kafka.common.utils.Sanitizer
 
@@ -119,40 +119,25 @@ class TopicConfigHandler(private val logManager: LogManager, kafkaConfig: KafkaC
 class QuotaConfigHandler(private val quotaManagers: QuotaManagers) {
 
   def updateQuotaConfig(sanitizedUser: Option[String], sanitizedClientId: Option[String], config: Properties) {
-<<<<<<< HEAD
     val clientId = sanitizedClientId.map(Sanitizer.desanitize)
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val producerQuota =
       if (config.containsKey(DynamicConfig.Client.ProducerByteRateOverrideProp))
         Some(new Quota(config.getProperty(DynamicConfig.Client.ProducerByteRateOverrideProp).toLong, true))
       else
         None
-<<<<<<< HEAD
     quotaManagers.produce.updateQuota(sanitizedUser, clientId, sanitizedClientId, producerQuota)
-=======
-    quotaManagers.produce.updateQuota(sanitizedUser, sanitizedClientId, producerQuota)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val consumerQuota =
       if (config.containsKey(DynamicConfig.Client.ConsumerByteRateOverrideProp))
         Some(new Quota(config.getProperty(DynamicConfig.Client.ConsumerByteRateOverrideProp).toLong, true))
       else
         None
-<<<<<<< HEAD
     quotaManagers.fetch.updateQuota(sanitizedUser, clientId, sanitizedClientId, consumerQuota)
-=======
-    quotaManagers.fetch.updateQuota(sanitizedUser, sanitizedClientId, consumerQuota)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val requestQuota =
       if (config.containsKey(DynamicConfig.Client.RequestPercentageOverrideProp))
         Some(new Quota(config.getProperty(DynamicConfig.Client.RequestPercentageOverrideProp).toDouble, true))
       else
         None
-<<<<<<< HEAD
     quotaManagers.request.updateQuota(sanitizedUser, clientId, sanitizedClientId, requestQuota)
-=======
-    quotaManagers.request.updateQuota(sanitizedUser, sanitizedClientId, requestQuota)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 }
 

@@ -22,10 +22,7 @@ import org.apache.kafka.common.config.internals.BrokerSecurityConfigs;
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.IllegalSaslStateException;
 import org.apache.kafka.common.errors.InvalidRequestException;
-<<<<<<< HEAD
 import org.apache.kafka.common.errors.SaslAuthenticationException;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
 import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.network.Authenticator;
@@ -38,11 +35,7 @@ import org.apache.kafka.common.network.Send;
 import org.apache.kafka.common.network.TransportLayer;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
-<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-=======
-import org.apache.kafka.common.protocol.SecurityProtocol;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.requests.AbstractResponse;
 import org.apache.kafka.common.requests.ApiVersionsRequest;
 import org.apache.kafka.common.requests.ApiVersionsResponse;
@@ -54,10 +47,6 @@ import org.apache.kafka.common.requests.SaslAuthenticateResponse;
 import org.apache.kafka.common.requests.SaslHandshakeRequest;
 import org.apache.kafka.common.requests.SaslHandshakeResponse;
 import org.apache.kafka.common.security.JaasContext;
-<<<<<<< HEAD
-=======
-import org.apache.kafka.common.security.auth.AuthCallbackHandler;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
 import org.apache.kafka.common.security.auth.SaslAuthenticationContext;
@@ -124,11 +113,7 @@ public class SaslServerAuthenticator implements Authenticator {
     // Next SASL state to be set when outgoing writes associated with the current SASL state complete
     private SaslState pendingSaslState = null;
     // Exception that will be thrown by `authenticate()` when SaslState is set to FAILED after outbound writes complete
-<<<<<<< HEAD
     private AuthenticationException pendingException = null;
-=======
-    private IOException pendingException = null;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private SaslServer saslServer;
     private String saslMechanism;
     private AuthCallbackHandler callbackHandler;
@@ -161,10 +146,7 @@ public class SaslServerAuthenticator implements Authenticator {
         this.transportLayer = transportLayer;
 
         this.configs = configs;
-<<<<<<< HEAD
         @SuppressWarnings("unchecked")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         List<String> enabledMechanisms = (List<String>) this.configs.get(BrokerSecurityConfigs.SASL_ENABLED_MECHANISMS_CONFIG);
         if (enabledMechanisms == null || enabledMechanisms.isEmpty())
             throw new IllegalArgumentException("No SASL mechanisms are enabled");
@@ -297,13 +279,9 @@ public class SaslServerAuthenticator implements Authenticator {
                         (AuthenticationException) e : new AuthenticationException("SASL authentication failed", e);
                 setSaslState(SaslState.FAILED, authException);
             } catch (Exception e) {
-<<<<<<< HEAD
                 // In the case of IOExceptions and other unexpected exceptions, fail immediately
                 saslState = SaslState.FAILED;
                 throw e;
-=======
-                setSaslState(SaslState.FAILED, new IOException(e));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             }
         }
     }
@@ -333,11 +311,7 @@ public class SaslServerAuthenticator implements Authenticator {
         setSaslState(saslState, null);
     }
 
-<<<<<<< HEAD
     private void setSaslState(SaslState saslState, AuthenticationException exception) throws IOException {
-=======
-    private void setSaslState(SaslState saslState, IOException exception) throws IOException {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         if (netOutBuffer != null && !netOutBuffer.completed()) {
             pendingSaslState = saslState;
             pendingException = exception;
@@ -408,17 +382,11 @@ public class SaslServerAuthenticator implements Authenticator {
                 // For versions with SASL_AUTHENTICATE header, send a response to SASL_AUTHENTICATE request even if token is empty.
                 ByteBuffer responseBuf = responseToken == null ? EMPTY_BUFFER : ByteBuffer.wrap(responseToken);
                 sendKafkaResponse(requestContext, new SaslAuthenticateResponse(Errors.NONE, null, responseBuf));
-<<<<<<< HEAD
             } catch (SaslAuthenticationException | SaslException e) {
                 String errorMessage = e instanceof SaslAuthenticationException ? e.getMessage() :
                     "Authentication failed due to invalid credentials with SASL mechanism " + saslMechanism;
                 sendKafkaResponse(requestContext, new SaslAuthenticateResponse(Errors.SASL_AUTHENTICATION_FAILED,
                         errorMessage));
-=======
-            } catch (SaslException e) {
-                sendKafkaResponse(requestContext, new SaslAuthenticateResponse(Errors.SASL_AUTHENTICATION_FAILED,
-                        "Authentication failed due to invalid credentials with SASL mechanism " + saslMechanism));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 throw e;
             }
         }

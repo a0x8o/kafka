@@ -40,11 +40,7 @@ public class StateRestorerTest {
 
     @Before
     public void setUp() {
-<<<<<<< HEAD
         compositeRestoreListener.setUserRestoreListener(reportingListener);
-=======
-        compositeRestoreListener.setGlobalRestoreListener(reportingListener);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test

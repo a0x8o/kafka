@@ -209,7 +209,6 @@ public class GlobalStateManagerImplTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldListenForRestoreEvents() {
         initializeConsumer(5, 1, t1);
         stateManager.initialize(context);
@@ -228,8 +227,6 @@ public class GlobalStateManagerImplTest {
     }
 
     @Test
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void shouldRestoreRecordsFromCheckpointToHighwatermark() throws IOException {
         initializeConsumer(5, 6, t1);
 

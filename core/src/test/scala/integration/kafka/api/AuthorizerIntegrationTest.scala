@@ -28,11 +28,7 @@ import kafka.network.SocketServer
 import kafka.security.auth._
 import kafka.server.{BaseRequestTest, KafkaConfig}
 import kafka.utils.TestUtils
-<<<<<<< HEAD
 import org.apache.kafka.clients.admin.NewPartitions
-=======
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.consumer.internals.NoOpConsumerRebalanceListener
 import org.apache.kafka.clients.consumer._
@@ -40,7 +36,6 @@ import org.apache.kafka.clients.producer._
 import org.apache.kafka.common.errors._
 import org.apache.kafka.common.internals.Topic.GROUP_METADATA_TOPIC_NAME
 import org.apache.kafka.common.KafkaException
-<<<<<<< HEAD
 import org.apache.kafka.common.protocol.{ApiKeys, Errors}
 import org.apache.kafka.common.requests.{Resource => RResource, ResourceType => RResourceType, _}
 import org.apache.kafka.common.acl.{AccessControlEntry, AccessControlEntryFilter, AclBinding, AclBindingFilter, AclOperation, AclPermissionType}
@@ -50,17 +45,6 @@ import org.apache.kafka.common.requests.CreateAclsRequest.AclCreation
 import org.apache.kafka.common.requests.CreateTopicsRequest.TopicDetails
 import org.apache.kafka.common.resource.{ResourceFilter, Resource => AdminResource, ResourceType => AdminResourceType}
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
-=======
-import org.apache.kafka.common.protocol.{ApiKeys, Errors, SecurityProtocol}
-import org.apache.kafka.common.requests.{Resource => RResource, ResourceType => RResourceType, _}
-import org.apache.kafka.common.acl.{AccessControlEntry, AccessControlEntryFilter, AclBinding, AclBindingFilter, AclOperation, AclPermissionType}
-import org.apache.kafka.common.network.ListenerName
-import org.apache.kafka.common.record.{CompressionType, MemoryRecords, RecordBatch, SimpleRecord}
-import org.apache.kafka.common.requests.CreateAclsRequest.AclCreation
-import org.apache.kafka.common.requests.CreateTopicsRequest.TopicDetails
-import org.apache.kafka.common.resource.{ResourceFilter, Resource => AdminResource, ResourceType => AdminResourceType}
-import org.apache.kafka.common.security.auth.KafkaPrincipal
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.{Node, TopicPartition, requests}
 import org.junit.Assert._
 import org.junit.{After, Assert, Before, Test}
@@ -160,14 +144,9 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
       ApiKeys.CREATE_ACLS -> classOf[CreateAclsResponse],
       ApiKeys.DELETE_ACLS -> classOf[DeleteAclsResponse],
       ApiKeys.DESCRIBE_ACLS -> classOf[DescribeAclsResponse],
-<<<<<<< HEAD
       ApiKeys.ALTER_REPLICA_LOG_DIRS -> classOf[AlterReplicaLogDirsResponse],
       ApiKeys.DESCRIBE_LOG_DIRS -> classOf[DescribeLogDirsResponse],
       ApiKeys.CREATE_PARTITIONS -> classOf[CreatePartitionsResponse]
-=======
-      ApiKeys.ALTER_REPLICA_DIR -> classOf[AlterReplicaDirResponse],
-      ApiKeys.DESCRIBE_LOG_DIRS -> classOf[DescribeLogDirsResponse]
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   )
 
   val requestKeyToError = Map[ApiKeys, Nothing => Errors](
@@ -204,16 +183,10 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     ApiKeys.CREATE_ACLS -> ((resp: CreateAclsResponse) => resp.aclCreationResponses.asScala.head.error.error),
     ApiKeys.DESCRIBE_ACLS -> ((resp: DescribeAclsResponse) => resp.error.error),
     ApiKeys.DELETE_ACLS -> ((resp: DeleteAclsResponse) => resp.responses.asScala.head.error.error),
-<<<<<<< HEAD
     ApiKeys.ALTER_REPLICA_LOG_DIRS -> ((resp: AlterReplicaLogDirsResponse) => resp.responses.get(tp)),
     ApiKeys.DESCRIBE_LOG_DIRS -> ((resp: DescribeLogDirsResponse) =>
       if (resp.logDirInfos.size() > 0) resp.logDirInfos.asScala.head._2.error else Errors.CLUSTER_AUTHORIZATION_FAILED),
     ApiKeys.CREATE_PARTITIONS -> ((resp: CreatePartitionsResponse) => resp.errors.asScala.find(_._1 == topic).get._2.error)
-=======
-    ApiKeys.ALTER_REPLICA_DIR -> ((resp: AlterReplicaDirResponse) => resp.responses.get(tp)),
-    ApiKeys.DESCRIBE_LOG_DIRS -> ((resp: DescribeLogDirsResponse) =>
-      if (resp.logDirInfos.size() > 0) resp.logDirInfos.asScala.head._2.error else Errors.CLUSTER_AUTHORIZATION_FAILED)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   )
 
   val requestKeysToAcls = Map[ApiKeys, Map[Resource, Set[Acl]]](
@@ -248,15 +221,10 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     ApiKeys.CREATE_ACLS -> clusterAlterAcl,
     ApiKeys.DESCRIBE_ACLS -> clusterDescribeAcl,
     ApiKeys.DELETE_ACLS -> clusterAlterAcl,
-<<<<<<< HEAD
     ApiKeys.ALTER_REPLICA_LOG_DIRS -> clusterAlterAcl,
     ApiKeys.DESCRIBE_LOG_DIRS -> clusterDescribeAcl,
     ApiKeys.CREATE_PARTITIONS -> topicAlterAcl
 
-=======
-    ApiKeys.ALTER_REPLICA_DIR -> clusterAlterAcl,
-    ApiKeys.DESCRIBE_LOG_DIRS -> clusterDescribeAcl
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   )
 
   @Before
@@ -360,7 +328,6 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
       build()
   }
 
-<<<<<<< HEAD
   private def createPartitionsRequest = {
     new CreatePartitionsRequest.Builder(
       Map(topic -> NewPartitions.increaseTo(10)).asJava, 10000, true
@@ -369,10 +336,6 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
 
   private def heartbeatRequest = new HeartbeatRequest.Builder(group, 1, "").build()
 
-=======
-  private def heartbeatRequest = new HeartbeatRequest.Builder(group, 1, "").build()
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   private def leaveGroupRequest = new LeaveGroupRequest.Builder(group, "").build()
 
   private def leaderAndIsrRequest = {
@@ -390,15 +353,9 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     new CreateTopicsRequest.Builder(Map(createTopic -> new TopicDetails(1, 1.toShort)).asJava, 0).build()
 
   private def deleteTopicsRequest = new DeleteTopicsRequest.Builder(Set(deleteTopic).asJava, 5000).build()
-<<<<<<< HEAD
 
   private def deleteRecordsRequest = new DeleteRecordsRequest.Builder(5000, Collections.singletonMap(deleteRecordsPartition, 0L)).build()
 
-=======
-
-  private def deleteRecordsRequest = new DeleteRecordsRequest.Builder(5000, Collections.singletonMap(deleteRecordsPartition, 0L)).build()
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   private def describeConfigsRequest =
     new DescribeConfigsRequest.Builder(Collections.singleton(new RResource(RResourceType.TOPIC, tp.topic))).build()
 
@@ -421,7 +378,6 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
       new ResourceFilter(AdminResourceType.TOPIC, null),
       new AccessControlEntryFilter("User:ANONYMOUS", "*", AclOperation.ANY, AclPermissionType.DENY)))).build()
 
-<<<<<<< HEAD
   private def alterReplicaLogDirsRequest = new AlterReplicaLogDirsRequest.Builder(Collections.singletonMap(tp, logDir)).build()
 
   private def describeLogDirsRequest = new DescribeLogDirsRequest.Builder(Collections.singleton(tp)).build()
@@ -430,12 +386,6 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
 
   private def addOffsetsToTxnRequest = new AddOffsetsToTxnRequest.Builder(transactionalId, 1, 1, group).build()
 
-=======
-  private def alterReplicaDirRequest = new AlterReplicaDirRequest.Builder(Collections.singletonMap(tp, logDir)).build()
-
-  private def describeLogDirsRequest = new DescribeLogDirsRequest.Builder(Collections.singleton(tp)).build()
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   @Test
   def testAuthorizationWithTopicExisting() {
@@ -465,16 +415,11 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
       ApiKeys.CREATE_ACLS -> createAclsRequest,
       ApiKeys.DELETE_ACLS -> deleteAclsRequest,
       ApiKeys.DESCRIBE_ACLS -> describeAclsRequest,
-<<<<<<< HEAD
       ApiKeys.ALTER_REPLICA_LOG_DIRS -> alterReplicaLogDirsRequest,
       ApiKeys.DESCRIBE_LOG_DIRS -> describeLogDirsRequest,
       ApiKeys.CREATE_PARTITIONS -> createPartitionsRequest,
       ApiKeys.ADD_PARTITIONS_TO_TXN -> addPartitionsToTxnRequest,
       ApiKeys.ADD_OFFSETS_TO_TXN -> addOffsetsToTxnRequest
-=======
-      ApiKeys.ALTER_REPLICA_DIR -> alterReplicaDirRequest,
-      ApiKeys.DESCRIBE_LOG_DIRS -> describeLogDirsRequest
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     )
 
     for ((key, request) <- requestKeyToRequest) {
@@ -508,10 +453,6 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     TestUtils.verifyTopicDeletion(zkUtils, deleteTopic, 1, servers)
 
     val requestKeyToRequest = mutable.LinkedHashMap[ApiKeys, AbstractRequest](
-<<<<<<< HEAD
-=======
-      ApiKeys.METADATA -> createMetadataRequest(allowAutoTopicCreation = true),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       ApiKeys.METADATA -> createMetadataRequest(allowAutoTopicCreation = false),
       ApiKeys.PRODUCE -> createProduceRequest,
       ApiKeys.FETCH -> createFetchRequest,
@@ -519,14 +460,10 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
       ApiKeys.OFFSET_COMMIT -> createOffsetCommitRequest,
       ApiKeys.OFFSET_FETCH -> createOffsetFetchRequest,
       ApiKeys.DELETE_TOPICS -> deleteTopicsRequest,
-<<<<<<< HEAD
       ApiKeys.DELETE_RECORDS -> deleteRecordsRequest,
       ApiKeys.ADD_PARTITIONS_TO_TXN -> addPartitionsToTxnRequest,
       ApiKeys.ADD_OFFSETS_TO_TXN -> addOffsetsToTxnRequest,
       ApiKeys.CREATE_PARTITIONS -> createPartitionsRequest
-=======
-      ApiKeys.DELETE_RECORDS -> deleteRecordsRequest
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     )
 
     for ((key, request) <- requestKeyToRequest) {
@@ -1033,11 +970,7 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     val response = connectAndSend(deleteRecordsRequest, ApiKeys.DELETE_RECORDS)
     val version = ApiKeys.DELETE_RECORDS.latestVersion
     val deleteRecordsResponse = DeleteRecordsResponse.parse(response, version)
-<<<<<<< HEAD
     assertEquals(Errors.TOPIC_AUTHORIZATION_FAILED, deleteRecordsResponse.responses.asScala.head._2.error)
-=======
-    assertEquals(Errors.UNKNOWN_TOPIC_OR_PARTITION, deleteRecordsResponse.responses.asScala.head._2.error)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   @Test
@@ -1059,7 +992,6 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     assertEquals(Errors.NONE, deleteRecordsResponse.responses.asScala.head._2.error)
   }
 
-<<<<<<< HEAD
   @Test
   def testUnauthorizedCreatePartitions() {
     val response = connectAndSend(createPartitionsRequest, ApiKeys.CREATE_PARTITIONS)
@@ -1077,8 +1009,6 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     assertEquals(Errors.NONE, createPartitionsResponse.errors.asScala.head._2.error)
   }
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   @Test(expected = classOf[TransactionalIdAuthorizationException])
   def testTransactionalProducerInitTransactionsNoWriteTransactionalIdAcl(): Unit = {
     addAndVerifyAcls(Set(new Acl(KafkaPrincipal.ANONYMOUS, Allow, Acl.WildCardHost, Describe)), transactionalIdResource)

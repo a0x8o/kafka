@@ -25,12 +25,9 @@ import org.apache.kafka.streams.kstream.Aggregator;
 import org.apache.kafka.streams.kstream.Initializer;
 import org.apache.kafka.streams.kstream.KGroupedStream;
 import org.apache.kafka.streams.kstream.KStream;
-<<<<<<< HEAD
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.state.KeyValueStore;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import java.io.File;
 import java.util.Properties;
@@ -43,10 +40,7 @@ public class EosTestClient extends SmokeTestUtil {
     private final String kafka;
     private final File stateDir;
     private final boolean withRepartitioning;
-<<<<<<< HEAD
     private final AtomicBoolean notRunningCallbackReceived = new AtomicBoolean(false);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     private KafkaStreams streams;
     private boolean uncaughtException;
@@ -214,41 +208,6 @@ public class EosTestClient extends SmokeTestUtil {
                 .to("cnt", Produced.with(stringSerde, longSerde));
         }
 
-<<<<<<< HEAD
-=======
-        if (withRepartitioning) {
-            final KStream<String, Integer> repartitionedData = data.through("repartition");
-
-            repartitionedData.process(SmokeTestUtil.printProcessorSupplier("repartition"));
-
-            final KGroupedStream<String, Integer> groupedDataAfterRepartitioning = repartitionedData.groupByKey();
-            // max
-            groupedDataAfterRepartitioning
-                .aggregate(
-                    new Initializer<Integer>() {
-                        @Override
-                        public Integer apply() {
-                            return Integer.MIN_VALUE;
-                        }
-                    },
-                    new Aggregator<String, Integer, Integer>() {
-                        @Override
-                        public Integer apply(final String aggKey,
-                                             final Integer value,
-                                             final Integer aggregate) {
-                            return (value > aggregate) ? value : aggregate;
-                        }
-                    },
-                    intSerde,
-                    "max")
-                .to(stringSerde, intSerde, "max");
-
-            // count
-            groupedDataAfterRepartitioning.count("cnt")
-                .to(stringSerde, longSerde, "cnt");
-        }
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return new KafkaStreams(builder.build(), props);
     }
 

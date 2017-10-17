@@ -89,11 +89,7 @@ public class WorkerSourceTaskTest extends ThreadedTest {
     private ConnectorTaskId taskId = new ConnectorTaskId("job", 0);
     private WorkerConfig config;
     private Plugins plugins;
-<<<<<<< HEAD
     private MockConnectMetrics metrics;
-=======
-    private ConnectMetrics metrics;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Mock private SourceTask sourceTask;
     @Mock private Converter keyConverter;
     @Mock private Converter valueConverter;

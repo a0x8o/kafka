@@ -165,11 +165,7 @@ public class MockClient implements KafkaClient {
                 continue;
 
             AbstractRequest.Builder<?> builder = request.requestBuilder();
-<<<<<<< HEAD
             short version = nodeApiVersions.latestUsableVersion(request.apiKey(), builder.oldestAllowedVersion(),
-=======
-            short version = nodeApiVersions.usableVersion(request.apiKey(), builder.oldestAllowedVersion(),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     builder.latestAllowedVersion());
             AbstractRequest abstractRequest = request.requestBuilder().build(version);
             if (!futureResp.requestMatcher.matches(abstractRequest))

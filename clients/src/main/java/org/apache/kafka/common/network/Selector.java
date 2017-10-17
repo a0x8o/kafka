@@ -456,7 +456,6 @@ public class Selector implements Selectable, AutoCloseable {
 
                 /* if channel is not ready finish prepare */
                 if (channel.isConnected() && !channel.ready()) {
-<<<<<<< HEAD
                     try {
                         channel.prepare();
                     } catch (AuthenticationException e) {
@@ -465,9 +464,6 @@ public class Selector implements Selectable, AutoCloseable {
                     }
                     if (channel.ready())
                         sensors.successfulAuthentication.record();
-=======
-                    channel.prepare();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
 
                 attemptRead(key, channel);
@@ -876,7 +872,6 @@ public class Selector implements Selectable, AutoCloseable {
                 tagsSuffix.append(tag.getValue());
             }
 
-<<<<<<< HEAD
             this.connectionClosed = sensor("connections-closed:" + tagsSuffix);
             this.connectionClosed.add(createMeter(metrics, metricGrpName, metricTags,
                     "connection-close", "connections closed"));
@@ -898,21 +893,6 @@ public class Selector implements Selectable, AutoCloseable {
                     "network-io", "network operations (reads or writes) on all connections"));
 
             this.bytesSent = sensor("bytes-sent:" + tagsSuffix, bytesTransferred);
-=======
-            this.connectionClosed = sensor("connections-closed:" + tagsSuffix.toString());
-            this.connectionClosed.add(createMeter(metrics, metricGrpName, metricTags,
-                    "connection-close", "connections closed"));
-
-            this.connectionCreated = sensor("connections-created:" + tagsSuffix.toString());
-            this.connectionCreated.add(createMeter(metrics, metricGrpName, metricTags,
-                    "connection-creation", "new connections established"));
-
-            this.bytesTransferred = sensor("bytes-sent-received:" + tagsSuffix.toString());
-            bytesTransferred.add(createMeter(metrics, metricGrpName, metricTags, new Count(),
-                    "network-io", "network operations (reads or writes) on all connections"));
-
-            this.bytesSent = sensor("bytes-sent:" + tagsSuffix.toString(), bytesTransferred);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             this.bytesSent.add(createMeter(metrics, metricGrpName, metricTags,
                     "outgoing-byte", "outgoing bytes sent to all servers"));
             this.bytesSent.add(createMeter(metrics, metricGrpName, metricTags, new Count(),
@@ -922,21 +902,13 @@ public class Selector implements Selectable, AutoCloseable {
             metricName = metrics.metricName("request-size-max", metricGrpName, "The maximum size of any request sent.", metricTags);
             this.bytesSent.add(metricName, new Max());
 
-<<<<<<< HEAD
             this.bytesReceived = sensor("bytes-received:" + tagsSuffix, bytesTransferred);
-=======
-            this.bytesReceived = sensor("bytes-received:" + tagsSuffix.toString(), bytesTransferred);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             this.bytesReceived.add(createMeter(metrics, metricGrpName, metricTags,
                     "incoming-byte", "bytes read off all sockets"));
             this.bytesReceived.add(createMeter(metrics, metricGrpName, metricTags,
                     new Count(), "response", "responses received"));
 
-<<<<<<< HEAD
             this.selectTime = sensor("select-time:" + tagsSuffix);
-=======
-            this.selectTime = sensor("select-time:" + tagsSuffix.toString());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             this.selectTime.add(createMeter(metrics, metricGrpName, metricTags,
                     new Count(), "select", "times the I/O layer checked for new I/O to perform"));
             metricName = metrics.metricName("io-wait-time-ns-avg", metricGrpName, "The average length of time the I/O thread spent waiting for a socket ready for reads or writes in nanoseconds.", metricTags);

@@ -295,10 +295,7 @@ public class InternalTopologyBuilderTest {
         } catch (final TopologyException expected) { /* ok */ }
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Test
     public void testAddStateStore() {
         final StateStoreSupplier supplier = new MockStateStoreSupplier("store-1", false);
@@ -348,10 +345,7 @@ public class InternalTopologyBuilderTest {
         assertEquals(mkSet(mkSet("topic-1", "X-topic-1x", "topic-2")), new HashSet<>(copartitionGroups));
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Test
     public void testTopicGroupsByStateStore() {
         builder.setApplicationId("X");
@@ -478,10 +472,7 @@ public class InternalTopologyBuilderTest {
         builder.setApplicationId(null);
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Test(expected = NullPointerException.class)
     public void shouldNotAddNullStateStoreSupplier() throws Exception {
         builder.addStateStore((StateStoreSupplier) null);

@@ -24,10 +24,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.KeyValue;
-<<<<<<< HEAD
 import org.apache.kafka.streams.errors.TaskMigratedException;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.StateRestoreListener;
 import org.slf4j.Logger;
 
@@ -45,18 +42,13 @@ public class StoreChangelogReader implements ChangelogReader {
 
     private final Logger log;
     private final Consumer<byte[], byte[]> consumer;
-<<<<<<< HEAD
     private final StateRestoreListener userStateRestoreListener;
-=======
-    private final StateRestoreListener stateRestoreListener;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private final Map<TopicPartition, Long> endOffsets = new HashMap<>();
     private final Map<String, List<PartitionInfo>> partitionInfo = new HashMap<>();
     private final Map<TopicPartition, StateRestorer> stateRestorers = new HashMap<>();
     private final Map<TopicPartition, StateRestorer> needsRestoring = new HashMap<>();
     private final Map<TopicPartition, StateRestorer> needsInitializing = new HashMap<>();
 
-<<<<<<< HEAD
     public StoreChangelogReader(final Consumer<byte[], byte[]> consumer,
                                 final StateRestoreListener userStateRestoreListener,
                                 final LogContext logContext) {
@@ -76,31 +68,6 @@ public class StoreChangelogReader implements ChangelogReader {
      * @throws TaskMigratedException if another thread wrote to the changelog topic that is currently restored
      */
     public Collection<TopicPartition> restore(final RestoringTasks active) {
-=======
-    public StoreChangelogReader(final String threadId,
-                                final Consumer<byte[], byte[]> consumer,
-                                final StateRestoreListener stateRestoreListener,
-                                final LogContext logContext) {
-        this.consumer = consumer;
-        this.log = logContext.logger(getClass());
-        this.stateRestoreListener = stateRestoreListener;
-    }
-
-    public StoreChangelogReader(final Consumer<byte[], byte[]> consumer,
-                                final StateRestoreListener stateRestoreListener,
-                                final LogContext logContext) {
-        this("", consumer, stateRestoreListener, logContext);
-    }
-
-    @Override
-    public void register(final StateRestorer restorer) {
-        restorer.setGlobalRestoreListener(stateRestoreListener);
-        stateRestorers.put(restorer.partition(), restorer);
-        needsInitializing.put(restorer.partition(), restorer);
-    }
-
-    public Collection<TopicPartition> restore() {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         if (!needsInitializing.isEmpty()) {
             initialize();
         }
@@ -113,11 +80,7 @@ public class StoreChangelogReader implements ChangelogReader {
         final Set<TopicPartition> partitions = new HashSet<>(needsRestoring.keySet());
         final ConsumerRecords<byte[], byte[]> allRecords = consumer.poll(10);
         for (final TopicPartition partition : partitions) {
-<<<<<<< HEAD
             restorePartition(allRecords, partition, active.restoringTaskFor(partition));
-=======
-            restorePartition(allRecords, partition);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
 
         if (needsRestoring.isEmpty()) {
@@ -231,11 +194,7 @@ public class StoreChangelogReader implements ChangelogReader {
     private Collection<TopicPartition> completed() {
         final Set<TopicPartition> completed = new HashSet<>(stateRestorers.keySet());
         completed.removeAll(needsRestoring.keySet());
-<<<<<<< HEAD
         log.trace("The set of restoration completed partitions so far: {}", completed);
-=======
-        log.debug("completed partitions {}", completed);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return completed;
     }
 
@@ -268,17 +227,12 @@ public class StoreChangelogReader implements ChangelogReader {
         needsInitializing.clear();
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if another thread wrote to the changelog topic that is currently restored
      */
     private void restorePartition(final ConsumerRecords<byte[], byte[]> allRecords,
                                   final TopicPartition topicPartition,
                                   final Task task) {
-=======
-    private void restorePartition(final ConsumerRecords<byte[], byte[]> allRecords,
-                                  final TopicPartition topicPartition) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final StateRestorer restorer = stateRestorers.get(topicPartition);
         final Long endOffset = endOffsets.get(topicPartition);
         final long pos = processNext(allRecords.records(topicPartition), restorer, endOffset);
@@ -303,19 +257,11 @@ public class StoreChangelogReader implements ChangelogReader {
                              final StateRestorer restorer,
                              final Long endOffset) {
         final List<KeyValue<byte[], byte[]>> restoreRecords = new ArrayList<>();
-<<<<<<< HEAD
         long offset = -1;
-=======
-        long nextPosition = -1;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         for (final ConsumerRecord<byte[], byte[]> record : records) {
             offset = record.offset();
             if (restorer.hasCompleted(offset, endOffset)) {
-<<<<<<< HEAD
-=======
-                nextPosition = record.offset();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 break;
             }
             if (record.key() != null) {
@@ -323,29 +269,16 @@ public class StoreChangelogReader implements ChangelogReader {
             }
         }
 
-<<<<<<< HEAD
         if (offset == -1) {
             offset = consumer.position(restorer.partition());
-=======
-        if (nextPosition == -1) {
-            nextPosition = consumer.position(restorer.partition());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
 
         if (!restoreRecords.isEmpty()) {
             restorer.restore(restoreRecords);
-<<<<<<< HEAD
             restorer.restoreBatchCompleted(offset + 1, records.size());
         }
 
         return consumer.position(restorer.partition());
-=======
-            restorer.restoreBatchCompleted(nextPosition, records.size());
-
-        }
-
-        return nextPosition;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     private boolean hasPartition(final TopicPartition topicPartition) {

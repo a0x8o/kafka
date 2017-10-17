@@ -23,16 +23,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-<<<<<<< HEAD
 import static org.junit.Assert.assertEquals;
 
 import org.apache.kafka.common.errors.SaslAuthenticationException;
-=======
-import javax.security.sasl.SaslException;
-
-import static org.junit.Assert.assertEquals;
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.security.JaasContext;
 import org.apache.kafka.common.security.authenticator.TestJaasConfig;
 
@@ -68,11 +61,7 @@ public class PlainSaslServerTest {
         assertEquals(0, nextChallenge.length);
     }
 
-<<<<<<< HEAD
     @Test(expected = SaslAuthenticationException.class)
-=======
-    @Test(expected = SaslException.class)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void authorizatonIdNotEqualsAuthenticationId() throws Exception {
         saslServer.evaluateResponse(saslMessage(USER_B, USER_A, PASSWORD_A));
     }

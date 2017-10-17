@@ -33,15 +33,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.PARTITION_ID;
 import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
-=======
-import static org.apache.kafka.common.protocol.CommonFields.PARTITION_ID;
-import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
-import static org.apache.kafka.common.protocol.types.Type.STRING;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 public class OffsetFetchRequest extends AbstractRequest {
     private static final String TOPICS_KEY_NAME = "topics";
@@ -68,21 +62,13 @@ public class OffsetFetchRequest extends AbstractRequest {
             new Field(PARTITIONS_KEY_NAME, new ArrayOf(OFFSET_FETCH_REQUEST_PARTITION_V0), "Partitions to fetch offsets."));
 
     private static final Schema OFFSET_FETCH_REQUEST_V0 = new Schema(
-<<<<<<< HEAD
             GROUP_ID,
-=======
-            new Field(GROUP_ID_KEY_NAME, STRING, "The consumer group id."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(TOPICS_KEY_NAME, new ArrayOf(OFFSET_FETCH_REQUEST_TOPIC_V0), "Topics to fetch offsets."));
 
     private static final Schema OFFSET_FETCH_REQUEST_V1 = OFFSET_FETCH_REQUEST_V0;
 
     private static final Schema OFFSET_FETCH_REQUEST_V2 = new Schema(
-<<<<<<< HEAD
             GROUP_ID,
-=======
-            new Field(GROUP_ID_KEY_NAME, STRING, "The consumer group id."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(TOPICS_KEY_NAME, ArrayOf.nullable(OFFSET_FETCH_REQUEST_TOPIC_V0), "Topics to fetch offsets. If the " +
                     "topic array is null fetch offsets for all topics."));
 

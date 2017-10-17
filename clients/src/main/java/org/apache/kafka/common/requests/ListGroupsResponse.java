@@ -33,25 +33,13 @@ import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
 import static org.apache.kafka.common.protocol.types.Type.STRING;
 
-import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
-import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
-import static org.apache.kafka.common.protocol.types.Type.STRING;
-
 public class ListGroupsResponse extends AbstractResponse {
 
     private static final String GROUPS_KEY_NAME = "groups";
-<<<<<<< HEAD
     private static final String PROTOCOL_TYPE_KEY_NAME = "protocol_type";
 
     private static final Schema LIST_GROUPS_RESPONSE_GROUP_V0 = new Schema(
             GROUP_ID,
-=======
-    private static final String GROUP_ID_KEY_NAME = "group_id";
-    private static final String PROTOCOL_TYPE_KEY_NAME = "protocol_type";
-
-    private static final Schema LIST_GROUPS_RESPONSE_GROUP_V0 = new Schema(
-            new Field(GROUP_ID_KEY_NAME, STRING),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(PROTOCOL_TYPE_KEY_NAME, STRING));
     private static final Schema LIST_GROUPS_RESPONSE_V0 = new Schema(
             ERROR_CODE,

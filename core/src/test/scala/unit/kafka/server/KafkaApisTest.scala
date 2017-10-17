@@ -37,20 +37,12 @@ import org.apache.kafka.common.errors.UnsupportedVersionException
 import org.apache.kafka.common.memory.MemoryPool
 import org.apache.kafka.common.metrics.Metrics
 import org.apache.kafka.common.network.ListenerName
-<<<<<<< HEAD
 import org.apache.kafka.common.protocol.{ApiKeys, Errors}
-=======
-import org.apache.kafka.common.protocol.{ApiKeys, Errors, SecurityProtocol}
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.record.RecordBatch
 import org.apache.kafka.common.requests.ProduceResponse.PartitionResponse
 import org.apache.kafka.common.requests.WriteTxnMarkersRequest.TxnMarkerEntry
 import org.apache.kafka.common.requests._
-<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
-=======
-import org.apache.kafka.common.security.auth.KafkaPrincipal
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.Utils
 import org.easymock.{Capture, EasyMock, IAnswer}
 import org.junit.Assert.{assertEquals, assertTrue}
@@ -408,11 +400,7 @@ class KafkaApisTest {
     val context = new RequestContext(header, "1", InetAddress.getLocalHost, KafkaPrincipal.ANONYMOUS,
       new ListenerName(""), SecurityProtocol.PLAINTEXT)
     (request, new RequestChannel.Request(processor = 1, context = context, startTimeNanos =  0,
-<<<<<<< HEAD
       MemoryPool.NONE, buffer, requestChannelMetrics))
-=======
-      MemoryPool.NONE, buffer))
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   private def readResponse(api: ApiKeys, request: AbstractRequest, capturedResponse: Capture[RequestChannel.Response]): AbstractResponse = {

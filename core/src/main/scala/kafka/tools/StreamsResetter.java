@@ -16,15 +16,11 @@
  */
 package kafka.tools;
 
-<<<<<<< HEAD
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import joptsimple.OptionSpecBuilder;
-=======
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
@@ -47,15 +43,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-<<<<<<< HEAD
-=======
-
-import joptsimple.OptionException;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-import joptsimple.OptionSpec;
-import joptsimple.OptionSpecBuilder;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 /**
  * {@link StreamsResetter} resets the processing state of a Kafka Streams application so that, for example, you can reprocess its input from scratch.
@@ -84,10 +71,6 @@ public class StreamsResetter {
     private static final int EXIT_CODE_ERROR = 1;
 
     private static OptionSpec<String> bootstrapServerOption;
-<<<<<<< HEAD
-=======
-    private static OptionSpecBuilder zookeeperOption;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private static OptionSpec<String> applicationIdOption;
     private static OptionSpec<String> inputTopicsOption;
     private static OptionSpec<String> intermediateTopicsOption;
@@ -119,16 +102,8 @@ public class StreamsResetter {
             }
             properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, options.valueOf(bootstrapServerOption));
 
-<<<<<<< HEAD
             validateNoActiveConsumers(groupId, properties);
             kafkaAdminClient = (KafkaAdminClient) AdminClient.create(properties);
-=======
-            validateNoActiveConsumers(groupId);
-
-            final Properties adminClientProperties = new Properties();
-            adminClientProperties.put("bootstrap.servers", options.valueOf(bootstrapServerOption));
-            kafkaAdminClient = (KafkaAdminClient) AdminClient.create(adminClientProperties);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
             allTopics.clear();
             allTopics.addAll(kafkaAdminClient.listTopics().names().get(60, TimeUnit.SECONDS));
@@ -136,14 +111,10 @@ public class StreamsResetter {
             if (dryRun) {
                 System.out.println("----Dry run displays the actions which will be performed when running Streams Reset Tool----");
             }
-<<<<<<< HEAD
 
             final HashMap<Object, Object> consumerConfig = new HashMap<>(config);
             consumerConfig.putAll(properties);
             maybeResetInputAndSeekToEndIntermediateTopicOffsets(consumerConfig);
-=======
-            maybeResetInputAndSeekToEndIntermediateTopicOffsets();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             maybeDeleteInternalTopics(kafkaAdminClient);
 
         } catch (final Throwable e) {
@@ -159,18 +130,11 @@ public class StreamsResetter {
         return exitCode;
     }
 
-<<<<<<< HEAD
     private void validateNoActiveConsumers(final String groupId,
                                            final Properties properties) {
         kafka.admin.AdminClient olderAdminClient = null;
         try {
             olderAdminClient = kafka.admin.AdminClient.create(properties);
-=======
-    private void validateNoActiveConsumers(final String groupId) {
-        kafka.admin.AdminClient olderAdminClient = null;
-        try {
-            olderAdminClient = kafka.admin.AdminClient.createSimplePlaintext(options.valueOf(bootstrapServerOption));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             if (!olderAdminClient.describeConsumerGroup(groupId, 0).consumers().get().isEmpty()) {
                 throw new IllegalStateException("Consumer group '" + groupId + "' is still active. "
                                                 + "Make sure to stop all running application instances before running the reset tool.");
@@ -195,11 +159,6 @@ public class StreamsResetter {
             .ofType(String.class)
             .defaultsTo("localhost:9092")
             .describedAs("urls");
-<<<<<<< HEAD
-=======
-        zookeeperOption = optionParser.accepts("zookeeper", "Zookeeper option is deprecated by bootstrap.servers, as the reset tool would no longer access Zookeeper directly.");
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         inputTopicsOption = optionParser.accepts("input-topics", "Comma-separated list of user input topics. For these topics, the tool will reset the offset to the earliest available offset.")
             .withRequiredArg()
             .ofType(String.class)

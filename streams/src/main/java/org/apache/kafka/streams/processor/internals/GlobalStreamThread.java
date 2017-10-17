@@ -32,19 +32,11 @@ import org.apache.kafka.streams.state.internals.ThreadCache;
 import org.slf4j.Logger;
 
 import java.io.IOException;
-<<<<<<< HEAD
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-=======
-import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Arrays;
-import java.util.Collections;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import static org.apache.kafka.streams.processor.internals.GlobalStreamThread.State.DEAD;
 import static org.apache.kafka.streams.processor.internals.GlobalStreamThread.State.PENDING_SHUTDOWN;
@@ -122,10 +114,7 @@ public class GlobalStreamThread extends Thread {
     private final Object stateLock = new Object();
     private StreamThread.StateListener stateListener = null;
     private final String logPrefix;
-<<<<<<< HEAD
     private final StateRestoreListener stateRestoreListener;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     /**
      * Set the {@link StreamThread.StateListener} to be notified when state changes. Note this API is internal to
@@ -203,10 +192,7 @@ public class GlobalStreamThread extends Thread {
         this.logContext = new LogContext(logPrefix);
         this.log = logContext.logger(getClass());
         this.cache = new ThreadCache(logContext, cacheSizeBytes, streamsMetrics);
-<<<<<<< HEAD
         this.stateRestoreListener = stateRestoreListener;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     }
 
@@ -330,12 +316,8 @@ public class GlobalStreamThread extends Thread {
                                                                           streamsMetrics,
                                                                           cache),
                                                                   stateMgr,
-<<<<<<< HEAD
                                                                   config.defaultDeserializationExceptionHandler(),
                                                                   logContext),
-=======
-                                                                  config.defaultDeserializationExceptionHandler()),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                         time,
                                         config.getLong(StreamsConfig.POLL_MS_CONFIG),
                                         config.getLong(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG));

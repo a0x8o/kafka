@@ -18,11 +18,7 @@ package org.apache.kafka.connect.runtime;
 
 import org.apache.kafka.connect.connector.Connector;
 import org.apache.kafka.connect.connector.ConnectorContext;
-<<<<<<< HEAD
 import org.apache.kafka.connect.runtime.ConnectMetrics.LiteralSupplier;
-=======
-import org.apache.kafka.connect.runtime.ConnectMetrics.IndicatorPredicate;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.connect.runtime.ConnectMetrics.MetricGroup;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.source.SourceConnector;
@@ -242,7 +238,6 @@ public class WorkerConnector {
         private final ConnectorStatus.Listener delegate;
 
         public ConnectorMetricsGroup(ConnectMetrics connectMetrics, AbstractStatus.State initialState, ConnectorStatus.Listener delegate) {
-<<<<<<< HEAD
             Objects.requireNonNull(connectMetrics);
             Objects.requireNonNull(connector);
             Objects.requireNonNull(initialState);
@@ -260,26 +255,6 @@ public class WorkerConnector {
                 @Override
                 public String metricValue(long now) {
                     return state.toString().toLowerCase(Locale.getDefault());
-=======
-            this.delegate = delegate;
-            this.state = initialState;
-            this.metricGroup = connectMetrics.group("connector-metrics",
-                    "connector", connName);
-
-            addStateMetric(AbstractStatus.State.RUNNING, "status-running",
-                    "Signals whether the connector task is in the running state.");
-            addStateMetric(AbstractStatus.State.PAUSED, "status-paused",
-                    "Signals whether the connector task is in the paused state.");
-            addStateMetric(AbstractStatus.State.FAILED, "status-failed",
-                    "Signals whether the connector task is in the failed state.");
-        }
-
-        private void addStateMetric(final AbstractStatus.State matchingState, String name, String description) {
-            metricGroup.addIndicatorMetric(name, description, new IndicatorPredicate() {
-                @Override
-                public boolean matches() {
-                    return state == matchingState;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
             });
         }
@@ -339,12 +314,9 @@ public class WorkerConnector {
         boolean isFailed() {
             return state == AbstractStatus.State.FAILED;
         }
-<<<<<<< HEAD
 
         protected MetricGroup metricGroup() {
             return metricGroup;
         }
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 }

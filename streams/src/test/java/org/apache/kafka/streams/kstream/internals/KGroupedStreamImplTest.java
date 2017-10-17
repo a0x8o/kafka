@@ -301,11 +301,7 @@ public class KGroupedStreamImplTest {
     @Test
     public void shouldCountSessionWindows() {
         final Map<Windowed<String>, Long> results = new HashMap<>();
-<<<<<<< HEAD
         KTable<Windowed<String>, Long> table = groupedStream.count(SessionWindows.with(30), "session-store");
-=======
-        KTable table = groupedStream.count(SessionWindows.with(30), "session-store");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         table.toStream().foreach(new ForeachAction<Windowed<String>, Long>() {
             @Override
             public void apply(final Windowed<String> key, final Long value) {
@@ -320,11 +316,7 @@ public class KGroupedStreamImplTest {
     @Test
     public void shouldCountSessionWindowsWithInternalStoreName() {
         final Map<Windowed<String>, Long> results = new HashMap<>();
-<<<<<<< HEAD
         KTable<Windowed<String>, Long> table = groupedStream.count(SessionWindows.with(30));
-=======
-        KTable table = groupedStream.count(SessionWindows.with(30));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         table.toStream().foreach(new ForeachAction<Windowed<String>, Long>() {
             @Override
             public void apply(final Windowed<String> key, final Long value) {
@@ -551,12 +543,7 @@ public class KGroupedStreamImplTest {
     @Test
     public void shouldCountAndMaterializeResults() {
         groupedStream.count(Materialized.<String, Long, KeyValueStore<Bytes, byte[]>>as("count")
-<<<<<<< HEAD
                                     .withKeySerde(Serdes.String()));
-=======
-                                    .withKeySerde(Serdes.String())
-                                    .withValueSerde(Serdes.Long()));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         processData();
 

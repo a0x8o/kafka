@@ -91,7 +91,6 @@ public class NodeApiVersionsTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void testLatestUsableVersion() {
         NodeApiVersions apiVersions = NodeApiVersions.create(Collections.singleton(
                 new ApiVersion(ApiKeys.PRODUCE.id, (short) 1, (short) 3)));
@@ -104,42 +103,20 @@ public class NodeApiVersionsTest {
         assertEquals(3, apiVersions.latestUsableVersion(ApiKeys.PRODUCE, (short) 2, (short) 3));
         assertEquals(3, apiVersions.latestUsableVersion(ApiKeys.PRODUCE, (short) 3, (short) 3));
         assertEquals(3, apiVersions.latestUsableVersion(ApiKeys.PRODUCE, (short) 3, (short) 4));
-=======
-    public void testDesiredVersion() {
-        NodeApiVersions apiVersions = NodeApiVersions.create(Collections.singleton(
-                new ApiVersion(ApiKeys.PRODUCE.id, (short) 1, (short) 3)));
-        assertEquals(3, apiVersions.usableVersion(ApiKeys.PRODUCE));
-        assertEquals(1, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 0, (short) 1));
-        assertEquals(1, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 1, (short) 1));
-        assertEquals(2, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 1, (short) 2));
-        assertEquals(3, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 1, (short) 3));
-        assertEquals(2, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 2, (short) 2));
-        assertEquals(3, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 2, (short) 3));
-        assertEquals(3, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 3, (short) 3));
-        assertEquals(3, apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 3, (short) 4));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test(expected = UnsupportedVersionException.class)
     public void testLatestUsableVersionOutOfRangeLow() {
         NodeApiVersions apiVersions = NodeApiVersions.create(Collections.singleton(
                 new ApiVersion(ApiKeys.PRODUCE.id, (short) 1, (short) 2)));
-<<<<<<< HEAD
         apiVersions.latestUsableVersion(ApiKeys.PRODUCE, (short) 3, (short) 4);
-=======
-        apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 3, (short) 4);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test(expected = UnsupportedVersionException.class)
     public void testLatestUsableVersionOutOfRangeHigh() {
         NodeApiVersions apiVersions = NodeApiVersions.create(Collections.singleton(
                 new ApiVersion(ApiKeys.PRODUCE.id, (short) 2, (short) 3)));
-<<<<<<< HEAD
         apiVersions.latestUsableVersion(ApiKeys.PRODUCE, (short) 0, (short) 1);
-=======
-        apiVersions.usableVersion(ApiKeys.PRODUCE, (short) 0, (short) 1);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test(expected = UnsupportedVersionException.class)
@@ -154,13 +131,6 @@ public class NodeApiVersionsTest {
         NodeApiVersions apiVersions = NodeApiVersions.create(Collections.singleton(
                 new ApiVersion(ApiKeys.PRODUCE.id, (short) 300, (short) 300)));
         apiVersions.latestUsableVersion(ApiKeys.PRODUCE);
-    }
-
-    @Test(expected = UnsupportedVersionException.class)
-    public void testUsableVersionOutOfRange() {
-        NodeApiVersions apiVersions = NodeApiVersions.create(Collections.singleton(
-                new ApiVersion(ApiKeys.PRODUCE.id, (short) 300, (short) 300)));
-        apiVersions.usableVersion(ApiKeys.PRODUCE);
     }
 
     @Test

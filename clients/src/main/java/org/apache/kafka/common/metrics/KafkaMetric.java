@@ -28,12 +28,8 @@ public final class KafkaMetric implements Metric {
     private final MetricValueProvider<?> metricValueProvider;
     private MetricConfig config;
 
-<<<<<<< HEAD
     KafkaMetric(Object lock, MetricName metricName, MetricValueProvider<?> valueProvider,
             MetricConfig config, Time time) {
-=======
-    KafkaMetric(Object lock, MetricName metricName, Measurable measurable, MetricConfig config, Time time) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         this.metricName = metricName;
         this.lock = lock;
         if (!(valueProvider instanceof Measurable) && !(valueProvider instanceof Gauge))

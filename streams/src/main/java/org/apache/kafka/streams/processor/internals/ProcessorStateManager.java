@@ -21,10 +21,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.errors.ProcessorStateException;
-<<<<<<< HEAD
-=======
-import org.apache.kafka.streams.errors.StreamsException;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.BatchingStateRestoreCallback;
 import org.apache.kafka.streams.processor.StateRestoreCallback;
 import org.apache.kafka.streams.processor.StateStore;
@@ -44,12 +40,7 @@ import java.util.Map;
 
 public class ProcessorStateManager implements StateManager {
 
-<<<<<<< HEAD
     private static final String STATE_CHANGELOG_TOPIC_SUFFIX = "-changelog";
-=======
-
-    public static final String STATE_CHANGELOG_TOPIC_SUFFIX = "-changelog";
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     static final String CHECKPOINT_FILE_NAME = ".checkpoint";
 
     private final Logger log;

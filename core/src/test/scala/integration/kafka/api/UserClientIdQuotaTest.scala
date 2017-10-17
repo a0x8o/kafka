@@ -22,7 +22,6 @@ import kafka.server._
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.utils.Sanitizer
 import org.junit.Before
-import org.apache.kafka.common.metrics.Sanitizer
 
 class UserClientIdQuotaTest extends BaseQuotaTest {
 
@@ -32,13 +31,8 @@ class UserClientIdQuotaTest extends BaseQuotaTest {
   override val userPrincipal = "O=A client,CN=localhost"
   override def producerClientId = "QuotasTestProducer-!@#$%^&*()"
   override def consumerClientId = "QuotasTestConsumer-!@#$%^&*()"
-<<<<<<< HEAD
   override def producerQuotaId = QuotaId(Some(Sanitizer.sanitize(userPrincipal)), Some(producerClientId), Some(Sanitizer.sanitize(producerClientId)))
   override def consumerQuotaId = QuotaId(Some(Sanitizer.sanitize(userPrincipal)), Some(consumerClientId), Some(Sanitizer.sanitize(consumerClientId)))
-=======
-  override def producerQuotaId = QuotaId(Some(Sanitizer.sanitize(userPrincipal)), Some(Sanitizer.sanitize(producerClientId)))
-  override def consumerQuotaId = QuotaId(Some(Sanitizer.sanitize(userPrincipal)), Some(Sanitizer.sanitize(consumerClientId)))
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   @Before
   override def setUp() {

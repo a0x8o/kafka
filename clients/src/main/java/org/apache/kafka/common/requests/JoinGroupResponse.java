@@ -31,54 +31,30 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
-<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GENERATION_ID;
 import static org.apache.kafka.common.protocol.CommonFields.MEMBER_ID;
 import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
 import static org.apache.kafka.common.protocol.types.Type.BYTES;
-=======
-import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
-import static org.apache.kafka.common.protocol.types.Type.BYTES;
-import static org.apache.kafka.common.protocol.types.Type.INT32;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.apache.kafka.common.protocol.types.Type.STRING;
 
 public class JoinGroupResponse extends AbstractResponse {
 
-<<<<<<< HEAD
     private static final String GROUP_PROTOCOL_KEY_NAME = "group_protocol";
     private static final String LEADER_ID_KEY_NAME = "leader_id";
-=======
-    private static final String GENERATION_ID_KEY_NAME = "generation_id";
-    private static final String GROUP_PROTOCOL_KEY_NAME = "group_protocol";
-    private static final String LEADER_ID_KEY_NAME = "leader_id";
-    private static final String MEMBER_ID_KEY_NAME = "member_id";
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private static final String MEMBERS_KEY_NAME = "members";
 
     private static final String MEMBER_METADATA_KEY_NAME = "member_metadata";
 
     private static final Schema JOIN_GROUP_RESPONSE_MEMBER_V0 = new Schema(
-<<<<<<< HEAD
             MEMBER_ID,
-=======
-            new Field(MEMBER_ID_KEY_NAME, STRING),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(MEMBER_METADATA_KEY_NAME, BYTES));
 
     private static final Schema JOIN_GROUP_RESPONSE_V0 = new Schema(
             ERROR_CODE,
-<<<<<<< HEAD
             GENERATION_ID,
             new Field(GROUP_PROTOCOL_KEY_NAME, STRING, "The group protocol selected by the coordinator"),
             new Field(LEADER_ID_KEY_NAME, STRING, "The leader of the group"),
             MEMBER_ID,
-=======
-            new Field(GENERATION_ID_KEY_NAME, INT32, "The generation of the consumer group."),
-            new Field(GROUP_PROTOCOL_KEY_NAME, STRING, "The group protocol selected by the coordinator"),
-            new Field(LEADER_ID_KEY_NAME, STRING, "The leader of the group"),
-            new Field(MEMBER_ID_KEY_NAME, STRING, "The consumer id assigned by the group coordinator."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(MEMBERS_KEY_NAME, new ArrayOf(JOIN_GROUP_RESPONSE_MEMBER_V0)));
 
     private static final Schema JOIN_GROUP_RESPONSE_V1 = JOIN_GROUP_RESPONSE_V0;
@@ -86,17 +62,10 @@ public class JoinGroupResponse extends AbstractResponse {
     private static final Schema JOIN_GROUP_RESPONSE_V2 = new Schema(
             THROTTLE_TIME_MS,
             ERROR_CODE,
-<<<<<<< HEAD
             GENERATION_ID,
             new Field(GROUP_PROTOCOL_KEY_NAME, STRING, "The group protocol selected by the coordinator"),
             new Field(LEADER_ID_KEY_NAME, STRING, "The leader of the group"),
             MEMBER_ID,
-=======
-            new Field(GENERATION_ID_KEY_NAME, INT32, "The generation of the consumer group."),
-            new Field(GROUP_PROTOCOL_KEY_NAME, STRING, "The group protocol selected by the coordinator"),
-            new Field(LEADER_ID_KEY_NAME, STRING, "The leader of the group"),
-            new Field(MEMBER_ID_KEY_NAME, STRING, "The consumer id assigned by the group coordinator."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(MEMBERS_KEY_NAME, new ArrayOf(JOIN_GROUP_RESPONSE_MEMBER_V0)));
 
 
@@ -164,11 +133,7 @@ public class JoinGroupResponse extends AbstractResponse {
             members.put(memberId, memberMetadata);
         }
         error = Errors.forCode(struct.get(ERROR_CODE));
-<<<<<<< HEAD
         generationId = struct.get(GENERATION_ID);
-=======
-        generationId = struct.getInt(GENERATION_ID_KEY_NAME);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         groupProtocol = struct.getString(GROUP_PROTOCOL_KEY_NAME);
         memberId = struct.get(MEMBER_ID);
         leaderId = struct.getString(LEADER_ID_KEY_NAME);
@@ -221,11 +186,7 @@ public class JoinGroupResponse extends AbstractResponse {
         struct.setIfExists(THROTTLE_TIME_MS, throttleTimeMs);
 
         struct.set(ERROR_CODE, error.code());
-<<<<<<< HEAD
         struct.set(GENERATION_ID, generationId);
-=======
-        struct.set(GENERATION_ID_KEY_NAME, generationId);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         struct.set(GROUP_PROTOCOL_KEY_NAME, groupProtocol);
         struct.set(MEMBER_ID, memberId);
         struct.set(LEADER_ID_KEY_NAME, leaderId);

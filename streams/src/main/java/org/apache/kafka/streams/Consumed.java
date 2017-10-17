@@ -24,7 +24,6 @@ import org.apache.kafka.streams.processor.TimestampExtractor;
 
 /**
  * The {@code Consumed} class is used to define the optional parameters when using {@link StreamsBuilder} to
-<<<<<<< HEAD
  * build instances of {@link KStream}, {@link KTable}, and {@link GlobalKTable}.
  * <p>
  * For example, you can read a topic as {@link KStream} with a custom timestamp extractor and specify the corresponding
@@ -49,12 +48,6 @@ import org.apache.kafka.streams.processor.TimestampExtractor;
  *
  * @param <K> type of record key
  * @param <V> type of record value
-=======
- * build instancs of {@link KStream}, {@link KTable}, and {@link GlobalKTable}.
- *
- * @param <K>
- * @param <V>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
  */
 public class Consumed<K, V> {
 
@@ -67,10 +60,6 @@ public class Consumed<K, V> {
                      final Serde<V> valueSerde,
                      final TimestampExtractor timestampExtractor,
                      final Topology.AutoOffsetReset resetPolicy) {
-<<<<<<< HEAD
-=======
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         this.keySerde = keySerde;
         this.valueSerde = valueSerde;
         this.timestampExtractor = timestampExtractor;

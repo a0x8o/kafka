@@ -130,7 +130,6 @@ public class SessionWindowedKStreamImplTest {
     @Test
     public void shouldMaterializeCount() {
         stream.count(Materialized.<String, Long, SessionStore<Bytes, byte[]>>as("count-store")
-<<<<<<< HEAD
                              .withKeySerde(Serdes.String()));
 
         processData();
@@ -146,10 +145,6 @@ public class SessionWindowedKStreamImplTest {
     @Test
     public void shouldMaterializeWithoutSpecifyingSerdes() {
         stream.count(Materialized.<String, Long, SessionStore<Bytes, byte[]>>as("count-store"));
-=======
-                             .withKeySerde(Serdes.String())
-                             .withValueSerde(Serdes.Long()));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         processData();
         final SessionStore<String, Long> store = (SessionStore<String, Long>) driver.allStateStores().get("count-store");
@@ -268,11 +263,7 @@ public class SessionWindowedKStreamImplTest {
     }
 
     private void processData() {
-<<<<<<< HEAD
         driver.setUp(builder, TestUtils.tempDirectory(), 0);
-=======
-        driver.setUp(builder, TestUtils.tempDirectory(), Serdes.String(), Serdes.String(), 0);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         driver.setTime(10);
         driver.process(TOPIC, "1", "1");
         driver.setTime(15);

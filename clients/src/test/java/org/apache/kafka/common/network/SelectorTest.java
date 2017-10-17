@@ -20,11 +20,7 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.memory.MemoryPool;
 import org.apache.kafka.common.memory.SimpleMemoryPool;
 import org.apache.kafka.common.metrics.Metrics;
-<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-=======
-import org.apache.kafka.common.protocol.SecurityProtocol;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.MockTime;
 import org.apache.kafka.common.utils.Time;
@@ -510,11 +506,7 @@ public class SelectorTest {
         // record void method invocations
         kafkaChannel.disconnect();
         kafkaChannel.close();
-<<<<<<< HEAD
         expect(kafkaChannel.ready()).andReturn(false).anyTimes();
-=======
-        expect(kafkaChannel.ready()).andReturn(false);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         // prepare throws an exception
         kafkaChannel.prepare();
         expectLastCall().andThrow(new IOException());

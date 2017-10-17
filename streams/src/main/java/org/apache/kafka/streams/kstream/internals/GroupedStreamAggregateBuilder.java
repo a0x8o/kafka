@@ -65,11 +65,7 @@ class GroupedStreamAggregateBuilder<K, V> {
                            final String functionName,
                            final StoreBuilder storeBuilder,
                            final boolean isQueryable) {
-<<<<<<< HEAD
         final String aggFunctionName = builder.newProcessorName(functionName);
-=======
-        final String aggFunctionName = builder.newName(functionName);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final String sourceName = repartitionIfRequired(storeBuilder.name());
         builder.internalTopologyBuilder.addProcessor(aggFunctionName, aggregateSupplier, sourceName);
         builder.internalTopologyBuilder.addStateStore(storeBuilder, aggFunctionName);

@@ -25,10 +25,7 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
 import org.apache.kafka.streams.kstream.Predicate;
-<<<<<<< HEAD
 import org.apache.kafka.streams.kstream.Produced;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.kstream.Reducer;
 import org.apache.kafka.streams.kstream.TimeWindows;
 import org.apache.kafka.streams.kstream.Windowed;
@@ -91,7 +88,6 @@ public class TemperatureDemo {
         KStream<String, String> source = builder.stream("iot-temperature");
 
         KStream<Windowed<String>, String> max = source
-<<<<<<< HEAD
             // temperature values are sent without a key (null), so in order
             // to group and reduce them, a key is needed ("temp" has been chosen)
             .selectKey(new KeyValueMapper<String, String, String>() {
@@ -118,44 +114,13 @@ public class TemperatureDemo {
                     return Integer.parseInt(value) > TEMPERATURE_THRESHOLD;
                 }
             });
-=======
-                // temperature values are sent without a key (null), so in order
-                // to group and reduce them, a key is needed ("temp" has been chosen)
-                .selectKey(new KeyValueMapper<String, String, String>() {
-                    @Override
-                    public String apply(String key, String value) {
-                        return "temp";
-                    }
-                })
-                .groupByKey()
-                .reduce(new Reducer<String>() {
-                    @Override
-                    public String apply(String value1, String value2) {
-                        if (Integer.parseInt(value1) > Integer.parseInt(value2))
-                            return value1;
-                        else
-                            return value2;
-                    }
-                }, TimeWindows.of(TimeUnit.SECONDS.toMillis(TEMPERATURE_WINDOW_SIZE)))
-                .toStream()
-                .filter(new Predicate<Windowed<String>, String>() {
-                    @Override
-                    public boolean test(Windowed<String> key, String value) {
-                        return Integer.parseInt(value) > TEMPERATURE_THRESHOLD;
-                    }
-                });
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         WindowedSerializer<String> windowedSerializer = new WindowedSerializer<>(Serdes.String().serializer());
         WindowedDeserializer<String> windowedDeserializer = new WindowedDeserializer<>(Serdes.String().deserializer(), TEMPERATURE_WINDOW_SIZE);
         Serde<Windowed<String>> windowedSerde = Serdes.serdeFrom(windowedSerializer, windowedDeserializer);
 
         // need to override key serde to Windowed<String> type
-<<<<<<< HEAD
         max.to("iot-temperature-max", Produced.with(windowedSerde, Serdes.String()));
-=======
-        max.to(windowedSerde, Serdes.String(), "iot-temperature-max");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         final KafkaStreams streams = new KafkaStreams(builder.build(), props);
         final CountDownLatch latch = new CountDownLatch(1);

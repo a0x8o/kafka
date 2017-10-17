@@ -33,10 +33,7 @@ public class StreamsEosTest {
         System.out.println("kafka=" + kafka);
         System.out.println("stateDir=" + stateDir);
         System.out.println("command=" + command);
-<<<<<<< HEAD
         System.out.flush();
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         if (command == null || stateDir == null) {
             System.exit(-1);

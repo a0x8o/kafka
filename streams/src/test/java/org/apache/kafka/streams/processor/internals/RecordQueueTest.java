@@ -56,7 +56,6 @@ public class RecordQueueTest {
     final MockProcessorContext context = new MockProcessorContext(StateSerdes.withBuiltinTypes("anyName", Bytes.class, Bytes.class),
             new RecordCollectorImpl(null, null,  new LogContext("record-queue-test ")));
     private final MockSourceNode mockSourceNodeWithMetrics = new MockSourceNode<>(topics, intDeserializer, intDeserializer);
-<<<<<<< HEAD
     private final RecordQueue queue = new RecordQueue(
         new TopicPartition(topics[0], 1),
         mockSourceNodeWithMetrics,
@@ -71,14 +70,6 @@ public class RecordQueueTest {
         new LogAndContinueExceptionHandler(),
         context,
         new LogContext());
-=======
-    private final RecordQueue queue = new RecordQueue(new TopicPartition(topics[0], 1),
-            mockSourceNodeWithMetrics,
-            timestampExtractor, new LogAndFailExceptionHandler(), context);
-    private final RecordQueue queueThatSkipsDeserializeErrors = new RecordQueue(new TopicPartition(topics[0], 1),
-            mockSourceNodeWithMetrics,
-            timestampExtractor, new LogAndContinueExceptionHandler(), context);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     private final byte[] recordValue = intSerializer.serialize(null, 10);
     private final byte[] recordKey = intSerializer.serialize(null, 1);
@@ -213,12 +204,8 @@ public class RecordQueueTest {
                                                   new MockSourceNode<>(topics, intDeserializer, intDeserializer),
                                                   new FailOnInvalidTimestamp(),
                                                   new LogAndContinueExceptionHandler(),
-<<<<<<< HEAD
                                                   null,
                                                   new LogContext());
-=======
-                                  null);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         queue.addRawRecords(records);
     }
 
@@ -231,12 +218,8 @@ public class RecordQueueTest {
                                                   new MockSourceNode<>(topics, intDeserializer, intDeserializer),
                                                   new LogAndSkipOnInvalidTimestamp(),
                                                   new LogAndContinueExceptionHandler(),
-<<<<<<< HEAD
                                                   null,
                                                   new LogContext());
-=======
-                                  null);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         queue.addRawRecords(records);
 
         assertEquals(0, queue.size());

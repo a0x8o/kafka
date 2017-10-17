@@ -21,11 +21,6 @@ import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.state.SessionBytesStoreSupplier;
 import org.apache.kafka.streams.state.SessionStore;
 
-<<<<<<< HEAD
-=======
-import static org.apache.kafka.streams.state.internals.RocksDBSessionStoreSupplier.NUM_SEGMENTS;
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 public class RocksDbSessionBytesStoreSupplier implements SessionBytesStoreSupplier {
     private final String name;
     private final long retentionPeriod;
@@ -41,7 +36,6 @@ public class RocksDbSessionBytesStoreSupplier implements SessionBytesStoreSuppli
         return name;
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
     @Override
     public SessionStore<Bytes, byte[]> get() {
@@ -50,14 +44,6 @@ public class RocksDbSessionBytesStoreSupplier implements SessionBytesStoreSuppli
             retentionPeriod,
             org.apache.kafka.streams.state.internals.RocksDBSessionStoreSupplier.NUM_SEGMENTS,
             new SessionKeySchema());
-=======
-    @Override
-    public SessionStore<Bytes, byte[]> get() {
-        final RocksDBSegmentedBytesStore segmented = new RocksDBSegmentedBytesStore(name,
-                                                                                    retentionPeriod,
-                                                                                    NUM_SEGMENTS,
-                                                                                    new SessionKeySchema());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return new RocksDBSessionStore<>(segmented, Serdes.Bytes(), Serdes.ByteArray());
     }
 
@@ -66,17 +52,11 @@ public class RocksDbSessionBytesStoreSupplier implements SessionBytesStoreSuppli
         return "rocksdb-session";
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
     @Override
     public long segmentIntervalMs() {
         return Segments.segmentInterval(
             retentionPeriod,
             org.apache.kafka.streams.state.internals.RocksDBSessionStoreSupplier.NUM_SEGMENTS);
-=======
-    @Override
-    public long segmentIntervalMs() {
-        return Segments.segmentInterval(retentionPeriod, NUM_SEGMENTS);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 }

@@ -93,11 +93,7 @@ public abstract class AbstractProcessorContext implements InternalProcessorConte
 
     @Override
     public void register(final StateStore store,
-<<<<<<< HEAD
                          final boolean deprecatedAndIgnoredLoggingEnabled,
-=======
-                         final boolean loggingEnabled,
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                          final StateRestoreCallback stateRestoreCallback) {
         if (initialized) {
             throw new IllegalStateException("Can only create state stores during initialization.");

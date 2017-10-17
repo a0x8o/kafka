@@ -29,7 +29,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.GROUP_ID;
 import static org.apache.kafka.common.protocol.CommonFields.PARTITION_ID;
 import static org.apache.kafka.common.protocol.CommonFields.PRODUCER_EPOCH;
@@ -40,20 +39,6 @@ import static org.apache.kafka.common.protocol.types.Type.INT64;
 import static org.apache.kafka.common.protocol.types.Type.NULLABLE_STRING;
 
 public class TxnOffsetCommitRequest extends AbstractRequest {
-=======
-import static org.apache.kafka.common.protocol.CommonFields.PARTITION_ID;
-import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
-import static org.apache.kafka.common.protocol.types.Type.INT16;
-import static org.apache.kafka.common.protocol.types.Type.INT64;
-import static org.apache.kafka.common.protocol.types.Type.NULLABLE_STRING;
-import static org.apache.kafka.common.protocol.types.Type.STRING;
-
-public class TxnOffsetCommitRequest extends AbstractRequest {
-    private static final String TRANSACTIONAL_ID_KEY_NAME = "transactional_id";
-    private static final String CONSUMER_GROUP_ID_KEY_NAME = "consumer_group_id";
-    private static final String PRODUCER_ID_KEY_NAME = "producer_id";
-    private static final String PRODUCER_EPOCH_KEY_NAME = "producer_epoch";
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private static final String TOPICS_KEY_NAME = "topics";
     private static final String PARTITIONS_KEY_NAME = "partitions";
     private static final String OFFSET_KEY_NAME = "offset";
@@ -65,17 +50,10 @@ public class TxnOffsetCommitRequest extends AbstractRequest {
             new Field(METADATA_KEY_NAME, NULLABLE_STRING));
 
     private static final Schema TXN_OFFSET_COMMIT_REQUEST_V0 = new Schema(
-<<<<<<< HEAD
             TRANSACTIONAL_ID,
             GROUP_ID,
             PRODUCER_ID,
             PRODUCER_EPOCH,
-=======
-            new Field(TRANSACTIONAL_ID_KEY_NAME, STRING, "The transactional id corresponding to the transaction."),
-            new Field(CONSUMER_GROUP_ID_KEY_NAME, STRING, "Id of the associated consumer group to commit offsets for."),
-            new Field(PRODUCER_ID_KEY_NAME, INT64, "Current producer id in use by the transactional id."),
-            new Field(PRODUCER_EPOCH_KEY_NAME, INT16, "Current epoch associated with the producer id."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(TOPICS_KEY_NAME, new ArrayOf(new Schema(
                     TOPIC_NAME,
                     new Field(PARTITIONS_KEY_NAME, new ArrayOf(TXN_OFFSET_COMMIT_PARTITION_OFFSET_METADATA_REQUEST_V0)))),

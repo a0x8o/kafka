@@ -149,10 +149,7 @@ class WorkerSinkTask extends WorkerTask {
 
     @Override
     protected void releaseResources() {
-<<<<<<< HEAD
         sinkTaskMetricsGroup.close();
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Override
@@ -229,10 +226,7 @@ class WorkerSinkTask extends WorkerTask {
         if (commitSeqno != seqno) {
             log.debug("{} Received out of order commit callback for sequence number {}, but most recent sequence number is {}",
                     this, seqno, commitSeqno);
-<<<<<<< HEAD
             sinkTaskMetricsGroup.recordOffsetCommitSkip();
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         } else {
             long durationMillis = time.milliseconds() - commitStarted;
             if (error != null) {
@@ -246,10 +240,7 @@ class WorkerSinkTask extends WorkerTask {
                 if (committedOffsets != null) {
                     log.debug("{} Setting last committed offsets to {}", this, committedOffsets);
                     lastCommittedOffsets = committedOffsets;
-<<<<<<< HEAD
                     sinkTaskMetricsGroup.recordCommittedOffsets(committedOffsets);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
                 commitFailures = 0;
                 recordCommitSuccess(durationMillis);
@@ -500,15 +491,10 @@ class WorkerSinkTask extends WorkerTask {
         try {
             // Since we reuse the messageBatch buffer, ensure we give the task its own copy
             log.trace("{} Delivering batch of {} messages to task", this, messageBatch.size());
-<<<<<<< HEAD
             long start = time.milliseconds();
             task.put(new ArrayList<>(messageBatch));
             recordBatch(messageBatch.size());
             sinkTaskMetricsGroup.recordPut(time.milliseconds() - start);
-=======
-            task.put(new ArrayList<>(messageBatch));
-            recordBatch(messageBatch.size());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             currentOffsets.putAll(origOffsets);
             messageBatch.clear();
             // If we had paused all consumer topic partitions to try to redeliver data, then we should resume any that

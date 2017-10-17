@@ -31,7 +31,6 @@ import org.apache.kafka.streams.kstream.SessionWindows;
 import org.apache.kafka.streams.kstream.TimeWindowedKStream;
 import org.apache.kafka.streams.kstream.Window;
 import org.apache.kafka.streams.kstream.Windowed;
-import org.apache.kafka.streams.kstream.TimeWindowedKStream;
 import org.apache.kafka.streams.kstream.Windows;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.SessionStore;
@@ -110,23 +109,14 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
         Objects.requireNonNull(reducer, "reducer can't be null");
         Objects.requireNonNull(materialized, "materialized can't be null");
         final MaterializedInternal<K, V, KeyValueStore<Bytes, byte[]>> materializedInternal
-<<<<<<< HEAD
                 = new MaterializedInternal<>(materialized, builder, REDUCE_NAME);
-=======
-                = new MaterializedInternal<>(materialized);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return doAggregate(
                 new KStreamReduce<K, V>(materializedInternal.storeName(), reducer),
                 REDUCE_NAME,
                 materializedInternal);
     }
-<<<<<<< HEAD
 
     @SuppressWarnings("deprecation")
-=======
-
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <W extends Window> KTable<Windowed<K>, V> reduce(final Reducer<V> reducer,
                                                             final Windows<W> windows,
@@ -135,10 +125,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
         return reduce(reducer, windows, windowedStore(keySerde, valSerde, windows, getOrCreateName(queryableStoreName, REDUCE_NAME)));
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <W extends Window> KTable<Windowed<K>, V> reduce(final Reducer<V> reducer,
                                                             final Windows<W> windows) {
@@ -184,11 +171,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
                                                      final Aggregator<? super K, ? super V, VR> aggregator,
                                                      final Materialized<K, VR, KeyValueStore<Bytes, byte[]>> materialized) {
         final MaterializedInternal<K, VR, KeyValueStore<Bytes, byte[]>> materializedInternal
-<<<<<<< HEAD
                 = new MaterializedInternal<>(materialized, builder, AGGREGATE_NAME);
-=======
-                = new MaterializedInternal<>(materialized);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return doAggregate(
                 new KStreamAggregate<>(materializedInternal.storeName(), initializer, aggregator),
                 AGGREGATE_NAME,
@@ -196,7 +179,6 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
     }
 
     @Override
-<<<<<<< HEAD
     public <VR> KTable<K, VR> aggregate(final Initializer<VR> initializer,
                                         final Aggregator<? super K, ? super V, VR> aggregator) {
         Objects.requireNonNull(initializer, "initializer can't be null");
@@ -205,25 +187,13 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
                 new MaterializedInternal<>(Materialized.<K, VR, KeyValueStore<Bytes, byte[]>>with(keySerde, null),
                                            builder,
                                            AGGREGATE_NAME);
-=======
-    public <VR> KTable<K, VR> aggregate(final Initializer<VR> initializer, final Aggregator<? super K, ? super V, VR> aggregator) {
-        Objects.requireNonNull(initializer, "initializer can't be null");
-        Objects.requireNonNull(aggregator, "aggregator can't be null");
-        final String storeName = builder.newStoreName(AGGREGATE_NAME);
-
-        MaterializedInternal<K, VR, KeyValueStore<Bytes, byte[]>> materializedInternal =
-                new MaterializedInternal<>(Materialized.<K, VR, KeyValueStore<Bytes, byte[]>>as(storeName), false);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return doAggregate(new KStreamAggregate<>(materializedInternal.storeName(), initializer, aggregator),
                            AGGREGATE_NAME,
                            materializedInternal);
 
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <T> KTable<K, T> aggregate(final Initializer<T> initializer,
                                       final Aggregator<? super K, ? super V, T> aggregator,
@@ -245,10 +215,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
                 storeSupplier);
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <W extends Window, T> KTable<Windowed<K>, T> aggregate(final Initializer<T> initializer,
                                                                   final Aggregator<? super K, ? super V, T> aggregator,
@@ -259,10 +226,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
         return aggregate(initializer, aggregator, windows, windowedStore(keySerde, aggValueSerde, windows, getOrCreateName(queryableStoreName, AGGREGATE_NAME)));
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <W extends Window, T> KTable<Windowed<K>, T> aggregate(final Initializer<T> initializer,
                                                                   final Aggregator<? super K, ? super V, T> aggregator,
@@ -305,18 +269,8 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
 
     @SuppressWarnings("deprecation")
     @Override
-<<<<<<< HEAD
     public KTable<K, Long> count(final org.apache.kafka.streams.processor.StateStoreSupplier<KeyValueStore> storeSupplier) {
         return aggregate(aggregateBuilder.countInitializer, aggregateBuilder.countAggregator, storeSupplier);
-=======
-    public KTable<K, Long> count(final StateStoreSupplier<KeyValueStore> storeSupplier) {
-        return aggregate(aggregateBuilder.countInitializer, aggregateBuilder.countAggregator, storeSupplier);
-    }
-
-    @Override
-    public KTable<K, Long> count(final Materialized<K, Long, KeyValueStore<Bytes, byte[]>> materialized) {
-        return aggregate(aggregateBuilder.countInitializer, aggregateBuilder.countAggregator, materialized);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Override
@@ -375,10 +329,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
 
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <T> KTable<Windowed<K>, T> aggregate(final Initializer<T> initializer,
                                                 final Aggregator<? super K, ? super V, T> aggregator,
@@ -436,11 +387,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
                                                 aggregateBuilder);
     }
 
-<<<<<<< HEAD
     @SuppressWarnings({"unchecked", "deprecation"})
-=======
-    @SuppressWarnings("unchecked")
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public KTable<Windowed<K>, Long> count(final SessionWindows sessionWindows, final String queryableStoreName) {
         Materialized<K, Long, SessionStore<Bytes, byte[]>> materialized = Materialized.<K, Long, SessionStore<Bytes, byte[]>>as(getOrCreateName(queryableStoreName, AGGREGATE_NAME))
                 .withKeySerde(keySerde)
@@ -453,10 +400,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
         return windowedBy(sessionWindows).count();
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public KTable<Windowed<K>, Long> count(final SessionWindows sessionWindows,
                                            final org.apache.kafka.streams.processor.StateStoreSupplier<SessionStore> storeSupplier) {
@@ -490,10 +434,7 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
                               .sessionWindowed(sessionWindows.maintainMs()).build());
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public KTable<Windowed<K>, V> reduce(final Reducer<V> reducer,
                                          final SessionWindows sessionWindows) {
@@ -548,20 +489,13 @@ class KGroupedStreamImpl<K, V> extends AbstractStream<K> implements KGroupedStre
 
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private <T> KTable<K, T> doAggregate(
             final KStreamAggProcessorSupplier<K, ?, V, T> aggregateSupplier,
             final String functionName,
             final org.apache.kafka.streams.processor.StateStoreSupplier storeSupplier) {
 
-<<<<<<< HEAD
         final String aggFunctionName = builder.newProcessorName(functionName);
-=======
-        final String aggFunctionName = builder.newName(functionName);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         final String sourceName = repartitionIfRequired(storeSupplier.name());
 

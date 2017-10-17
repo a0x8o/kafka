@@ -34,17 +34,10 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.memory.MemoryPool
 import org.apache.kafka.common.metrics.Metrics
 import org.apache.kafka.common.network.{ChannelBuilder, ChannelState, KafkaChannel, ListenerName, NetworkReceive, NetworkSend, Selector, Send}
-<<<<<<< HEAD
 import org.apache.kafka.common.protocol.{ApiKeys, Errors}
 import org.apache.kafka.common.record.MemoryRecords
 import org.apache.kafka.common.requests.{AbstractRequest, ProduceRequest, RequestHeader}
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
-=======
-import org.apache.kafka.common.protocol.{ApiKeys, SecurityProtocol}
-import org.apache.kafka.common.record.{MemoryRecords, RecordBatch}
-import org.apache.kafka.common.requests.{AbstractRequest, ProduceRequest, RequestHeader}
-import org.apache.kafka.common.security.auth.KafkaPrincipal
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.{LogContext, MockTime, Time}
 import org.junit.Assert._
 import org.junit._
@@ -140,15 +133,12 @@ class SocketServerTest extends JUnitSuite {
     receiveRequest(server.requestChannel)
   }
 
-<<<<<<< HEAD
   def shutdownServerAndMetrics(server: SocketServer): Unit = {
     server.shutdown()
     server.metrics.close()
     server.requestChannel.metrics.close()
   }
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   @After
   def tearDown() {
     shutdownServerAndMetrics(server)
@@ -275,12 +265,7 @@ class SocketServerTest extends JUnitSuite {
       assertNull("Received request after failed send", overrideServer.requestChannel.receiveRequest(200))
 
     } finally {
-<<<<<<< HEAD
       shutdownServerAndMetrics(overrideServer)
-=======
-      overrideServer.shutdown()
-      serverMetrics.close()
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
   }
 
@@ -361,32 +346,8 @@ class SocketServerTest extends JUnitSuite {
       newChannel.disconnect()
 
     } finally {
-<<<<<<< HEAD
       shutdownServerAndMetrics(overrideServer)
-=======
-      overrideServer.shutdown()
-      serverMetrics.close()
     }
-  }
-
-  private def sendRequestsUntilStagedReceive(server: SocketServer, socket: Socket, requestBytes: Array[Byte]): RequestChannel.Request = {
-    def sendTwoRequestsReceiveOne(): RequestChannel.Request = {
-      sendRequest(socket, requestBytes, flush = false)
-      sendRequest(socket, requestBytes, flush = true)
-      receiveRequest(server.requestChannel)
-    }
-    val (request, hasStagedReceives) = TestUtils.computeUntilTrue(sendTwoRequestsReceiveOne()) { req =>
-      val connectionId = req.context.connectionId
-      val hasStagedReceives = server.processor(0).numStagedReceives(connectionId) > 0
-      if (!hasStagedReceives) {
-        processRequest(server.requestChannel, req)
-        processRequest(server.requestChannel)
-      }
-      hasStagedReceives
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
-    }
-    assertTrue(s"Receives not staged for ${org.apache.kafka.test.TestUtils.DEFAULT_MAX_WAIT_MS} ms", hasStagedReceives)
-    request
   }
 
   private def sendRequestsUntilStagedReceive(server: SocketServer, socket: Socket, requestBytes: Array[Byte]): RequestChannel.Request = {
@@ -559,11 +520,7 @@ class SocketServerTest extends JUnitSuite {
       val channel = overrideServer.requestChannel
       val request = receiveRequest(channel)
 
-<<<<<<< HEAD
       val requestMetrics = channel.metrics(request.header.apiKey.name)
-=======
-      val requestMetrics = RequestMetrics.metricsMap(request.header.apiKey.name)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       def totalTimeHistCount(): Long = requestMetrics.totalTimeHist.count
       val expectedTotalTimeCount = totalTimeHistCount() + 1
 
@@ -604,11 +561,7 @@ class SocketServerTest extends JUnitSuite {
       TestUtils.waitUntilTrue(() => overrideServer.processor(request.processor).channel(request.context.connectionId).isEmpty,
         s"Idle connection `${request.context.connectionId}` was not closed by selector")
 
-<<<<<<< HEAD
       val requestMetrics = channel.metrics(request.header.apiKey.name)
-=======
-      val requestMetrics = RequestMetrics.metricsMap(request.header.apiKey.name)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       def totalTimeHistCount(): Long = requestMetrics.totalTimeHist.count
       val expectedTotalTimeCount = totalTimeHistCount() + 1
 
@@ -909,12 +862,7 @@ class SocketServerTest extends JUnitSuite {
     try {
         testWithServer(testableServer)
     } finally {
-<<<<<<< HEAD
       shutdownServerAndMetrics(testableServer)
-=======
-      testableServer.shutdown()
-      testableServer.metrics.close()
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
   }
 

@@ -64,11 +64,7 @@ versions += [
   // PowerMock 1.x doesn't support Java 9, so use PowerMock 2.0.0 beta
   powermock: "2.0.0-beta.5",
   reflections: "0.9.11",
-<<<<<<< HEAD
   rocksDB: "5.8.0",
-=======
-  rocksDB: "5.3.6",
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   scalatest: "3.0.4",
   scoverage: "1.3.1",
   slf4j: "1.7.25",

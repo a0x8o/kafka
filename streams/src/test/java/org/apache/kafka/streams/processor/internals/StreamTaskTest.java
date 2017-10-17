@@ -53,10 +53,7 @@ import org.apache.kafka.streams.state.internals.OffsetCheckpoint;
 import org.apache.kafka.test.MockProcessorNode;
 import org.apache.kafka.test.MockSourceNode;
 import org.apache.kafka.test.MockStateRestoreListener;
-<<<<<<< HEAD
 import org.apache.kafka.test.MockStateStoreSupplier;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.test.MockTimestampExtractor;
 import org.apache.kafka.test.NoOpProcessorContext;
 import org.apache.kafka.test.NoOpRecordCollector;
@@ -129,10 +126,6 @@ public class StreamTaskTest {
     private final MockTime time = new MockTime();
     private File baseDir = TestUtils.tempDirectory();
     private StateDirectory stateDirectory;
-<<<<<<< HEAD
-=======
-    private final RecordCollectorImpl recordCollector = new RecordCollectorImpl(producer, "taskId", new LogContext("taskId "));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private StreamsConfig config;
     private StreamsConfig eosConfig;
     private StreamTask task;
@@ -370,10 +363,6 @@ public class StreamTaskTest {
 
         assertFalse(task.process());
         assertFalse(task.maybePunctuateStreamTime());
-<<<<<<< HEAD
-
-        processorStreamTime.supplier.checkAndClearPunctuateResult(PunctuationType.STREAM_TIME, 20L, 30L, 40L);
-=======
 
         processorStreamTime.supplier.checkAndClearPunctuateResult(PunctuationType.STREAM_TIME, 20L, 30L, 40L);
     }
@@ -438,76 +427,10 @@ public class StreamTaskTest {
         time.sleep(10);
         assertFalse(task.maybePunctuateSystemTime());
         processorSystemTime.supplier.checkAndClearPunctuateResult(PunctuationType.WALL_CLOCK_TIME, now + 10);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @SuppressWarnings("unchecked")
     @Test
-<<<<<<< HEAD
-    public void testCancelPunctuateStreamTime() {
-        task.addRecords(partition1, records(
-                new ConsumerRecord<>(partition1.topic(), partition1.partition(), 20, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, recordKey, recordValue),
-                new ConsumerRecord<>(partition1.topic(), partition1.partition(), 30, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, recordKey, recordValue),
-                new ConsumerRecord<>(partition1.topic(), partition1.partition(), 40, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, recordKey, recordValue)
-        ));
-
-        task.addRecords(partition2, records(
-                new ConsumerRecord<>(partition2.topic(), partition2.partition(), 25, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, recordKey, recordValue),
-                new ConsumerRecord<>(partition2.topic(), partition2.partition(), 35, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, recordKey, recordValue),
-                new ConsumerRecord<>(partition2.topic(), partition2.partition(), 45, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, recordKey, recordValue)
-        ));
-
-        assertTrue(task.maybePunctuateStreamTime());
-
-        assertTrue(task.process());
-
-        assertFalse(task.maybePunctuateStreamTime());
-
-        assertTrue(task.process());
-
-        processorStreamTime.supplier.scheduleCancellable.cancel();
-
-        assertFalse(task.maybePunctuateStreamTime());
-
-        processorStreamTime.supplier.checkAndClearPunctuateResult(PunctuationType.STREAM_TIME, 20L);
-    }
-
-    @Test
-    public void shouldPunctuateSystemTimeWhenIntervalElapsed() {
-        long now = time.milliseconds();
-        time.sleep(10);
-        assertTrue(task.maybePunctuateSystemTime());
-        time.sleep(10);
-        assertTrue(task.maybePunctuateSystemTime());
-        time.sleep(10);
-        assertTrue(task.maybePunctuateSystemTime());
-        processorSystemTime.supplier.checkAndClearPunctuateResult(PunctuationType.WALL_CLOCK_TIME, now + 10, now + 20, now + 30);
-    }
-
-    @Test
-    public void shouldNotPunctuateSystemTimeWhenIntervalNotElapsed() {
-        long now = time.milliseconds();
-        assertTrue(task.maybePunctuateSystemTime()); // first time we always punctuate
-        time.sleep(9);
-        assertFalse(task.maybePunctuateSystemTime());
-        processorSystemTime.supplier.checkAndClearPunctuateResult(PunctuationType.WALL_CLOCK_TIME, now);
-    }
-
-    @Test
-    public void testCancelPunctuateSystemTime() {
-        long now = time.milliseconds();
-        time.sleep(10);
-        assertTrue(task.maybePunctuateSystemTime());
-        processorSystemTime.supplier.scheduleCancellable.cancel();
-        time.sleep(10);
-        assertFalse(task.maybePunctuateSystemTime());
-        processorSystemTime.supplier.checkAndClearPunctuateResult(PunctuationType.WALL_CLOCK_TIME, now + 10);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void shouldWrapKafkaExceptionsWithStreamsExceptionAndAddContext() {
         final MockSourceNode processorNode = new MockSourceNode(topic1, intDeserializer, intDeserializer) {
 
@@ -571,7 +494,6 @@ public class StreamTaskTest {
         };
 
         final ProcessorNode punctuator = new ProcessorNode("test", processor, Collections.<String>emptySet());
-<<<<<<< HEAD
         punctuator.init(new NoOpProcessorContext());
 
         try {
@@ -605,47 +527,6 @@ public class StreamTaskTest {
         };
 
         final ProcessorNode punctuator = new ProcessorNode("test", processor, Collections.<String>emptySet());
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
-        punctuator.init(new NoOpProcessorContext());
-
-        try {
-            task.punctuate(punctuator, 1, PunctuationType.STREAM_TIME, new Punctuator() {
-                @Override
-                public void punctuate(long timestamp) {
-<<<<<<< HEAD
-                    throw new KafkaException("KABOOM!");
-=======
-                    processor.punctuate(timestamp);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
-                }
-            });
-            fail("Should've thrown StreamsException");
-        } catch (final StreamsException e) {
-            final String message = e.getMessage();
-            assertTrue("message=" + message + " should contain processor", message.contains("processor 'test'"));
-            assertThat(((ProcessorContextImpl) task.processorContext()).currentNode(), nullValue());
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
-<<<<<<< HEAD
-=======
-    public void shouldWrapKafkaExceptionsWithStreamsExceptionAndAddContextWhenPunctuatingStreamTime() {
-        final Processor processor = new AbstractProcessor() {
-            @Override
-            public void init(final ProcessorContext context) {
-            }
-
-            @Override
-            public void process(final Object key, final Object value) {}
-
-            @Override
-            public void punctuate(final long timestamp) {}
-        };
-
-        final ProcessorNode punctuator = new ProcessorNode("test", processor, Collections.<String>emptySet());
         punctuator.init(new NoOpProcessorContext());
 
         try {
@@ -664,7 +545,6 @@ public class StreamTaskTest {
     }
 
     @Test
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void shouldFlushRecordCollectorOnFlushState() {
         final AtomicBoolean flushed = new AtomicBoolean(false);
         final StreamsMetrics streamsMetrics = new MockStreamsMetrics(new Metrics());
@@ -759,11 +639,7 @@ public class StreamTaskTest {
         final InMemoryKeyValueStore inMemoryStore = new InMemoryKeyValueStore(storeName, null, null) {
             @Override
             public void init(final ProcessorContext context, final StateStore root) {
-<<<<<<< HEAD
                 context.register(root, false, null);
-=======
-                context.register(root, true, null);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             }
 
             @Override
@@ -1142,7 +1018,6 @@ public class StreamTaskTest {
         }
     }
 
-<<<<<<< HEAD
     @Test
     public void shouldBeInitializedIfChangelogPartitionsIsEmpty() {
         final ProcessorTopology topology = new ProcessorTopology(Collections.<ProcessorNode>singletonList(source1),
@@ -1199,8 +1074,6 @@ public class StreamTaskTest {
         assertFalse(task.initialize());
     }
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @SuppressWarnings("unchecked")
     private StreamTask createTaskThatThrowsExceptionOnClose() {
         final MockSourceNode processorNode = new MockSourceNode(topic1, intDeserializer, intDeserializer) {

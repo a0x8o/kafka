@@ -31,10 +31,7 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.errors.DeserializationExceptionHandler;
 import org.apache.kafka.streams.errors.StreamsException;
-<<<<<<< HEAD
 import org.apache.kafka.streams.errors.TaskMigratedException;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.Cancellable;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.PunctuationType;
@@ -141,11 +138,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
         for (final TopicPartition partition : partitions) {
             final SourceNode source = topology.source(partition.topic());
             final TimestampExtractor sourceTimestampExtractor = source.getTimestampExtractor() != null ? source.getTimestampExtractor() : defaultTimestampExtractor;
-<<<<<<< HEAD
             final RecordQueue queue = new RecordQueue(partition, source, sourceTimestampExtractor, defaultDeserializationExceptionHandler, processorContext, logContext);
-=======
-            final RecordQueue queue = new RecordQueue(partition, source, sourceTimestampExtractor, defaultDeserializationExceptionHandler, processorContext);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             partitionQueues.put(partition, queue);
         }
 
@@ -154,36 +147,24 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
 
         stateMgr.registerGlobalStateStores(topology.globalStateStores());
         if (eosEnabled) {
-<<<<<<< HEAD
             try {
                 this.producer.initTransactions();
                 this.producer.beginTransaction();
             } catch (final ProducerFencedException fatal) {
                 throw new TaskMigratedException(this, fatal);
             }
-=======
-            this.producer.initTransactions();
-            this.producer.beginTransaction();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             transactionInFlight = true;
         }
     }
 
-<<<<<<< HEAD
     @Override
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public boolean initialize() {
         log.trace("Initializing");
         initializeStateStores();
         initTopology();
         processorContext.initialized();
         taskInitialized = true;
-<<<<<<< HEAD
         return changelogPartitions().isEmpty();
-=======
-        return topology.stateStores().isEmpty();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
 
@@ -198,15 +179,11 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
     public void resume() {
         log.debug("Resuming");
         if (eosEnabled) {
-<<<<<<< HEAD
             try {
                 producer.beginTransaction();
             } catch (final ProducerFencedException fatal) {
                 throw new TaskMigratedException(this, fatal);
             }
-=======
-            producer.beginTransaction();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             transactionInFlight = true;
         }
         initTopology();
@@ -284,11 +261,8 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
 
         try {
             node.punctuate(timestamp, punctuator);
-<<<<<<< HEAD
         } catch (final ProducerFencedException fatal) {
             throw new TaskMigratedException(this, fatal);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         } catch (final KafkaException e) {
             throw new StreamsException(String.format("%sException caught while punctuating processor '%s'", logPrefix,  node.name()), e);
         } finally {
@@ -360,7 +334,6 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
      *                               or if the task producer got fenced (EOS)
      */
     private void commitOffsets(final boolean startNewTransaction) {
-<<<<<<< HEAD
         try {
             if (commitOffsetNeeded) {
                 log.trace("Committing offsets");
@@ -370,25 +343,6 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
                     final long offset = entry.getValue() + 1;
                     consumedOffsetsAndMetadata.put(partition, new OffsetAndMetadata(offset));
                     stateMgr.putOffsetLimit(partition, offset);
-=======
-        if (commitOffsetNeeded) {
-            log.trace("Committing offsets");
-            final Map<TopicPartition, OffsetAndMetadata> consumedOffsetsAndMetadata = new HashMap<>(consumedOffsets.size());
-            for (final Map.Entry<TopicPartition, Long> entry : consumedOffsets.entrySet()) {
-                final TopicPartition partition = entry.getKey();
-                final long offset = entry.getValue() + 1;
-                consumedOffsetsAndMetadata.put(partition, new OffsetAndMetadata(offset));
-                stateMgr.putOffsetLimit(partition, offset);
-            }
-
-            if (eosEnabled) {
-                producer.sendOffsetsToTransaction(consumedOffsetsAndMetadata, applicationId);
-                producer.commitTransaction();
-                transactionInFlight = false;
-                if (startNewTransaction) {
-                    transactionInFlight = true;
-                    producer.beginTransaction();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
 
                 if (eosEnabled) {
@@ -401,31 +355,18 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
                     }
                 } else {
                     consumer.commitSync(consumedOffsetsAndMetadata);
-<<<<<<< HEAD
-=======
-                } catch (final CommitFailedException e) {
-                    log.warn("Failed offset commits {} due to CommitFailedException", consumedOffsetsAndMetadata);
-                    throw e;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
                 commitOffsetNeeded = false;
             } else if (eosEnabled && !startNewTransaction && transactionInFlight) { // need to make sure to commit txn for suspend case
                 producer.commitTransaction();
                 transactionInFlight = false;
             }
-<<<<<<< HEAD
         } catch (final CommitFailedException | ProducerFencedException fatal) {
             throw new TaskMigratedException(this, fatal);
-=======
-            commitOffsetNeeded = false;
-        } else if (eosEnabled && !startNewTransaction && transactionInFlight) { // need to make sure to commit txn for suspend case
-            producer.commitTransaction();
-            transactionInFlight = false;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 
-    void initTopology() {
+    private void initTopology() {
         // initialize the task by initializing all its processor nodes in the topology
         log.trace("Initializing processor nodes of the topology");
         for (final ProcessorNode node : topology.processors()) {
@@ -526,7 +467,6 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
                             producer.abortTransaction();
                         }
                         transactionInFlight = false;
-<<<<<<< HEAD
                     } catch (final ProducerFencedException ignore) {
                         /* TODO
                          * this should actually never happen atm as we we guard the call to #abortTransaction
@@ -535,9 +475,6 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
                          * fixed and fall-back to this catch-and-swallow code
                          */
 
-=======
-                    } catch (final ProducerFencedException e) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                         // can be ignored: transaction got already aborted by brokers/transactional-coordinator if this happens
                     }
                 }
@@ -574,13 +511,9 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
      * </pre>
      * @param clean shut down cleanly (ie, incl. flush and commit) if {@code true} --
      *              otherwise, just close open resources
-<<<<<<< HEAD
      * @param isZombie {@code true} is this task is a zombie or not (this will repress {@link TaskMigratedException}
      * @throws TaskMigratedException if committing offsets failed (non-EOS)
      *                               or if the task producer got fenced (EOS)
-=======
-     * @param isZombie {@code true} is this task is a zombie or not
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     @Override
     public void close(boolean clean,
@@ -660,10 +593,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
      * Possibly trigger registered stream-time punctuation functions if
      * current partition group timestamp has reached the defined stamp
      * Note, this is only called in the presence of new records
-<<<<<<< HEAD
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     public boolean maybePunctuateStreamTime() {
         final long timestamp = partitionGroup.timestamp();
@@ -681,10 +611,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
      * Possibly trigger registered system-time punctuation functions if
      * current system timestamp has reached the defined stamp
      * Note, this is called irrespective of the presence of new records
-<<<<<<< HEAD
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     public boolean maybePunctuateSystemTime() {
         final long timestamp = time.milliseconds();

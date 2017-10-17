@@ -60,7 +60,6 @@ public final class Java {
                     ", minorVersion=" + minorVersion + ")";
         }
 
-<<<<<<< HEAD
         // Package private for testing
         boolean isJava9Compatible() {
             return majorVersion >= 9;
@@ -70,13 +69,6 @@ public final class Java {
         boolean isJava8Compatible() {
             return majorVersion > 1 || (majorVersion == 1 && minorVersion >= 8);
         }
-=======
-    public static final boolean IS_JAVA8_COMPATIBLE = JVM_MAJOR_VERSION > 1 ||
-            (JVM_MAJOR_VERSION == 1 && JVM_MINOR_VERSION >= 8);
-
-    public static boolean isIBMJdk() {
-        return System.getProperty("java.vendor").contains("IBM");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
 }

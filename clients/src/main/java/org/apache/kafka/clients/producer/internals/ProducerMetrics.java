@@ -17,63 +17,37 @@
 package org.apache.kafka.clients.producer.internals;
 
 import java.util.ArrayList;
-<<<<<<< HEAD
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.common.MetricNameTemplate;
 import org.apache.kafka.common.metrics.MetricConfig;
-=======
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.kafka.common.MetricNameTemplate;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.metrics.Metrics;
 
 public class ProducerMetrics {
 
-<<<<<<< HEAD
     public final SenderMetricsRegistry senderMetrics;
     private final Metrics metrics;
 
     public ProducerMetrics(Metrics metrics) {
         this.metrics = metrics;
         this.senderMetrics = new SenderMetricsRegistry(this.metrics);
-=======
-    public SenderMetricsRegistry senderMetrics;
-
-    public ProducerMetrics(Set<String> tags, String metricGrpPrefix) {
-        this.senderMetrics = new SenderMetricsRegistry(tags);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     private List<MetricNameTemplate> getAllTemplates() {
         List<MetricNameTemplate> l = new ArrayList<>();
-<<<<<<< HEAD
         l.addAll(this.senderMetrics.allTemplates());
-=======
-        l.addAll(this.senderMetrics.getAllTemplates());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return l;
     }
 
     public static void main(String[] args) {
-<<<<<<< HEAD
         Map<String, String> metricTags = Collections.singletonMap("client-id", "client-id");
         MetricConfig metricConfig = new MetricConfig().tags(metricTags);
         Metrics metrics = new Metrics(metricConfig);
 
         ProducerMetrics metricsRegistry = new ProducerMetrics(metrics);
         System.out.println(Metrics.toHtmlTable("kafka.producer", metricsRegistry.getAllTemplates()));
-=======
-        Set<String> tags = new HashSet<>();
-        tags.add("client-id");
-        ProducerMetrics metrics = new ProducerMetrics(tags, "producer");
-        System.out.println(Metrics.toHtmlTable("kafka.producer", metrics.getAllTemplates()));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
 }

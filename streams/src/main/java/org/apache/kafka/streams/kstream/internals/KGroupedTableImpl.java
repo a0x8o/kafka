@@ -21,22 +21,12 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.Bytes;
-<<<<<<< HEAD
-=======
-import org.apache.kafka.streams.kstream.Materialized;
-import org.apache.kafka.streams.kstream.Reducer;
-import org.apache.kafka.streams.kstream.KTable;
-import org.apache.kafka.streams.kstream.Initializer;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.kstream.Aggregator;
 import org.apache.kafka.streams.kstream.Initializer;
 import org.apache.kafka.streams.kstream.KGroupedTable;
-<<<<<<< HEAD
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Reducer;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.FailOnInvalidTimestamp;
 import org.apache.kafka.streams.processor.ProcessorSupplier;
 import org.apache.kafka.streams.processor.StateStoreSupplier;
@@ -66,7 +56,6 @@ public class KGroupedTableImpl<K, V> extends AbstractStream<K> implements KGroup
             return 0L;
         }
     };
-<<<<<<< HEAD
 
     private final Aggregator<K, V, Long> countAdder = new Aggregator<K, V, Long>() {
         @Override
@@ -87,28 +76,6 @@ public class KGroupedTableImpl<K, V> extends AbstractStream<K> implements KGroup
                       final String sourceName,
                       final Serde<K> keySerde,
                       final Serde<V> valSerde) {
-=======
-
-    private final Aggregator<K, V, Long> countAdder = new Aggregator<K, V, Long>() {
-        @Override
-        public Long apply(K aggKey, V value, Long aggregate) {
-            return aggregate + 1L;
-        }
-    };
-
-    private Aggregator<K, V, Long> countSubtractor = new Aggregator<K, V, Long>() {
-        @Override
-        public Long apply(K aggKey, V value, Long aggregate) {
-            return aggregate - 1L;
-        }
-    };
-
-    public KGroupedTableImpl(final InternalStreamsBuilder builder,
-                             final String name,
-                             final String sourceName,
-                             final Serde<? extends K> keySerde,
-                             final Serde<? extends V> valSerde) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         super(builder, name, Collections.singleton(sourceName));
         this.keySerde = keySerde;
         this.valSerde = valSerde;
@@ -176,15 +143,9 @@ public class KGroupedTableImpl<K, V> extends AbstractStream<K> implements KGroup
     private <T> KTable<K, T> doAggregate(final ProcessorSupplier<K, Change<V>> aggregateSupplier,
                                          final String functionName,
                                          final StateStoreSupplier<KeyValueStore> storeSupplier) {
-<<<<<<< HEAD
         final String sinkName = builder.newProcessorName(KStreamImpl.SINK_NAME);
         final String sourceName = builder.newProcessorName(KStreamImpl.SOURCE_NAME);
         final String funcName = builder.newProcessorName(functionName);
-=======
-        final String sinkName = builder.newName(KStreamImpl.SINK_NAME);
-        final String sourceName = builder.newName(KStreamImpl.SOURCE_NAME);
-        final String funcName = builder.newName(functionName);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         buildAggregate(aggregateSupplier,
                        storeSupplier.name() + KStreamImpl.REPARTITION_TOPIC_SUFFIX,
@@ -224,26 +185,16 @@ public class KGroupedTableImpl<K, V> extends AbstractStream<K> implements KGroup
     private <T> KTable<K, T> doAggregate(final ProcessorSupplier<K, Change<V>> aggregateSupplier,
                                          final String functionName,
                                          final MaterializedInternal<K, T, KeyValueStore<Bytes, byte[]>> materialized) {
-<<<<<<< HEAD
         final String sinkName = builder.newProcessorName(KStreamImpl.SINK_NAME);
         final String sourceName = builder.newProcessorName(KStreamImpl.SOURCE_NAME);
         final String funcName = builder.newProcessorName(functionName);
-=======
-        final String sinkName = builder.newName(KStreamImpl.SINK_NAME);
-        final String sourceName = builder.newName(KStreamImpl.SOURCE_NAME);
-        final String funcName = builder.newName(functionName);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         buildAggregate(aggregateSupplier,
                        materialized.storeName() + KStreamImpl.REPARTITION_TOPIC_SUFFIX,
                        funcName,
                        sourceName, sinkName);
-<<<<<<< HEAD
         builder.internalTopologyBuilder.addStateStore(new KeyValueStoreMaterializer<>(materialized)
                                                               .materialize(), funcName);
-=======
-        builder.internalTopologyBuilder.addStateStore(new KeyValueStoreMaterializer<>(materialized).materialize(), funcName);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         // return the KTable representation with the intermediate topic as the sources
         return new KTableImpl<>(builder, funcName, aggregateSupplier, Collections.singleton(sourceName), materialized.storeName(), isQueryable);
@@ -266,11 +217,7 @@ public class KGroupedTableImpl<K, V> extends AbstractStream<K> implements KGroup
         Objects.requireNonNull(subtractor, "subtractor can't be null");
         Objects.requireNonNull(materialized, "materialized can't be null");
         final MaterializedInternal<K, V, KeyValueStore<Bytes, byte[]>> materializedInternal
-<<<<<<< HEAD
                 = new MaterializedInternal<>(materialized, builder, REDUCE_NAME);
-=======
-                = new MaterializedInternal<>(materialized);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final ProcessorSupplier<K, Change<V>> aggregateSupplier = new KTableReduce<>(materializedInternal.storeName(),
                                                                                      adder,
                                                                                      subtractor);
@@ -310,10 +257,7 @@ public class KGroupedTableImpl<K, V> extends AbstractStream<K> implements KGroup
                          materialized);
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("unchecked")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <VR> KTable<K, VR> aggregate(final Initializer<VR> initializer,
                                         final Aggregator<? super K, ? super V, VR> adder,
@@ -324,14 +268,10 @@ public class KGroupedTableImpl<K, V> extends AbstractStream<K> implements KGroup
         Objects.requireNonNull(subtractor, "subtractor can't be null");
         Objects.requireNonNull(materialized, "materialized can't be null");
         final MaterializedInternal<K, VR, KeyValueStore<Bytes, byte[]>> materializedInternal =
-<<<<<<< HEAD
                 new MaterializedInternal<>(materialized, builder, AGGREGATE_NAME);
         if (materializedInternal.keySerde() == null) {
             materializedInternal.withKeySerde(keySerde);
         }
-=======
-                new MaterializedInternal<>(materialized);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final ProcessorSupplier<K, Change<V>> aggregateSupplier = new KTableAggregate<>(materializedInternal.storeName(),
                                                                                         initializer,
                                                                                         adder,

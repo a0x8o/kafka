@@ -16,10 +16,7 @@
  */
 package org.apache.kafka.common.record;
 
-<<<<<<< HEAD
 import org.apache.kafka.common.utils.Time;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.test.TestUtils;
 import org.junit.Test;
@@ -469,7 +466,6 @@ public class MemoryRecordsBuilderTest {
 
         buffer.flip();
 
-<<<<<<< HEAD
         ConvertedRecords<MemoryRecords> convertedRecords = MemoryRecords.readableRecords(buffer)
                 .downConvert(RecordBatch.MAGIC_VALUE_V1, 0, time);
         MemoryRecords records = convertedRecords.records();
@@ -477,9 +473,6 @@ public class MemoryRecordsBuilderTest {
         // Transactional markers are skipped when down converting to V1, so exclude them from size
         verifyRecordsProcessingStats(convertedRecords.recordsProcessingStats(),
                 3, 3, records.sizeInBytes(), sizeExcludingTxnMarkers);
-=======
-        Records records = MemoryRecords.readableRecords(buffer).downConvert(RecordBatch.MAGIC_VALUE_V1, 0);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         List<? extends RecordBatch> batches = Utils.toList(records.batches().iterator());
         if (compressionType != CompressionType.NONE) {
@@ -516,15 +509,11 @@ public class MemoryRecordsBuilderTest {
 
         buffer.flip();
 
-<<<<<<< HEAD
         ConvertedRecords<MemoryRecords> convertedRecords = MemoryRecords.readableRecords(buffer)
                 .downConvert(RecordBatch.MAGIC_VALUE_V1, 0, time);
         MemoryRecords records = convertedRecords.records();
         verifyRecordsProcessingStats(convertedRecords.recordsProcessingStats(), 3, 2,
                 records.sizeInBytes(), buffer.limit());
-=======
-        Records records = MemoryRecords.readableRecords(buffer).downConvert(RecordBatch.MAGIC_VALUE_V1, 0);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         List<? extends RecordBatch> batches = Utils.toList(records.batches().iterator());
         if (compressionType != CompressionType.NONE) {
@@ -548,12 +537,8 @@ public class MemoryRecordsBuilderTest {
         assertEquals("2", utf8(logRecords.get(1).key()));
         assertEquals("3", utf8(logRecords.get(2).key()));
 
-<<<<<<< HEAD
         convertedRecords = MemoryRecords.readableRecords(buffer).downConvert(RecordBatch.MAGIC_VALUE_V1, 2L, time);
         records = convertedRecords.records();
-=======
-        records = MemoryRecords.readableRecords(buffer).downConvert(RecordBatch.MAGIC_VALUE_V1, 2L);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         batches = Utils.toList(records.batches().iterator());
         logRecords = Utils.toList(records.records().iterator());
@@ -567,11 +552,8 @@ public class MemoryRecordsBuilderTest {
             assertEquals("1", utf8(logRecords.get(0).key()));
             assertEquals("2", utf8(logRecords.get(1).key()));
             assertEquals("3", utf8(logRecords.get(2).key()));
-<<<<<<< HEAD
             verifyRecordsProcessingStats(convertedRecords.recordsProcessingStats(), 3, 2,
                     records.sizeInBytes(), buffer.limit());
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         } else {
             assertEquals(2, batches.size());
             assertEquals(RecordBatch.MAGIC_VALUE_V0, batches.get(0).magic());
@@ -580,11 +562,8 @@ public class MemoryRecordsBuilderTest {
             assertEquals(2, batches.get(1).baseOffset());
             assertEquals("1", utf8(logRecords.get(0).key()));
             assertEquals("3", utf8(logRecords.get(1).key()));
-<<<<<<< HEAD
             verifyRecordsProcessingStats(convertedRecords.recordsProcessingStats(), 3, 1,
                     records.sizeInBytes(), buffer.limit());
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 

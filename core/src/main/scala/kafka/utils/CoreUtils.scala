@@ -24,20 +24,12 @@ import java.util.concurrent.locks.{Lock, ReadWriteLock}
 import java.lang.management._
 import java.util.{Properties, UUID}
 import javax.management._
-<<<<<<< HEAD
-=======
-
-import org.apache.kafka.common.protocol.SecurityProtocol
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import scala.collection._
 import scala.collection.mutable
 import kafka.cluster.EndPoint
 import org.apache.kafka.common.network.ListenerName
-<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.{Base64, KafkaThread, Utils}
 
 /**

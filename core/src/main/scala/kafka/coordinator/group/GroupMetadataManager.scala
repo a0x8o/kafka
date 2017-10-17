@@ -608,17 +608,10 @@ class GroupMetadataManager(brokerId: Int,
               groupProducerOffsets ++= offsets
             }
         }
-<<<<<<< HEAD
 
         val (pendingGroupOffsets, pendingEmptyGroupOffsets) = pendingOffsetsByGroup
           .partition { case (group, _) => loadedGroups.contains(group)}
 
-=======
-
-        val (pendingGroupOffsets, pendingEmptyGroupOffsets) = pendingOffsetsByGroup
-          .partition { case (group, _) => loadedGroups.contains(group)}
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         loadedGroups.values.foreach { group =>
           val offsets = groupOffsets.getOrElse(group.groupId, Map.empty[TopicPartition, CommitRecordMetadataAndOffset])
           val pendingOffsets = pendingGroupOffsets.getOrElse(group.groupId, Map.empty[Long, mutable.Map[TopicPartition, CommitRecordMetadataAndOffset]])
@@ -741,12 +734,7 @@ class GroupMetadataManager(brokerId: Int,
           val timestampType = TimestampType.CREATE_TIME
           val timestamp = time.milliseconds()
 
-<<<<<<< HEAD
           replicaManager.nonOfflinePartition(appendPartition).foreach { partition =>
-=======
-          val partitionOpt = replicaManager.getPartition(appendPartition).filter(_ ne ReplicaManager.OfflinePartition)
-          partitionOpt.foreach { partition =>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             val tombstones = ListBuffer.empty[SimpleRecord]
             removedOffsets.foreach { case (topicPartition, offsetAndMetadata) =>
               trace(s"Removing expired/deleted offset and metadata for $groupId, $topicPartition: $offsetAndMetadata")

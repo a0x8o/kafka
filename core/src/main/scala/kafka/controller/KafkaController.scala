@@ -964,20 +964,12 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, time: Time, met
 
   private def registerLogDirEventNotificationListener() = {
     debug("Registering logDirEventNotificationListener")
-<<<<<<< HEAD
     zkUtils.subscribeChildChanges(ZkUtils.LogDirEventNotificationPath, logDirEventNotificationListener)
-=======
-    zkUtils.zkClient.subscribeChildChanges(ZkUtils.LogDirEventNotificationPath, logDirEventNotificationListener)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   private def deregisterLogDirEventNotificationListener() = {
     debug("De-registering logDirEventNotificationListener")
-<<<<<<< HEAD
     zkUtils.unsubscribeChildChanges(ZkUtils.LogDirEventNotificationPath, logDirEventNotificationListener)
-=======
-    zkUtils.zkClient.unsubscribeChildChanges(ZkUtils.LogDirEventNotificationPath, logDirEventNotificationListener)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   private def readControllerEpochFromZookeeper() {

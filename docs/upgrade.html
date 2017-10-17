@@ -67,7 +67,6 @@
         A stub implementation has been retained for binary compatibility.</li>
     <li>The Java clients and tools now accept any string as a client-id.</li>
     <li>The deprecated tool <code>kafka-consumer-offset-checker.sh</code> has been removed. Use <code>kafka-consumer-groups.sh</code> to get consumer group details.</li>
-<<<<<<< HEAD
     <li>SimpleAclAuthorizer now logs access denials to the authorizer log by default.</li>
     <li>Authentication failures are now reported to clients as one of the subclasses of <code>AuthenticationException</code>.
         No retries will be performed if a client connection fails authentication.</li>
@@ -91,9 +90,7 @@
         will return TOPIC_AUTHORIZATION_FAILED errors to requests irrespective of topic existence on broker.
         If the user have required permissions and the topic doesn't exists, then the UNKNOWN_TOPIC_OR_PARTITION
         error code will be returned. </li>
-=======
-    <li>In SimpleAclAuthorizer class, access denials are logged at INFO level and access approvals are logged at DEBUG level.</li>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
+    <li>config/consumer.properties file updated to use new consumer config properties.</li>
 </ul>
 
 <h5><a id="upgrade_100_new_protocols" href="#upgrade_100_new_protocols">New Protocol Versions</a></h5>
@@ -103,12 +100,9 @@
     <li> <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-112%3A+Handle+disk+failure+for+JBOD">KIP-112</a>: MetadataResponse v5 introduces a partition-level <code>offline_replicas</code> field. </li>
     <li> <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-112%3A+Handle+disk+failure+for+JBOD">KIP-112</a>: ProduceResponse v4 introduces error code for KafkaStorageException. </li>
     <li> <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-112%3A+Handle+disk+failure+for+JBOD">KIP-112</a>: FetchResponse v6 introduces error code for KafkaStorageException. </li>
-<<<<<<< HEAD
     <li> <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-152+-+Improve+diagnostics+for+SASL+authentication+failures">KIP-152</a>:
          SaslAuthenticate request has been added to enable reporting of authentication failures. This request will
          be used if the SaslHandshake request version is greater than 0. </li>
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 </ul>
 
 <h5><a id="upgrade_100_streams" href="#upgrade_100_streams">Upgrading a 1.0.0 Kafka Streams Application</a></h5>

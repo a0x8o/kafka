@@ -77,11 +77,7 @@ public class CachingWindowStoreTest {
                                                 Serdes.String(),
                                                 WINDOW_SIZE,
                                                 Segments.segmentInterval(retention, numSegments));
-<<<<<<< HEAD
         cachingStore.setFlushListener(cacheListener, false);
-=======
-        cachingStore.setFlushListener(cacheListener);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         cache = new ThreadCache(new LogContext("testCache "), MAX_CACHE_SIZE_BYTES, new MockStreamsMetrics(new Metrics()));
         topic = "topic";
         context = new MockProcessorContext(TestUtils.tempDirectory(), null, null, (RecordCollector) null, cache);
@@ -158,10 +154,7 @@ public class CachingWindowStoreTest {
 
     @Test
     public void shouldForwardOldValuesWhenEnabled() {
-<<<<<<< HEAD
         cachingStore.setFlushListener(cacheListener, true);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final Windowed<String> windowedKey = new Windowed<>("1", new TimeWindow(DEFAULT_TIMESTAMP, DEFAULT_TIMESTAMP + WINDOW_SIZE));
         cachingStore.put(bytesKey("1"), bytesValue("a"));
         cachingStore.flush();
@@ -172,7 +165,6 @@ public class CachingWindowStoreTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldForwardOldValuesWhenDisabled() {
         final Windowed<String> windowedKey = new Windowed<>("1", new TimeWindow(DEFAULT_TIMESTAMP, DEFAULT_TIMESTAMP + WINDOW_SIZE));
         cachingStore.put(bytesKey("1"), bytesValue("a"));
@@ -184,8 +176,6 @@ public class CachingWindowStoreTest {
     }
 
     @Test
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void shouldForwardDirtyItemToListenerWhenEvicted() throws IOException {
         int numRecords = addItemsToCache();
         assertEquals(numRecords, cacheListener.forwarded.size());
@@ -274,7 +264,6 @@ public class CachingWindowStoreTest {
         final List<KeyValue<Long, byte[]>> expected = Utils.mkList(KeyValue.pair(0L, bytesValue("0001")), KeyValue.pair(1L, bytesValue("0003")), KeyValue.pair(60000L, bytesValue("0005")));
         final List<KeyValue<Long, byte[]>> actual = toList(cachingStore.fetch(bytesKey("a"), 0, Long.MAX_VALUE));
         verifyKeyValueList(expected, actual);
-<<<<<<< HEAD
     }
 
     @Test
@@ -301,34 +290,6 @@ public class CachingWindowStoreTest {
     }
 
     @Test
-=======
-    }
-
-    @Test
-    public void shouldFetchAndIterateOverKeyRange() {
-        cachingStore.put(bytesKey("a"), bytesValue("0001"), 0);
-        cachingStore.put(bytesKey("aa"), bytesValue("0002"), 0);
-        cachingStore.put(bytesKey("a"), bytesValue("0003"), 1);
-        cachingStore.put(bytesKey("aa"), bytesValue("0004"), 1);
-        cachingStore.put(bytesKey("a"), bytesValue("0005"), 60000);
-
-        verifyKeyValueList(Utils.mkList(windowedPair("a", "0001", 0), windowedPair("a", "0003", 1), windowedPair("a", "0005", 60000L)),
-                           toList(cachingStore.fetch(bytesKey("a"), bytesKey("a"), 0, Long.MAX_VALUE)));
-
-        verifyKeyValueList(Utils.mkList(windowedPair("aa", "0002", 0), windowedPair("aa", "0004", 1)),
-                           toList(cachingStore.fetch(bytesKey("aa"), bytesKey("aa"), 0, Long.MAX_VALUE)));
-
-        verifyKeyValueList(Utils.mkList(windowedPair("a", "0001", 0), windowedPair("a", "0003", 1), windowedPair("aa", "0002", 0), windowedPair("aa", "0004", 1), windowedPair("a", "0005", 60000L)),
-                           toList(cachingStore.fetch(bytesKey("a"), bytesKey("aa"), 0, Long.MAX_VALUE)));
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void shouldThrowNullPointerExceptionOnPutNullKey() {
-        cachingStore.put(null, bytesValue("anyValue"));
-    }
-
-    @Test
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void shouldNotThrowNullPointerExceptionOnPutNullValue() {
         cachingStore.put(bytesKey("a"), null);
     }

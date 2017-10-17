@@ -79,13 +79,8 @@ public class StateRestorer {
         return persistent;
     }
 
-<<<<<<< HEAD
     void setUserRestoreListener(StateRestoreListener userRestoreListener) {
         this.compositeRestoreListener.setUserRestoreListener(userRestoreListener);
-=======
-    void setGlobalRestoreListener(StateRestoreListener globalStateRestoreListener) {
-        this.compositeRestoreListener.setGlobalRestoreListener(globalStateRestoreListener);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     void setRestoredOffset(final long restoredOffset) {

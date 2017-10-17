@@ -23,7 +23,6 @@ import kafka.utils.JaasTestUtils
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.utils.Sanitizer
 import org.junit.{After, Before}
-import org.apache.kafka.common.metrics.Sanitizer
 
 class UserQuotaTest extends BaseQuotaTest with SaslSetup {
 

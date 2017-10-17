@@ -18,11 +18,7 @@ package org.apache.kafka.common.network;
 
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.config.SslConfigs;
-<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-=======
-import org.apache.kafka.common.protocol.SecurityProtocol;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.security.JaasContext;
 import org.apache.kafka.common.security.authenticator.TestJaasConfig;
 import org.apache.kafka.common.security.plain.PlainLoginModule;

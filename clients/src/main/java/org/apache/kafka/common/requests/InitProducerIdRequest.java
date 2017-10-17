@@ -24,13 +24,8 @@ import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
-<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.NULLABLE_TRANSACTIONAL_ID;
 import static org.apache.kafka.common.protocol.types.Type.INT32;
-=======
-import static org.apache.kafka.common.protocol.types.Type.INT32;
-import static org.apache.kafka.common.protocol.types.Type.NULLABLE_STRING;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 public class InitProducerIdRequest extends AbstractRequest {
     public static final int NO_TRANSACTION_TIMEOUT_MS = Integer.MAX_VALUE;
@@ -38,11 +33,7 @@ public class InitProducerIdRequest extends AbstractRequest {
     private static final String TRANSACTION_TIMEOUT_KEY_NAME = "transaction_timeout_ms";
 
     private static final Schema INIT_PRODUCER_ID_REQUEST_V0 = new Schema(
-<<<<<<< HEAD
             NULLABLE_TRANSACTIONAL_ID,
-=======
-            new Field(TRANSACTIONAL_ID_KEY_NAME, NULLABLE_STRING, "The transactional id whose producer id we want to retrieve or generate."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(TRANSACTION_TIMEOUT_KEY_NAME, INT32, "The time in ms to wait for before aborting idle transactions sent by this producer."));
 
     public static Schema[] schemaVersions() {

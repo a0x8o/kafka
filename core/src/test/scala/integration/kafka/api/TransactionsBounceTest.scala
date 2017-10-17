@@ -25,20 +25,11 @@ import kafka.utils.{ShutdownableThread, TestUtils}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.internals.ErrorLoggingCallback
 import org.apache.kafka.common.TopicPartition
-<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol
-=======
-import org.apache.kafka.common.protocol.SecurityProtocol
-import org.junit.Test
-
-import scala.collection.JavaConverters._
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
-
 import scala.collection.mutable
 
 
@@ -142,7 +133,6 @@ class TransactionsBounceTest extends KafkaServerTestHarness {
       val topicPartition = new TopicPartition(record.topic(), record.partition())
       recordsByPartition.getOrElseUpdate(topicPartition, new mutable.ListBuffer[Int])
         .append(value)
-<<<<<<< HEAD
     }
 
     val outputRecords = new mutable.ListBuffer[Int]()
@@ -151,16 +141,6 @@ class TransactionsBounceTest extends KafkaServerTestHarness {
       outputRecords.appendAll(partitionValues)
     }
 
-=======
-    }
-
-    val outputRecords = new mutable.ListBuffer[Int]()
-    recordsByPartition.values.foreach { case (partitionValues) =>
-      assertEquals("Out of order messages detected", partitionValues, partitionValues.sorted)
-      outputRecords.appendAll(partitionValues)
-    }
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     val recordSet = outputRecords.toSet
     assertEquals(numInputRecords, recordSet.size)
 

@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.PRODUCER_EPOCH;
 import static org.apache.kafka.common.protocol.CommonFields.PRODUCER_ID;
 import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
@@ -39,31 +38,13 @@ import static org.apache.kafka.common.protocol.CommonFields.TRANSACTIONAL_ID;
 import static org.apache.kafka.common.protocol.types.Type.INT32;
 
 public class AddPartitionsToTxnRequest extends AbstractRequest {
-=======
-import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
-import static org.apache.kafka.common.protocol.types.Type.INT16;
-import static org.apache.kafka.common.protocol.types.Type.INT32;
-import static org.apache.kafka.common.protocol.types.Type.INT64;
-import static org.apache.kafka.common.protocol.types.Type.STRING;
-
-public class AddPartitionsToTxnRequest extends AbstractRequest {
-    private static final String TRANSACTIONAL_ID_KEY_NAME = "transactional_id";
-    private static final String PRODUCER_ID_KEY_NAME = "producer_id";
-    private static final String PRODUCER_EPOCH_KEY_NAME = "producer_epoch";
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private static final String TOPICS_KEY_NAME = "topics";
     private static final String PARTITIONS_KEY_NAME = "partitions";
 
     private static final Schema ADD_PARTITIONS_TO_TXN_REQUEST_V0 = new Schema(
-<<<<<<< HEAD
             TRANSACTIONAL_ID,
             PRODUCER_ID,
             PRODUCER_EPOCH,
-=======
-            new Field(TRANSACTIONAL_ID_KEY_NAME, STRING, "The transactional id corresponding to the transaction."),
-            new Field(PRODUCER_ID_KEY_NAME, INT64, "Current producer id in use by the transactional id."),
-            new Field(PRODUCER_EPOCH_KEY_NAME, INT16, "Current epoch associated with the producer id."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(TOPICS_KEY_NAME, new ArrayOf(new Schema(
                     TOPIC_NAME,
                     new Field(PARTITIONS_KEY_NAME, new ArrayOf(INT32)))),

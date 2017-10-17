@@ -113,10 +113,10 @@ import static org.apache.kafka.streams.StreamsConfig.PROCESSING_GUARANTEE_CONFIG
  * props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
  * StreamsConfig config = new StreamsConfig(props);
  *
- * KStreamBuilder builder = new KStreamBuilder();
- * builder.stream("my-input-topic").mapValues(value -> value.length().toString()).to("my-output-topic");
+ * StreamsBuilder builder = new StreamsBuilder();
+ * builder.<String, String>stream("my-input-topic").mapValues(value -> value.length().toString()).to("my-output-topic");
  *
- * KafkaStreams streams = new KafkaStreams(builder, config);
+ * KafkaStreams streams = new KafkaStreams(builder.build(), config);
  * streams.start();
  * }</pre>
  *
@@ -288,35 +288,10 @@ public class KafkaStreams {
         if (stateListener != null) {
             stateListener.onChange(State.RUNNING, State.CREATED);
         }
-<<<<<<< HEAD
 
         return true;
     }
 
-    /**
-     * Return the current {@link State} of this {@code KafkaStreams} instance.
-     *
-     * @return the current state of this Kafka Streams instance
-     */
-    public State state() {
-        return state;
-    }
-
-    private boolean isRunning() {
-        synchronized (stateLock) {
-            return state.isRunning();
-        }
-=======
-
-        return true;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
-    }
-
-    private void validateIsRunning() {
-        if (!isRunning()) {
-            throw new IllegalStateException("KafkaStreams is not running. State is " + state + ".");
-        }
-    }
     /**
      * Return the current {@link State} of this {@code KafkaStreams} instance.
      *
@@ -361,7 +336,8 @@ public class KafkaStreams {
         if (state == State.CREATED) {
             stateListener = listener;
         } else {
-            throw new IllegalStateException("Can only set StateListener in CREATED state.");
+            throw new IllegalStateException("Can only set StateListener in CREATED state. " +
+                    "Current state is: " + state);
         }
     }
 
@@ -382,7 +358,8 @@ public class KafkaStreams {
                 globalStreamThread.setUncaughtExceptionHandler(eh);
             }
         } else {
-            throw new IllegalStateException("Can only set UncaughtExceptionHandler in CREATED state.");
+            throw new IllegalStateException("Can only set UncaughtExceptionHandler in CREATED state. " +
+                    "Current state is: " + state);
         }
     }
 
@@ -397,7 +374,8 @@ public class KafkaStreams {
         if (state == State.CREATED) {
             this.globalStateRestoreListener = globalStateRestoreListener;
         } else {
-            throw new IllegalStateException("Can only set the GlobalRestoreListener in the CREATED state");
+            throw new IllegalStateException("Can only set GlobalStateRestoreListener in CREATED state. " +
+                    "Current state is: " + state);
         }
     }
 
@@ -588,7 +566,6 @@ public class KafkaStreams {
             @Override
             public void onRestoreStart(final TopicPartition topicPartition, final String storeName, final long startingOffset, final long endingOffset) {
                 if (globalStateRestoreListener != null) {
-<<<<<<< HEAD
                     try {
                         globalStateRestoreListener.onRestoreStart(topicPartition, storeName, startingOffset, endingOffset);
                     } catch (final Exception fatalUserException) {
@@ -598,16 +575,12 @@ public class KafkaStreams {
                                 topicPartition),
                             fatalUserException);
                     }
-=======
-                    globalStateRestoreListener.onRestoreStart(topicPartition, storeName, startingOffset, endingOffset);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
             }
 
             @Override
             public void onBatchRestored(final TopicPartition topicPartition, final String storeName, final long batchEndOffset, final long numRestored) {
                 if (globalStateRestoreListener != null) {
-<<<<<<< HEAD
                     try {
                         globalStateRestoreListener.onBatchRestored(topicPartition, storeName, batchEndOffset, numRestored);
                     } catch (final Exception fatalUserException) {
@@ -617,16 +590,12 @@ public class KafkaStreams {
                                 topicPartition),
                             fatalUserException);
                     }
-=======
-                    globalStateRestoreListener.onBatchRestored(topicPartition, storeName, batchEndOffset, numRestored);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
             }
 
             @Override
             public void onRestoreEnd(final TopicPartition topicPartition, final String storeName, final long totalRestored) {
                 if (globalStateRestoreListener != null) {
-<<<<<<< HEAD
                     try {
                         globalStateRestoreListener.onRestoreEnd(topicPartition, storeName, totalRestored);
                     } catch (final Exception fatalUserException) {
@@ -636,9 +605,6 @@ public class KafkaStreams {
                                 topicPartition),
                             fatalUserException);
                     }
-=======
-                    globalStateRestoreListener.onRestoreEnd(topicPartition, storeName, totalRestored);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 }
             }
         };
@@ -675,12 +641,8 @@ public class KafkaStreams {
                                                         stateDirectory,
                                                         metrics,
                                                         Time.SYSTEM,
-<<<<<<< HEAD
                                                         globalThreadId,
                                                         delegatingStateRestoreListener);
-=======
-                                                        globalThreadId);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             globalThreadState = globalStreamThread.state();
         }
 
@@ -990,17 +952,10 @@ public class KafkaStreams {
      * <p>
      * This will use the default Kafka Streams partitioner to locate the partition.
      * If a {@link StreamPartitioner custom partitioner} has been
-<<<<<<< HEAD
      * {@link ProducerConfig#PARTITIONER_CLASS_CONFIG configured} via {@link StreamsConfig} or
      * {@link KStream#through(String, Produced)}, or if the original {@link KTable}'s input
      * {@link StreamsBuilder#table(String) topic} is partitioned differently, please use
      * {@link #metadataForKey(String, Object, StreamPartitioner)}.
-=======
-     * {@link ProducerConfig#PARTITIONER_CLASS_CONFIG configured} via {@link StreamsConfig},
-     * {@link KStream#through(StreamPartitioner, String)}, or {@link KTable#through(StreamPartitioner, String, String)},
-     * or if the original {@link KTable}'s input {@link StreamsBuilder#table(String, String) topic} is partitioned
-     * differently, please use {@link #metadataForKey(String, Object, StreamPartitioner)}.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * <p>
      * Note:
      * <ul>

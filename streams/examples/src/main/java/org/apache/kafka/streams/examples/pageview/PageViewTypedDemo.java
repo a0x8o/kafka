@@ -151,7 +151,6 @@ public class PageViewTypedDemo {
                                                           Consumed.with(Serdes.String(), userProfileSerde));
 
         KStream<WindowedPageViewByRegion, RegionCount> regionCount = views
-<<<<<<< HEAD
             .leftJoin(users, new ValueJoiner<PageView, UserProfile, PageViewByRegion>() {
                 @Override
                 public PageViewByRegion apply(PageView view, UserProfile profile) {
@@ -163,45 +162,6 @@ public class PageViewTypedDemo {
                         viewByRegion.region = profile.region;
                     } else {
                         viewByRegion.region = "UNKNOWN";
-=======
-                .leftJoin(users, new ValueJoiner<PageView, UserProfile, PageViewByRegion>() {
-                    @Override
-                    public PageViewByRegion apply(PageView view, UserProfile profile) {
-                        PageViewByRegion viewByRegion = new PageViewByRegion();
-                        viewByRegion.user = view.user;
-                        viewByRegion.page = view.page;
-
-                        if (profile != null) {
-                            viewByRegion.region = profile.region;
-                        } else {
-                            viewByRegion.region = "UNKNOWN";
-                        }
-                        return viewByRegion;
-                    }
-                })
-                .map(new KeyValueMapper<String, PageViewByRegion, KeyValue<String, PageViewByRegion>>() {
-                    @Override
-                    public KeyValue<String, PageViewByRegion> apply(String user, PageViewByRegion viewRegion) {
-                        return new KeyValue<>(viewRegion.region, viewRegion);
-                    }
-                })
-                .groupByKey(Serialized.with(Serdes.String(), pageViewByRegionSerde))
-                .count(TimeWindows.of(7 * 24 * 60 * 60 * 1000L).advanceBy(1000), "RollingSevenDaysOfPageViewsByRegion")
-                // TODO: we can merge ths toStream().map(...) with a single toStream(...)
-                .toStream()
-                .map(new KeyValueMapper<Windowed<String>, Long, KeyValue<WindowedPageViewByRegion, RegionCount>>() {
-                    @Override
-                    public KeyValue<WindowedPageViewByRegion, RegionCount> apply(Windowed<String> key, Long value) {
-                        WindowedPageViewByRegion wViewByRegion = new WindowedPageViewByRegion();
-                        wViewByRegion.windowStart = key.window().start();
-                        wViewByRegion.region = key.key();
-
-                        RegionCount rCount = new RegionCount();
-                        rCount.region = key.key();
-                        rCount.count = value;
-
-                        return new KeyValue<>(wViewByRegion, rCount);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     }
                     return viewByRegion;
                 }

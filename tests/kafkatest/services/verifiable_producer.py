@@ -56,12 +56,8 @@ class VerifiableProducer(KafkaPathResolverMixin, VerifiableClientMixin, Backgrou
 
     def __init__(self, context, num_nodes, kafka, topic, max_messages=-1, throughput=100000,
                  message_validator=is_int, compression_types=None, version=DEV_BRANCH, acks=None,
-<<<<<<< HEAD
                  stop_timeout_sec=150, request_timeout_sec=30, log_level="INFO",
                  enable_idempotence=False, offline_nodes=[], create_time=-1):
-=======
-                 stop_timeout_sec=150, request_timeout_sec=30, log_level="INFO", enable_idempotence=False, offline_nodes=[]):
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         """
         :param max_messages is a number of messages to be produced per producer
         :param message_validator checks for an expected format of messages produced. There are
@@ -96,10 +92,7 @@ class VerifiableProducer(KafkaPathResolverMixin, VerifiableClientMixin, Backgrou
         self.request_timeout_sec = request_timeout_sec
         self.enable_idempotence = enable_idempotence
         self.offline_nodes = offline_nodes
-<<<<<<< HEAD
         self.create_time = create_time
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     def java_class_name(self):
         return "VerifiableProducer"

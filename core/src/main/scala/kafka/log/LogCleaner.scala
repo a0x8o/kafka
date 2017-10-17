@@ -265,10 +265,7 @@ class LogCleaner(val config: CleanerConfig,
             endOffset = nextDirtyOffset
           } catch {
             case _: LogCleaningAbortedException => // task can be aborted, let it go.
-<<<<<<< HEAD
             case _: KafkaStorageException => // partition is already offline. let it go.
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             case e: IOException =>
               val msg = s"Failed to clean up log for ${cleanable.topicPartition} in dir ${cleanable.log.dir.getParent} due to IOException"
               logDirFailureChannel.maybeAddOfflineLogDir(cleanable.log.dir.getParent, msg, e)
@@ -455,19 +452,11 @@ private[log] class Cleaner(val id: Int,
         val abortedTransactions = log.collectAbortedTransactions(startOffset, upperBoundOffset)
         val transactionMetadata = CleanedTransactionMetadata(abortedTransactions, Some(txnIndex))
 
-<<<<<<< HEAD
         val retainDeletes = currentSegment.lastModified > deleteHorizonMs
         info(s"Cleaning segment $startOffset in log ${log.name} (largest timestamp ${new Date(currentSegment.largestTimestamp)}) " +
           s"into ${cleaned.baseOffset}, ${if(retainDeletes) "retaining" else "discarding"} deletes.")
         cleanInto(log.topicPartition, currentSegment.log, cleaned, map, retainDeletes, log.config.maxMessageSize,
           transactionMetadata, log.activeProducersWithLastSequence, stats)
-=======
-        val retainDeletes = oldSegmentOpt.lastModified > deleteHorizonMs
-        info("Cleaning segment %s in log %s (largest timestamp %s) into %s, %s deletes."
-          .format(startOffset, log.name, new Date(oldSegmentOpt.largestTimestamp), cleaned.baseOffset, if(retainDeletes) "retaining" else "discarding"))
-        cleanInto(log.topicPartition, oldSegmentOpt, cleaned, map, retainDeletes, log.config.maxMessageSize, transactionMetadata,
-          log.activeProducersWithLastSequence, stats)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         currentSegmentOpt = nextSegmentOpt
       }
@@ -545,11 +534,7 @@ private[log] class Cleaner(val id: Int,
           // The batch is only retained to preserve producer sequence information; the records can be removed
           false
         else
-<<<<<<< HEAD
           Cleaner.this.shouldRetainRecord(map, retainDeletes, batch, record, stats)
-=======
-          Cleaner.this.shouldRetainRecord(source, map, retainDeletes, batch, record, stats)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       }
     }
 
@@ -574,11 +559,8 @@ private[log] class Cleaner(val id: Int,
       if (outputBuffer.position() > 0) {
         outputBuffer.flip()
         val retained = MemoryRecords.readableRecords(outputBuffer)
-<<<<<<< HEAD
         // it's OK not to hold the Log's lock in this case, because this segment is only accessed by other threads
         // after `Log.replaceSegments` (which acquires the lock) is called
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         dest.append(firstOffset = retained.batches.iterator.next().baseOffset,
           largestOffset = result.maxOffset,
           largestTimestamp = result.maxTimestamp,

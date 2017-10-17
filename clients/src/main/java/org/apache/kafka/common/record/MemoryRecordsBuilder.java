@@ -54,10 +54,7 @@ public class MemoryRecordsBuilder {
     private final boolean isControlBatch;
     private final int partitionLeaderEpoch;
     private final int writeLimit;
-<<<<<<< HEAD
     private final int batchHeaderSizeInBytes;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     // Use a conservative estimate of the compression ratio. The producer overrides this using statistics
     // from previous batches before appending any records.
@@ -68,12 +65,7 @@ public class MemoryRecordsBuilder {
     private long producerId;
     private short producerEpoch;
     private int baseSequence;
-<<<<<<< HEAD
     private int uncompressedRecordsSizeInBytes = 0; // Number of bytes (excluding the header) written before compression
-=======
-    private int writtenUncompressed = 0; // Number of bytes (excluding the header) written before compression
-    private int batchHeaderSize;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private int numRecords = 0;
     private float actualCompressionRatio = 1;
     private long maxTimestamp = RecordBatch.NO_TIMESTAMP;
@@ -123,24 +115,9 @@ public class MemoryRecordsBuilder {
         this.partitionLeaderEpoch = partitionLeaderEpoch;
         this.writeLimit = writeLimit;
         this.initialPosition = bufferStream.position();
-<<<<<<< HEAD
         this.batchHeaderSizeInBytes = AbstractRecords.recordBatchHeaderSizeInBytes(magic, compressionType);
 
         bufferStream.position(initialPosition + batchHeaderSizeInBytes);
-=======
-
-        if (magic > RecordBatch.MAGIC_VALUE_V1) {
-            batchHeaderSize = DefaultRecordBatch.RECORDS_OFFSET;
-        } else if (compressionType != CompressionType.NONE) {
-            // for compressed records, leave space for the header and the shallow message metadata
-            // and move the starting position to the value payload offset
-            batchHeaderSize = Records.LOG_OVERHEAD + LegacyRecord.recordOverhead(magic);
-        } else {
-            batchHeaderSize = 0;
-        }
-
-        bufferStream.position(initialPosition + batchHeaderSize);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         this.bufferStream = bufferStream;
         this.appendStream = new DataOutputStream(compressionType.wrapForOutput(this.bufferStream, magic));
     }
@@ -252,7 +229,6 @@ public class MemoryRecordsBuilder {
         }
     }
 
-<<<<<<< HEAD
     public int numRecords() {
         return numRecords;
     }
@@ -264,8 +240,6 @@ public class MemoryRecordsBuilder {
         return uncompressedRecordsSizeInBytes + batchHeaderSizeInBytes;
     }
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void setProducerState(long producerId, short producerEpoch, int baseSequence, boolean isTransactional) {
         if (isClosed()) {
             // Sequence numbers are assigned when the batch is closed while the accumulator is being drained.
@@ -706,17 +680,10 @@ public class MemoryRecordsBuilder {
      */
     private int estimatedBytesWritten() {
         if (compressionType == CompressionType.NONE) {
-<<<<<<< HEAD
             return batchHeaderSizeInBytes + uncompressedRecordsSizeInBytes;
         } else {
             // estimate the written bytes to the underlying byte buffer based on uncompressed written bytes
             return batchHeaderSizeInBytes + (int) (uncompressedRecordsSizeInBytes * estimatedCompressionRatio * COMPRESSION_RATE_ESTIMATION_FACTOR);
-=======
-            return batchHeaderSize + writtenUncompressed;
-        } else {
-            // estimate the written bytes to the underlying byte buffer based on uncompressed written bytes
-            return batchHeaderSize + (int) (writtenUncompressed * estimatedCompressionRatio * COMPRESSION_RATE_ESTIMATION_FACTOR);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 

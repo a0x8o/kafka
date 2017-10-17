@@ -25,10 +25,7 @@ import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-<<<<<<< HEAD
 import org.apache.kafka.common.utils.Bytes;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.Consumed;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
@@ -42,10 +39,7 @@ import org.apache.kafka.streams.kstream.Initializer;
 import org.apache.kafka.streams.kstream.KGroupedStream;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
-<<<<<<< HEAD
 import org.apache.kafka.streams.kstream.Materialized;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.Reducer;
 import org.apache.kafka.streams.kstream.Serialized;
@@ -318,12 +312,8 @@ public class KStreamAggregationIntegrationTest {
         groupedStream.windowedBy(TimeWindows.of(500L))
                 .aggregate(
                         initializer,
-<<<<<<< HEAD
                         aggregator,
                         Materialized.<String, Integer, WindowStore<Bytes, byte[]>>with(null, Serdes.Integer())
-=======
-                        aggregator
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 )
                 .toStream(new KeyValueMapper<Windowed<String>, Integer, String>() {
                     @Override

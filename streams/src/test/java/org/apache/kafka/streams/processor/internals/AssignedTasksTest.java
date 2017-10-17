@@ -17,18 +17,10 @@
 
 package org.apache.kafka.streams.processor.internals;
 
-<<<<<<< HEAD
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.errors.TaskMigratedException;
-=======
-import org.apache.kafka.clients.consumer.CommitFailedException;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.ProducerFencedException;
-import org.apache.kafka.common.utils.LogContext;
-import org.apache.kafka.common.utils.Utils;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.TaskId;
 import org.easymock.EasyMock;
 import org.junit.Before;
@@ -98,11 +90,8 @@ public class AssignedTasksTest {
     @Test
     public void shouldInitializeNewTasks() {
         EasyMock.expect(t1.initialize()).andReturn(false);
-<<<<<<< HEAD
         EasyMock.expect(t1.partitions()).andReturn(Collections.singleton(tp1));
         EasyMock.expect(t1.changelogPartitions()).andReturn(Collections.<TopicPartition>emptySet());
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.replay(t1);
 
         addAndInitTask();
@@ -113,7 +102,6 @@ public class AssignedTasksTest {
     @Test
     public void shouldMoveInitializedTasksNeedingRestoreToRestoring() {
         EasyMock.expect(t1.initialize()).andReturn(false);
-<<<<<<< HEAD
         EasyMock.expect(t1.partitions()).andReturn(Collections.singleton(tp1));
         EasyMock.expect(t1.changelogPartitions()).andReturn(Collections.<TopicPartition>emptySet());
         EasyMock.expect(t2.initialize()).andReturn(true);
@@ -121,30 +109,18 @@ public class AssignedTasksTest {
         EasyMock.expect(t2.partitions()).andReturn(t2partitions);
         EasyMock.expect(t2.changelogPartitions()).andReturn(Collections.<TopicPartition>emptyList());
         EasyMock.expect(t2.hasStateStores()).andReturn(true);
-=======
-        EasyMock.expect(t2.initialize()).andReturn(true);
-        EasyMock.expect(t2.partitions()).andReturn(Collections.singleton(tp2));
-        EasyMock.expect(t2.changelogPartitions()).andReturn(Collections.<TopicPartition>emptyList());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         EasyMock.replay(t1, t2);
 
         assignedTasks.addNewTask(t1);
         assignedTasks.addNewTask(t2);
 
-<<<<<<< HEAD
         final Set<TopicPartition> readyPartitions = assignedTasks.initializeNewTasks();
-=======
-        assignedTasks.initializeNewTasks();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         Collection<Task> restoring = assignedTasks.restoringTasks();
         assertThat(restoring.size(), equalTo(1));
         assertSame(restoring.iterator().next(), t1);
-<<<<<<< HEAD
         assertThat(readyPartitions, equalTo(t2partitions));
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test
@@ -152,24 +128,15 @@ public class AssignedTasksTest {
         EasyMock.expect(t2.initialize()).andReturn(true);
         EasyMock.expect(t2.partitions()).andReturn(Collections.singleton(tp2));
         EasyMock.expect(t2.changelogPartitions()).andReturn(Collections.<TopicPartition>emptyList());
-<<<<<<< HEAD
         EasyMock.expect(t2.hasStateStores()).andReturn(false);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         EasyMock.replay(t2);
 
         assignedTasks.addNewTask(t2);
-<<<<<<< HEAD
         final Set<TopicPartition> toResume = assignedTasks.initializeNewTasks();
 
         assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.singleton(taskId2)));
         assertThat(toResume, equalTo(Collections.<TopicPartition>emptySet()));
-=======
-        assignedTasks.initializeNewTasks();
-
-        assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.singleton(taskId2)));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test
@@ -178,10 +145,7 @@ public class AssignedTasksTest {
         EasyMock.expect(t1.initialize()).andReturn(false);
         EasyMock.expect(t1.partitions()).andReturn(task1Partitions).anyTimes();
         EasyMock.expect(t1.changelogPartitions()).andReturn(Utils.mkSet(changeLog1, changeLog2)).anyTimes();
-<<<<<<< HEAD
         EasyMock.expect(t1.hasStateStores()).andReturn(true).anyTimes();
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.replay(t1);
 
         addAndInitTask();
@@ -197,11 +161,7 @@ public class AssignedTasksTest {
         mockRunningTaskSuspension();
         EasyMock.replay(t1);
 
-<<<<<<< HEAD
         assertThat(suspendTask(), nullValue());
-=======
-        suspendTask();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         assertThat(assignedTasks.previousTaskIds(), equalTo(Collections.singleton(taskId1)));
         EasyMock.verify(t1);
@@ -210,20 +170,13 @@ public class AssignedTasksTest {
     @Test
     public void shouldCloseRestoringTasks() {
         EasyMock.expect(t1.initialize()).andReturn(false);
-<<<<<<< HEAD
         EasyMock.expect(t1.partitions()).andReturn(Collections.singleton(tp1));
         EasyMock.expect(t1.changelogPartitions()).andReturn(Collections.<TopicPartition>emptySet());
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         t1.close(false, false);
         EasyMock.expectLastCall();
         EasyMock.replay(t1);
 
-<<<<<<< HEAD
         assertThat(suspendTask(), nullValue());
-=======
-        suspendTask();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.verify(t1);
     }
 
@@ -234,11 +187,7 @@ public class AssignedTasksTest {
         EasyMock.replay(t1);
 
         assignedTasks.addNewTask(t1);
-<<<<<<< HEAD
         assertThat(assignedTasks.suspend(), nullValue());
-=======
-        assignedTasks.suspend();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         EasyMock.verify(t1);
     }
@@ -248,13 +197,8 @@ public class AssignedTasksTest {
         mockRunningTaskSuspension();
         EasyMock.replay(t1);
 
-<<<<<<< HEAD
         assertThat(suspendTask(), nullValue());
         assertThat(assignedTasks.suspend(), nullValue());
-=======
-        suspendTask();
-        assignedTasks.suspend();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.verify(t1);
     }
 
@@ -274,25 +218,14 @@ public class AssignedTasksTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldCloseTaskOnSuspendIfTaskMigratedException() {
         mockTaskInitialization();
         t1.suspend();
         EasyMock.expectLastCall().andThrow(new TaskMigratedException(t1));
-=======
-    public void shouldCloseTaskOnSuspendWhenProducerFencedException() {
-        mockTaskInitialization();
-        t1.suspend();
-        EasyMock.expectLastCall().andThrow(new ProducerFencedException("KABOOM!"));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         t1.close(false, true);
         EasyMock.expectLastCall();
         EasyMock.replay(t1);
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         assertThat(suspendTask(), nullValue());
         assertTrue(assignedTasks.previousTaskIds().isEmpty());
         EasyMock.verify(t1);
@@ -305,18 +238,13 @@ public class AssignedTasksTest {
         EasyMock.expectLastCall();
         EasyMock.replay(t1);
 
-<<<<<<< HEAD
         assertThat(suspendTask(), nullValue());
-=======
-        suspendTask();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         assertTrue(assignedTasks.maybeResumeSuspendedTask(taskId1, Collections.singleton(tp1)));
         assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.singleton(taskId1)));
         EasyMock.verify(t1);
     }
 
-<<<<<<< HEAD
     @Test
     public void shouldCloseTaskOnResumeIfTaskMigratedException() {
         mockRunningTaskSuspension();
@@ -336,17 +264,12 @@ public class AssignedTasksTest {
         assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.EMPTY_SET));
         EasyMock.verify(t1);
     }
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     private void mockTaskInitialization() {
         EasyMock.expect(t1.initialize()).andReturn(true);
         EasyMock.expect(t1.partitions()).andReturn(Collections.singleton(tp1));
         EasyMock.expect(t1.changelogPartitions()).andReturn(Collections.<TopicPartition>emptyList());
-<<<<<<< HEAD
         EasyMock.expect(t1.hasStateStores()).andReturn(false);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @Test
@@ -363,45 +286,21 @@ public class AssignedTasksTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldCloseTaskOnCommitIfTaskMigratedException() {
         mockTaskInitialization();
         t1.commit();
         EasyMock.expectLastCall().andThrow(new TaskMigratedException(t1));
-=======
-    public void shouldCloseTaskOnCommitIfProduceFencedException() {
-        mockTaskInitialization();
-        t1.commit();
-        EasyMock.expectLastCall().andThrow(new ProducerFencedException(""));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         t1.close(false, true);
         EasyMock.expectLastCall();
         EasyMock.replay(t1);
         addAndInitTask();
 
-<<<<<<< HEAD
         try {
             assignedTasks.commit();
             fail("Should have thrown TaskMigratedException.");
         } catch (final TaskMigratedException expected) { /* ignore */ }
 
         assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.EMPTY_SET));
-=======
-        assignedTasks.commit();
-        EasyMock.verify(t1);
-    }
-
-    @Test
-    public void shouldNotThrowCommitFailedExceptionOnCommit() {
-        mockTaskInitialization();
-        t1.commit();
-        EasyMock.expectLastCall().andThrow(new CommitFailedException());
-        EasyMock.replay(t1);
-        addAndInitTask();
-
-        assignedTasks.commit();
-        assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.singleton(taskId1)));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.verify(t1);
     }
 
@@ -438,39 +337,26 @@ public class AssignedTasksTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldCloseTaskOnMaybeCommitIfTaskMigratedException() {
         mockTaskInitialization();
         EasyMock.expect(t1.commitNeeded()).andReturn(true);
         t1.commit();
         EasyMock.expectLastCall().andThrow(new TaskMigratedException(t1));
-=======
-    public void shouldCloseTaskOnMaybeCommitIfProduceFencedException() {
-        mockTaskInitialization();
-        EasyMock.expect(t1.commitNeeded()).andReturn(true);
-        t1.commit();
-        EasyMock.expectLastCall().andThrow(new ProducerFencedException(""));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         t1.close(false, true);
         EasyMock.expectLastCall();
         EasyMock.replay(t1);
         addAndInitTask();
 
-<<<<<<< HEAD
         try {
             assignedTasks.maybeCommit();
             fail("Should have thrown TaskMigratedException.");
         } catch (final TaskMigratedException expected) { /* ignore */ }
 
         assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.EMPTY_SET));
-=======
-        assignedTasks.maybeCommit();
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.verify(t1);
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldCloseTaskOnProcessesIfTaskMigratedException() {
         mockTaskInitialization();
         t1.process();
@@ -486,39 +372,18 @@ public class AssignedTasksTest {
         } catch (final TaskMigratedException expected) { /* ignore */ }
 
         assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.EMPTY_SET));
-=======
-    public void shouldNotThrowCommitFailedExceptionOnMaybeCommit() {
-        mockTaskInitialization();
-        EasyMock.expect(t1.commitNeeded()).andReturn(true);
-        t1.commit();
-        EasyMock.expectLastCall().andThrow(new CommitFailedException());
-        EasyMock.replay(t1);
-        addAndInitTask();
-
-        assignedTasks.maybeCommit();
-        assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.singleton(taskId1)));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.verify(t1);
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldPunctuateRunningTasks() {
         mockTaskInitialization();
         EasyMock.expect(t1.maybePunctuateStreamTime()).andReturn(true);
         EasyMock.expect(t1.maybePunctuateSystemTime()).andReturn(true);
-=======
-    public void shouldThrowExceptionOnMaybeCommitWhenNotCommitFailedOrProducerFenced() {
-        mockTaskInitialization();
-        EasyMock.expect(t1.commitNeeded()).andReturn(true);
-        t1.commit();
-        EasyMock.expectLastCall().andThrow(new RuntimeException(""));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.replay(t1);
 
         addAndInitTask();
 
-<<<<<<< HEAD
         assertThat(assignedTasks.punctuate(), equalTo(2));
         EasyMock.verify(t1);
     }
@@ -557,30 +422,6 @@ public class AssignedTasksTest {
             assignedTasks.punctuate();
             fail("Should have thrown TaskMigratedException.");
         } catch (final TaskMigratedException expected) { /* ignore */ }
-=======
-        try {
-            assignedTasks.maybeCommit();
-            fail("Should have thrown exception");
-        } catch (Exception e) {
-            // ok
-        }
-        assertThat(assignedTasks.runningTaskIds(), equalTo(Collections.singleton(taskId1)));
-        EasyMock.verify(t1);
-    }
-
-
-
-    @Test
-    public void shouldPunctuateRunningTasks() {
-        mockTaskInitialization();
-        EasyMock.expect(t1.maybePunctuateStreamTime()).andReturn(true);
-        EasyMock.expect(t1.maybePunctuateSystemTime()).andReturn(true);
-        EasyMock.replay(t1);
-
-        addAndInitTask();
-
-        assertThat(assignedTasks.punctuate(), equalTo(2));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.verify(t1);
     }
 
@@ -609,10 +450,7 @@ public class AssignedTasksTest {
 
     private void mockRunningTaskSuspension() {
         EasyMock.expect(t1.initialize()).andReturn(true);
-<<<<<<< HEAD
         EasyMock.expect(t1.hasStateStores()).andReturn(false).anyTimes();
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         EasyMock.expect(t1.partitions()).andReturn(Collections.singleton(tp1)).anyTimes();
         EasyMock.expect(t1.changelogPartitions()).andReturn(Collections.<TopicPartition>emptyList()).anyTimes();
         t1.suspend();

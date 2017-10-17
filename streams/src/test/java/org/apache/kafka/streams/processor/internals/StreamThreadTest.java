@@ -30,24 +30,16 @@ import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.utils.MockTime;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.StreamsConfig;
-<<<<<<< HEAD
 import org.apache.kafka.streams.errors.TaskMigratedException;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.kstream.internals.ConsumedInternal;
 import org.apache.kafka.streams.kstream.internals.InternalStreamsBuilder;
 import org.apache.kafka.streams.kstream.internals.InternalStreamsBuilderTest;
 import org.apache.kafka.streams.processor.TaskId;
-<<<<<<< HEAD
 import org.apache.kafka.streams.processor.TaskMetadata;
 import org.apache.kafka.streams.processor.ThreadMetadata;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.internals.assignment.AssignmentInfo;
 import org.apache.kafka.streams.state.HostInfo;
 import org.apache.kafka.streams.state.Stores;
-import org.apache.kafka.streams.processor.TaskMetadata;
-import org.apache.kafka.streams.processor.ThreadMetadata;
 import org.apache.kafka.test.MockClientSupplier;
 import org.apache.kafka.test.MockProcessorSupplier;
 import org.apache.kafka.test.MockStateRestoreListener;
@@ -81,6 +73,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class StreamThreadTest {
 
@@ -732,7 +725,6 @@ public class StreamThreadTest {
         thread.run();
         EasyMock.verify(taskManager);
     }
-<<<<<<< HEAD
 
     @Test
     public void shouldNotNullPointerWhenStandbyTasksAssignedAndNoStateStoresForTopology() throws InterruptedException {
@@ -741,16 +733,6 @@ public class StreamThreadTest {
 
         final StreamThread thread = createStreamThread(clientId, config, false);
 
-=======
-
-    @Test
-    public void shouldNotNullPointerWhenStandbyTasksAssignedAndNoStateStoresForTopology() throws InterruptedException {
-        internalTopologyBuilder.addSource(null, "name", null, null, null, "topic");
-        internalTopologyBuilder.addSink("out", "output", null, null, null);
-
-        final StreamThread thread = createStreamThread(clientId, config, false);
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         thread.setThreadMetadataProvider(new StreamPartitionAssignor() {
             @Override
             public Map<TaskId, Set<TopicPartition>> standbyTasks() {
@@ -877,14 +859,10 @@ public class StreamThreadTest {
         producer.fenceProducer();
         mockTime.sleep(config.getLong(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG) + 1L);
         consumer.addRecord(new ConsumerRecord<>(TOPIC, 0, 0, new byte[0], new byte[0]));
-<<<<<<< HEAD
         try {
             thread.runOnce(-1);
             fail("Should have thrown TaskMigratedException");
         } catch (final TaskMigratedException expected) { /* ignore */ }
-=======
-        thread.runOnce(-1);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         TestUtils.waitForCondition(
             new TestCondition() {
                 @Override
@@ -919,14 +897,10 @@ public class StreamThreadTest {
         thread.rebalanceListener.onPartitionsRevoked(null);
         clientSupplier.producers.get(0).fenceProducer();
         thread.rebalanceListener.onPartitionsAssigned(task0Assignment);
-<<<<<<< HEAD
         try {
             thread.runOnce(-1);
             fail("Should have thrown TaskMigratedException");
         } catch (final TaskMigratedException expected) { /* ignore */ }
-=======
-        thread.runOnce(-1);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         assertTrue(thread.tasks().isEmpty());
     }
@@ -1032,7 +1006,6 @@ public class StreamThreadTest {
     @Test
     public void shouldReturnActiveTaskMetadataWhileRunningState() throws InterruptedException {
         internalTopologyBuilder.addSource(null, "source", null, null, null, TOPIC);
-<<<<<<< HEAD
 
         final TaskId taskId = new TaskId(0, 0);
         final StreamThread thread = createStreamThread(clientId, config, false);
@@ -1047,22 +1020,6 @@ public class StreamThreadTest {
         thread.rebalanceListener.onPartitionsAssigned(task0Assignment);
         thread.runOnce(-1);
 
-=======
-
-        final TaskId taskId = new TaskId(0, 0);
-        final StreamThread thread = createStreamThread(clientId, config, false);
-
-        final Map<TaskId, Set<TopicPartition>> assignment = new HashMap<>();
-        assignment.put(taskId, task0Assignment);
-        thread.setThreadMetadataProvider(new MockStreamsPartitionAssignor(assignment));
-
-        thread.setState(StreamThread.State.RUNNING);
-
-        thread.rebalanceListener.onPartitionsRevoked(null);
-        thread.rebalanceListener.onPartitionsAssigned(task0Assignment);
-        thread.runOnce(-1);
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         ThreadMetadata threadMetadata = thread.threadMetadata();
         assertEquals(StreamThread.State.RUNNING.name(), threadMetadata.threadState());
         assertTrue(threadMetadata.activeTasks().contains(new TaskMetadata(taskId.toString(), task0Assignment)));

@@ -82,24 +82,18 @@ public class SessionWindowedKStreamImpl<K, V> extends AbstractStream<K> implemen
     @Override
     public KTable<Windowed<K>, Long> count(final Materialized<K, Long, SessionStore<Bytes, byte[]>> materialized) {
         Objects.requireNonNull(materialized, "materialized can't be null");
-<<<<<<< HEAD
         final MaterializedInternal<K, Long, SessionStore<Bytes, byte[]>> materializedInternal
                 = new MaterializedInternal<>(materialized, builder, AGGREGATE_NAME);
         if (materializedInternal.valueSerde() == null) {
             materialized.withValueSerde(Serdes.Long());
         }
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return aggregate(aggregateBuilder.countInitializer,
                          aggregateBuilder.countAggregator,
                          countMerger,
                          materialized);
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("unchecked")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     @Override
     public <T> KTable<Windowed<K>, T> aggregate(final Initializer<T> initializer,
                                                 final Aggregator<? super K, ? super V, T> aggregator,
@@ -107,11 +101,7 @@ public class SessionWindowedKStreamImpl<K, V> extends AbstractStream<K> implemen
         Objects.requireNonNull(initializer, "initializer can't be null");
         Objects.requireNonNull(aggregator, "aggregator can't be null");
         Objects.requireNonNull(sessionMerger, "sessionMerger can't be null");
-<<<<<<< HEAD
         return doAggregate(initializer, aggregator, sessionMerger, (Serde<T>) valSerde);
-=======
-        return doAggregate(initializer, aggregator, sessionMerger, null);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     @SuppressWarnings("unchecked")
@@ -124,15 +114,11 @@ public class SessionWindowedKStreamImpl<K, V> extends AbstractStream<K> implemen
         Objects.requireNonNull(aggregator, "aggregator can't be null");
         Objects.requireNonNull(sessionMerger, "sessionMerger can't be null");
         Objects.requireNonNull(materialized, "materialized can't be null");
-<<<<<<< HEAD
         final MaterializedInternal<K, VR, SessionStore<Bytes, byte[]>> materializedInternal
                 = new MaterializedInternal<>(materialized, builder, AGGREGATE_NAME);
         if (materializedInternal.keySerde() == null) {
             materializedInternal.withKeySerde(keySerde);
         }
-=======
-        final MaterializedInternal<K, VR, SessionStore<Bytes, byte[]>> materializedInternal = new MaterializedInternal<>(materialized);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         return (KTable<Windowed<K>, VR>) aggregateBuilder.build(
                 new KStreamSessionWindowAggregate<>(windows, materializedInternal.storeName(), initializer, aggregator, sessionMerger),
                 AGGREGATE_NAME,

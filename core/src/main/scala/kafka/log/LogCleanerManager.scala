@@ -47,11 +47,7 @@ private[log] case object LogCleaningPaused extends LogCleaningState
  *  While a partition is in the LogCleaningPaused state, it won't be scheduled for cleaning again, until cleaning is
  *  requested to be resumed.
  */
-<<<<<<< HEAD
 private[log] class LogCleanerManager(val logDirs: Seq[File],
-=======
-private[log] class LogCleanerManager(val logDirs: Array[File],
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                      val logs: Pool[TopicPartition, Log],
                                      val logDirFailureChannel: LogDirFailureChannel) extends Logging with KafkaMetricsGroup {
 
@@ -63,12 +59,8 @@ private[log] class LogCleanerManager(val logDirs: Array[File],
   private[log] val offsetCheckpointFile = "cleaner-offset-checkpoint"
 
   /* the offset checkpoints holding the last cleaned point for each log */
-<<<<<<< HEAD
   @volatile private var checkpoints = logDirs.map(dir =>
     (dir, new OffsetCheckpointFile(new File(dir, offsetCheckpointFile), logDirFailureChannel))).toMap
-=======
-  @volatile private var checkpoints = logDirs.map(dir => (dir, new OffsetCheckpointFile(new File(dir, offsetCheckpointFile), logDirFailureChannel))).toMap
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   /* the set of logs currently being cleaned */
   private val inProgress = mutable.HashMap[TopicPartition, LogCleaningState]()
@@ -97,11 +89,7 @@ private[log] class LogCleanerManager(val logDirs: Array[File],
           checkpoint.read()
         } catch {
           case e: KafkaStorageException =>
-<<<<<<< HEAD
             error(s"Failed to access checkpoint file ${checkpoint.file.getName} in dir ${checkpoint.file.getParentFile.getAbsolutePath}", e)
-=======
-            error(s"Failed to access checkpoint file ${checkpoint.f.getName} in dir ${checkpoint.f.getParentFile.getAbsolutePath}", e)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             Map.empty[TopicPartition, Long]
         }
       }).toMap
@@ -252,11 +240,7 @@ private[log] class LogCleanerManager(val logDirs: Array[File],
           checkpoint.write(existing)
         } catch {
           case e: KafkaStorageException =>
-<<<<<<< HEAD
             error(s"Failed to access checkpoint file ${checkpoint.file.getName} in dir ${checkpoint.file.getParentFile.getAbsolutePath}", e)
-=======
-            error(s"Failed to access checkpoint file ${checkpoint.f.getName} in dir ${checkpoint.f.getParentFile.getAbsolutePath}", e)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
       }
     }

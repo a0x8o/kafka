@@ -59,15 +59,12 @@ public class EosTestDriver extends SmokeTestUtil {
 
     private static boolean isRunning = true;
 
-<<<<<<< HEAD
     static int numRecordsProduced = 0;
 
     static synchronized void updateNumRecordsProduces(final int delta) {
         numRecordsProduced += delta;
     }
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     static void generate(final String kafka) {
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -218,10 +215,7 @@ public class EosTestDriver extends SmokeTestUtil {
 
         // do not modify: required test output
         System.out.println("ALL-RECORDS-DELIVERED");
-<<<<<<< HEAD
         System.out.flush();
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     private static void ensureStreamsApplicationDown(final String kafka) {
@@ -282,10 +276,7 @@ public class EosTestDriver extends SmokeTestUtil {
                                                                                                      final Map<TopicPartition, Long> readEndOffsets,
                                                                                                      final boolean withRepartitioning,
                                                                                                      final boolean isInputTopic) {
-<<<<<<< HEAD
         System.err.println("read end offset: " + readEndOffsets);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         final Map<String, Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>>> recordPerTopicPerPartition = new HashMap<>();
         final Map<TopicPartition, Long> maxReceivedOffsetPerPartition = new HashMap<>();
         final Map<TopicPartition, Long> maxConsumerPositionPerPartition = new HashMap<>();
@@ -298,10 +289,7 @@ public class EosTestDriver extends SmokeTestUtil {
             for (final ConsumerRecord<byte[], byte[]> record : receivedRecords) {
                 maxWaitTime = System.currentTimeMillis() + MAX_IDLE_TIME_MS;
                 final TopicPartition tp = new TopicPartition(record.topic(), record.partition());
-<<<<<<< HEAD
                 maxReceivedOffsetPerPartition.put(tp, record.offset());
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 final long readEndOffset = readEndOffsets.get(tp);
                 if (record.offset() < readEndOffset) {
                     addRecord(record, recordPerTopicPerPartition, withRepartitioning);
@@ -309,7 +297,6 @@ public class EosTestDriver extends SmokeTestUtil {
                     throw new RuntimeException("FAIL: did receive more records than expected for " + tp
                         + " (expected EOL offset: " + readEndOffset + "; current offset: " + record.offset());
                 }
-<<<<<<< HEAD
             }
 
             for (final TopicPartition tp : readEndOffsets.keySet()) {
@@ -319,13 +306,6 @@ public class EosTestDriver extends SmokeTestUtil {
                 }
             }
 
-=======
-                if (consumer.position(tp) >= readEndOffset) {
-                    consumer.pause(Collections.singletonList(tp));
-                }
-            }
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             allRecordsReceived = consumer.paused().size() == readEndOffsets.keySet().size();
         }
 

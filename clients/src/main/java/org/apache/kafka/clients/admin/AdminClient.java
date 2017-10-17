@@ -59,25 +59,11 @@ public abstract class AdminClient implements AutoCloseable {
      */
     public static AdminClient create(Map<String, Object> conf) {
         return KafkaAdminClient.createInternal(new AdminClientConfig(conf), null);
-<<<<<<< HEAD
-=======
     }
 
     /**
      * Close the AdminClient and release all associated resources.
      *
-     * See {@link AdminClient#close(long, TimeUnit)}
-     */
-    @Override
-    public void close() {
-        close(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
-    }
-
-    /**
-     * Close the AdminClient and release all associated resources.
-     *
-<<<<<<< HEAD
      * See {@link AdminClient#close(long, TimeUnit)}
      */
     @Override
@@ -96,16 +82,6 @@ public abstract class AdminClient implements AutoCloseable {
      * @param duration  The duration to use for the wait time.
      * @param unit      The time unit to use for the wait time.
      */
-=======
-     * The close operation has a grace period during which current operations will be allowed to
-     * complete, specified by the given duration and time unit.
-     * New operations will not be accepted during the grace period.  Once the grace period is over,
-     * all operations that have not yet been completed will be aborted with a TimeoutException.
-     *
-     * @param duration  The duration to use for the wait time.
-     * @param unit      The time unit to use for the wait time.
-     */
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public abstract void close(long duration, TimeUnit unit);
 
     /**
@@ -271,7 +247,7 @@ public abstract class AdminClient implements AutoCloseable {
     public abstract DescribeAclsResult describeAcls(AclBindingFilter filter, DescribeAclsOptions options);
 
     /**
-     * This is a convenience method for #{@link AdminClient#createAcls(Collection<AclBinding>, CreateAclsOptions)} with
+     * This is a convenience method for #{@link AdminClient#createAcls(Collection, CreateAclsOptions)} with
      * default options. See the overload for more details.
      *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
@@ -300,7 +276,7 @@ public abstract class AdminClient implements AutoCloseable {
     public abstract CreateAclsResult createAcls(Collection<AclBinding> acls, CreateAclsOptions options);
 
     /**
-     * This is a convenience method for #{@link AdminClient#deleteAcls(Collection<AclBinding>, DeleteAclsOptions)} with default options.
+     * This is a convenience method for #{@link AdminClient#deleteAcls(Collection, DeleteAclsOptions)} with default options.
      * See the overload for more details.
      *
      * This operation is supported by brokers with version 0.11.0.0 or higher.
@@ -397,27 +373,16 @@ public abstract class AdminClient implements AutoCloseable {
      * before the replica has been created on the broker. It will support moving replicas that have already been created after
      * KIP-113 is fully implemented.
      *
-<<<<<<< HEAD
      * This is a convenience method for #{@link AdminClient#alterReplicaLogDirs(Map, AlterReplicaLogDirsOptions)} with default options.
-=======
-     * This is a convenience method for #{@link AdminClient#alterReplicaDir(Map, AlterReplicaDirOptions)} with default options.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * See the overload for more details.
      *
      * This operation is supported by brokers with version 1.0.0 or higher.
      *
      * @param replicaAssignment  The replicas with their log directory absolute path
-<<<<<<< HEAD
      * @return                   The AlterReplicaLogDirsResult
      */
     public AlterReplicaLogDirsResult alterReplicaLogDirs(Map<TopicPartitionReplica, String> replicaAssignment) {
         return alterReplicaLogDirs(replicaAssignment, new AlterReplicaLogDirsOptions());
-=======
-     * @return                   The AlterReplicaDirResult
-     */
-    public AlterReplicaDirResult alterReplicaDir(Map<TopicPartitionReplica, String> replicaAssignment) {
-        return alterReplicaDir(replicaAssignment, new AlterReplicaDirOptions());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -431,15 +396,9 @@ public abstract class AdminClient implements AutoCloseable {
      *
      * @param replicaAssignment  The replicas with their log directory absolute path
      * @param options            The options to use when changing replica dir
-<<<<<<< HEAD
      * @return                   The AlterReplicaLogDirsResult
      */
     public abstract AlterReplicaLogDirsResult alterReplicaLogDirs(Map<TopicPartitionReplica, String> replicaAssignment, AlterReplicaLogDirsOptions options);
-=======
-     * @return                   The AlterReplicaDirResult
-     */
-    public abstract AlterReplicaDirResult alterReplicaDir(Map<TopicPartitionReplica, String> replicaAssignment, AlterReplicaDirOptions options);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     /**
      * Query the information of all log directories on the given set of brokers
@@ -470,27 +429,16 @@ public abstract class AdminClient implements AutoCloseable {
     /**
      * Query the replica log directory information for the specified replicas.
      *
-<<<<<<< HEAD
      * This is a convenience method for #{@link AdminClient#describeReplicaLogDirs(Collection, DescribeReplicaLogDirsOptions)}
-=======
-     * This is a convenience method for #{@link AdminClient#describeReplicaLogDir(Collection, DescribeReplicaLogDirOptions)}
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * with default options. See the overload for more details.
      *
      * This operation is supported by brokers with version 1.0.0 or higher.
      *
      * @param replicas      The replicas to query
-<<<<<<< HEAD
      * @return              The DescribeReplicaLogDirsResult
      */
     public DescribeReplicaLogDirsResult describeReplicaLogDirs(Collection<TopicPartitionReplica> replicas) {
         return describeReplicaLogDirs(replicas, new DescribeReplicaLogDirsOptions());
-=======
-     * @return              The DescribeReplicaLogDirResult
-     */
-    public DescribeReplicaLogDirResult describeReplicaLogDir(Collection<TopicPartitionReplica> replicas) {
-        return describeReplicaLogDir(replicas, new DescribeReplicaLogDirOptions());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -500,7 +448,6 @@ public abstract class AdminClient implements AutoCloseable {
      *
      * @param replicas      The replicas to query
      * @param options       The options to use when querying replica log dir info
-<<<<<<< HEAD
      * @return              The DescribeReplicaLogDirsResult
      */
     public abstract DescribeReplicaLogDirsResult describeReplicaLogDirs(Collection<TopicPartitionReplica> replicas, DescribeReplicaLogDirsOptions options);
@@ -512,18 +459,6 @@ public abstract class AdminClient implements AutoCloseable {
      *
      * <p>This is a convenience method for {@link #createPartitions(Map, CreatePartitionsOptions)} with default options.
      * See the overload for more details.</p>
-=======
-     * @return              The DescribeReplicaLogDirResult
-     */
-    public abstract DescribeReplicaLogDirResult describeReplicaLogDir(Collection<TopicPartitionReplica> replicas, DescribeReplicaLogDirOptions options);
-
-    /**
-     * Increase the number of partitions of the topics given as the keys of {@code newPartitions}
-     * according to the corresponding values.
-     *
-     * This is a convenience method for {@link #createPartitions(Map, CreatePartitionsOptions)} with default options.
-     * See the overload for more details.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *
      * @param newPartitions The topics which should have new partitions created, and corresponding parameters
      *                      for the created partitions.
@@ -534,7 +469,6 @@ public abstract class AdminClient implements AutoCloseable {
     }
 
     /**
-<<<<<<< HEAD
      * <p>Increase the number of partitions of the topics given as the keys of {@code newPartitions}
      * according to the corresponding values. <strong>If partitions are increased for a topic that has a key,
      * the partition logic or ordering of the messages will be affected.</strong></p>
@@ -565,19 +499,6 @@ public abstract class AdminClient implements AutoCloseable {
      *     <li>Subclasses of {@link org.apache.kafka.common.KafkaException}
      *     if the request is invalid in some way.</li>
      * </ul>
-=======
-     * Increase the number of partitions of the topics given as the keys of {@code newPartitions}
-     * according to the corresponding values.
-     *
-     * This operation is not transactional so it may succeed for some topics while fail for others.
-     *
-     * It may take several seconds after this method returns
-     * success for all the brokers to become aware that the partitions have been created.
-     * During this time, {@link AdminClient#describeTopics(Collection)}
-     * may not return information about the new partitions.
-     *
-     * This operation is supported by brokers with version 1.0.0 or higher.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      *
      * @param newPartitions The topics which should have new partitions created, and corresponding parameters
      *                      for the created partitions.

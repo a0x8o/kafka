@@ -538,14 +538,9 @@ public final class RecordAccumulator {
                                                 // on the client after being sent to the broker at least once.
                                                 break;
 
-<<<<<<< HEAD
                                             int firstInFlightSequence = transactionManager.firstInFlightSequence(first.topicPartition);
                                             if (firstInFlightSequence != RecordBatch.NO_SEQUENCE && first.hasSequence()
                                                     && first.baseSequence() != firstInFlightSequence)
-=======
-                                            if (first.hasSequence()
-                                                    && first.baseSequence() != transactionManager.nextBatchBySequence(first.topicPartition).baseSequence())
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                                 // If the queued batch already has an assigned sequence, then it is being
                                                 // retried. In this case, we wait until the next immediate batch is ready
                                                 // and drain that. We only move on when the next in line batch is complete (either successfully

@@ -268,7 +268,6 @@ class Partition(val topic: String,
    *
    * @return true if the leader's log start offset or high watermark have been updated
    */
-<<<<<<< HEAD
   def updateReplicaLogReadResult(replica: Replica, logReadResult: LogReadResult): Boolean = {
     val replicaId = replica.brokerId
     // No need to calculate low watermark if there is no delayed DeleteRecordsRequest
@@ -289,37 +288,6 @@ class Partition(val topic: String,
 
     debug(s"Recorded replica $replicaId log end offset (LEO) position ${logReadResult.info.fetchOffsetMetadata.messageOffset}.")
     result
-=======
-  def updateReplicaLogReadResult(replicaId: Int, logReadResult: LogReadResult) {
-    getReplica(replicaId) match {
-      case Some(replica) =>
-        // No need to calculate low watermark if there is no delayed DeleteRecordsRequest
-        val oldLeaderLW = if (replicaManager.delayedDeleteRecordsPurgatory.delayed > 0) lowWatermarkIfLeader else -1L
-        replica.updateLogReadResult(logReadResult)
-        val newLeaderLW = if (replicaManager.delayedDeleteRecordsPurgatory.delayed > 0) lowWatermarkIfLeader else -1L
-        // check if the LW of the partition has incremented
-        // since the replica's logStartOffset may have incremented
-        val leaderLWIncremented = newLeaderLW > oldLeaderLW
-        // check if we need to expand ISR to include this replica
-        // if it is not in the ISR yet
-        val leaderHWIncremented = maybeExpandIsr(replicaId, logReadResult)
-
-        // some delayed operations may be unblocked after HW or LW changed
-        if (leaderLWIncremented || leaderHWIncremented)
-          tryCompleteDelayedRequests()
-
-        debug("Recorded replica %d log end offset (LEO) position %d."
-          .format(replicaId, logReadResult.info.fetchOffsetMetadata.messageOffset))
-      case None =>
-        throw new NotAssignedReplicaException(("Leader %d failed to record follower %d's position %d since the replica" +
-          " is not recognized to be one of the assigned replicas %s for partition %s.")
-          .format(localBrokerId,
-                  replicaId,
-                  logReadResult.info.fetchOffsetMetadata.messageOffset,
-                  assignedReplicas.map(_.brokerId).mkString(","),
-                  topicPartition))
-    }
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   /**

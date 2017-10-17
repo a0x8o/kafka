@@ -238,11 +238,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
     }
 
     @Override
-<<<<<<< HEAD
     public ConvertedRecords<? extends Records> downConvert(byte toMagic, long firstOffset, Time time) {
-=======
-    public Records downConvert(byte toMagic, long firstOffset) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         List<? extends RecordBatch> batches = Utils.toList(batches().iterator());
         if (batches.isEmpty()) {
             // This indicates that the message is too large, which means that the buffer is not large
@@ -254,11 +250,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
             // one full record batch, even if it requires exceeding the max fetch size requested by the client.
             return new ConvertedRecords<>(this, RecordsProcessingStats.EMPTY);
         } else {
-<<<<<<< HEAD
             return downConvert(batches, toMagic, firstOffset, time);
-=======
-            return downConvert(batches, toMagic, firstOffset);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 

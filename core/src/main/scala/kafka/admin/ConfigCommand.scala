@@ -28,13 +28,8 @@ import kafka.utils.{CommandLineUtils, ZkUtils}
 import kafka.utils.Implicits._
 import org.apache.kafka.common.security.JaasUtils
 import org.apache.kafka.common.security.scram._
-<<<<<<< HEAD
 import org.apache.kafka.common.utils.{Sanitizer, Utils}
 
-=======
-import org.apache.kafka.common.utils.Utils
-import org.apache.kafka.common.metrics.Sanitizer
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import scala.collection._
 import scala.collection.JavaConverters._
 

@@ -55,15 +55,9 @@ public interface TopologyDescription {
     }
 
     /**
-<<<<<<< HEAD
      * Represents a {@link Topology#addGlobalStore(org.apache.kafka.streams.state.StoreBuilder, String,
      * org.apache.kafka.common.serialization.Deserializer, org.apache.kafka.common.serialization.Deserializer, String,
      * String, org.apache.kafka.streams.processor.ProcessorSupplier) global store}.
-=======
-     * Represents a {@link Topology#addGlobalStore(org.apache.kafka.streams.processor.StateStoreSupplier, String,
-     * org.apache.kafka.common.serialization.Deserializer, org.apache.kafka.common.serialization.Deserializer, String,
-     * String, org.apache.kafka.streams.processor.ProcessorSupplier)} global store}.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * Adding a global store results in adding a source node and one stateful processor node.
      * Note, that all added global stores form a single unit (similar to a {@link Subtopology}) even if different
      * global stores are not connected to each other.

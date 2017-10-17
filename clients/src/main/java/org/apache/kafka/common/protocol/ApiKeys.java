@@ -27,13 +27,8 @@ import org.apache.kafka.common.requests.AddPartitionsToTxnRequest;
 import org.apache.kafka.common.requests.AddPartitionsToTxnResponse;
 import org.apache.kafka.common.requests.AlterConfigsRequest;
 import org.apache.kafka.common.requests.AlterConfigsResponse;
-<<<<<<< HEAD
 import org.apache.kafka.common.requests.AlterReplicaLogDirsRequest;
 import org.apache.kafka.common.requests.AlterReplicaLogDirsResponse;
-=======
-import org.apache.kafka.common.requests.AlterReplicaDirRequest;
-import org.apache.kafka.common.requests.AlterReplicaDirResponse;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.requests.ApiVersionsRequest;
 import org.apache.kafka.common.requests.ApiVersionsResponse;
 import org.apache.kafka.common.requests.ControlledShutdownRequest;
@@ -169,13 +164,8 @@ public enum ApiKeys {
             DescribeConfigsResponse.schemaVersions()),
     ALTER_CONFIGS(33, "AlterConfigs", AlterConfigsRequest.schemaVersions(),
             AlterConfigsResponse.schemaVersions()),
-<<<<<<< HEAD
     ALTER_REPLICA_LOG_DIRS(34, "AlterReplicaLogDirs", AlterReplicaLogDirsRequest.schemaVersions(),
             AlterReplicaLogDirsResponse.schemaVersions()),
-=======
-    ALTER_REPLICA_DIR(34, "AlterReplicaDir", AlterReplicaDirRequest.schemaVersions(),
-            AlterReplicaDirResponse.schemaVersions()),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     DESCRIBE_LOG_DIRS(35, "DescribeLogDirs", DescribeLogDirsRequest.schemaVersions(),
             DescribeLogDirsResponse.schemaVersions()),
     SASL_AUTHENTICATE(36, "SaslAuthenticate", SaslAuthenticateRequest.schemaVersions(),

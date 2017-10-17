@@ -30,13 +30,8 @@ import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.network.NetworkTestUtils;
 import org.apache.kafka.common.network.NioEchoServer;
-<<<<<<< HEAD
 import org.apache.kafka.common.security.TestSecurityConfig;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-=======
-import org.apache.kafka.common.protocol.SecurityProtocol;
-import org.apache.kafka.common.security.TestSecurityConfig;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.After;

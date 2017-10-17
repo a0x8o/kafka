@@ -40,18 +40,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.NULLABLE_TRANSACTIONAL_ID;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.apache.kafka.common.protocol.CommonFields.PARTITION_ID;
 import static org.apache.kafka.common.protocol.CommonFields.TOPIC_NAME;
 import static org.apache.kafka.common.protocol.types.Type.INT16;
 import static org.apache.kafka.common.protocol.types.Type.INT32;
-<<<<<<< HEAD
-=======
-import static org.apache.kafka.common.protocol.types.Type.NULLABLE_STRING;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.apache.kafka.common.protocol.types.Type.RECORDS;
 
 public class ProduceRequest extends AbstractRequest {
@@ -94,12 +87,7 @@ public class ProduceRequest extends AbstractRequest {
     // Produce request V3 adds the transactional id which is used for authorization when attempting to write
     // transactional data. This version also adds support for message format V2.
     private static final Schema PRODUCE_REQUEST_V3 = new Schema(
-<<<<<<< HEAD
             CommonFields.NULLABLE_TRANSACTIONAL_ID,
-=======
-            new Field(TRANSACTIONAL_ID_KEY_NAME, NULLABLE_STRING, "The transactional ID of the producer. This is used to " +
-                    "authorize transaction produce requests. This can be null for non-transactional producers."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(ACKS_KEY_NAME, INT16, "The number of acknowledgments the producer requires the leader to have " +
                     "received before considering a request complete. Allowed values: 0 for no acknowledgments, 1 " +
                     "for only the leader and -1 for the full ISR."),

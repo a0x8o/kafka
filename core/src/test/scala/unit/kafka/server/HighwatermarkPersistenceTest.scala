@@ -47,11 +47,7 @@ class HighwatermarkPersistenceTest {
 
   @After
   def teardown() {
-<<<<<<< HEAD
     for (manager <- logManagers; dir <- manager.liveLogDirs)
-=======
-    for(manager <- logManagers; dir <- manager.liveLogDirs)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
       Utils.delete(dir)
   }
 

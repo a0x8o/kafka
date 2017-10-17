@@ -24,31 +24,18 @@ import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
-<<<<<<< HEAD
 import static org.apache.kafka.common.protocol.CommonFields.PRODUCER_EPOCH;
 import static org.apache.kafka.common.protocol.CommonFields.PRODUCER_ID;
 import static org.apache.kafka.common.protocol.CommonFields.TRANSACTIONAL_ID;
 import static org.apache.kafka.common.protocol.types.Type.BOOLEAN;
-=======
-import static org.apache.kafka.common.protocol.types.Type.BOOLEAN;
-import static org.apache.kafka.common.protocol.types.Type.INT16;
-import static org.apache.kafka.common.protocol.types.Type.INT64;
-import static org.apache.kafka.common.protocol.types.Type.STRING;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 public class EndTxnRequest extends AbstractRequest {
     private static final String TRANSACTION_RESULT_KEY_NAME = "transaction_result";
 
     private static final Schema END_TXN_REQUEST_V0 = new Schema(
-<<<<<<< HEAD
             TRANSACTIONAL_ID,
             PRODUCER_ID,
             PRODUCER_EPOCH,
-=======
-            new Field(TRANSACTIONAL_ID_KEY_NAME, STRING, "The transactional id corresponding to the transaction."),
-            new Field(PRODUCER_ID_KEY_NAME, INT64, "Current producer id in use by the transactional id."),
-            new Field(PRODUCER_EPOCH_KEY_NAME, INT16, "Current epoch associated with the producer id."),
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             new Field(TRANSACTION_RESULT_KEY_NAME, BOOLEAN, "The result of the transaction (0 = ABORT, 1 = COMMIT)"));
 
     public static Schema[] schemaVersions() {

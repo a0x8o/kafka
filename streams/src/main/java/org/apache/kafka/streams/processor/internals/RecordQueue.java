@@ -18,13 +18,9 @@ package org.apache.kafka.streams.processor.internals;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
-<<<<<<< HEAD
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.errors.DeserializationExceptionHandler;
 import org.apache.kafka.streams.errors.StreamsException;
-=======
-import org.apache.kafka.streams.errors.DeserializationExceptionHandler;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.TimestampExtractor;
 import org.slf4j.Logger;
@@ -43,14 +39,9 @@ public class RecordQueue {
     private final TopicPartition partition;
     private final ArrayDeque<StampedRecord> fifoQueue;
     private final TimestampTracker<ConsumerRecord<Object, Object>> timeTracker;
-<<<<<<< HEAD
     private final RecordDeserializer recordDeserializer;
     private final ProcessorContext processorContext;
     private final Logger log;
-=======
-    private final SourceNodeRecordDeserializer recordDeserializer;
-    private final ProcessorContext processorContext;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     private long partitionTime = TimestampTracker.NOT_KNOWN;
 
@@ -58,25 +49,16 @@ public class RecordQueue {
                 final SourceNode source,
                 final TimestampExtractor timestampExtractor,
                 final DeserializationExceptionHandler deserializationExceptionHandler,
-<<<<<<< HEAD
                 final ProcessorContext processorContext,
                 final LogContext logContext) {
-=======
-                final ProcessorContext processorContext) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         this.partition = partition;
         this.source = source;
         this.timestampExtractor = timestampExtractor;
         this.fifoQueue = new ArrayDeque<>();
         this.timeTracker = new MinTimestampTracker<>();
-<<<<<<< HEAD
         this.recordDeserializer = new RecordDeserializer(source, deserializationExceptionHandler, logContext);
         this.processorContext = processorContext;
         this.log = logContext.logger(RecordQueue.class);
-=======
-        this.recordDeserializer = new SourceNodeRecordDeserializer(source, deserializationExceptionHandler);
-        this.processorContext = processorContext;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /**
@@ -106,16 +88,11 @@ public class RecordQueue {
     int addRawRecords(final Iterable<ConsumerRecord<byte[], byte[]>> rawRecords) {
         for (final ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
 
-<<<<<<< HEAD
             final ConsumerRecord<Object, Object> record = recordDeserializer.deserialize(processorContext, rawRecord);
-=======
-            final ConsumerRecord<Object, Object> record = recordDeserializer.tryDeserialize(processorContext, rawRecord);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             if (record == null) {
                 continue;
             }
 
-<<<<<<< HEAD
             final long timestamp;
             try {
                 timestamp = timestampExtractor.extract(record, timeTracker.get());
@@ -126,9 +103,6 @@ public class RecordQueue {
                     String.format("Fatal user code error in TimestampExtractor callback for record %s.", record),
                     fatalUserException);
             }
-=======
-            final long timestamp = timestampExtractor.extract(record, timeTracker.get());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             log.trace("Source node {} extracted timestamp {} for record {}", source.name(), timestamp, record);
 
             // drop message if TS is invalid, i.e., negative

@@ -18,7 +18,6 @@
 <script><!--#include virtual="../js/templateData.js" --></script>
 
 <script id="content-template" type="text/x-handlebars-template">
-<<<<<<< HEAD
     <h1>Developer Guide for Kafka Streams API</h1>
     
     <p>
@@ -29,9 +28,6 @@
         The computational logic of a Kafka Streams application is defined as a <a href="/{{version}}/documentation/streams/core-concepts#streams_topology">processor topology</a>. Kafka Streams provide two sets of APIs to define the processor topology, Low-Level Processor API and High-Level Streams DSL.
     </p>
 
-=======
-    <h1>Developer Manual</h1>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     <ul class="toc">
         <li><a href="#streams_processor">1. Low-level Processor API</a>
             <ul>
@@ -98,31 +94,17 @@
     <h4><a id="streams_processor_process" href="#streams_processor_process">Processor</a></h4>
 
     <p>
-<<<<<<< HEAD
         A <a href="/{{version}}/documentation/streams/core-concepts"><b>stream processor</b></a> is a node in the processor topology that represents a single processing step.
         With the <code>Processor</code> API, you can define arbitrary stream processors that process one received record at a time, and connect these processors with
-=======
-        As mentioned in the <a href="/{{version}}/documentation/streams/core-concepts"><b>Core Concepts</b></a> section, a stream processor is a node in the processor topology that represents a single processing step.
-        With the <code>Processor</code> API developers can define arbitrary stream processors that process one received record at a time, and connect these processors with
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         their associated state stores to compose the processor topology that represents their customized processing logic.
     </p>
 
     <p>
-<<<<<<< HEAD
         The <code>Processor</code> interface provides the <code>process</code> method API, which is performed on each record that is received.
         The processor can maintain the current <code>ProcessorContext</code> instance variable initialized in the <code>init</code> method
         and use the context to schedule a periodically called punctuation function (<code>context().schedule</code>),
         to forward the new or modified key-value pair to downstream processors (<code>context().forward</code>),
         to commit the current processing progress (<code>context().commit</code>), and so on.
-=======
-        The <code>Processor</code> interface provides one main API method, the <code>process</code> method,
-        which is performed on each of the received records.
-        In addition, the processor can maintain the current <code>ProcessorContext</code> instance variable initialized in the <code>init</code> method
-        and use the context to schedule a periodically called punctuation function (<code>context().schedule</code>),
-        to forward the modified / new key-value pair to downstream processors (<code>context().forward</code>),
-        to commit the current processing progress (<code>context().commit</code>), etc.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </p>
 
     <p>
@@ -204,32 +186,21 @@
     </pre>
 
     <p>
-<<<<<<< HEAD
         In the previous example, the following actions are performed:
-=======
-        In the above implementation, the following actions are performed:
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </p>
 
     <ul>
         <li>In the <code>init</code> method, schedule the punctuation every 1 second and retrieve the local state store by its name "Counts".</li>
         <li>In the <code>process</code> method, upon each received record, split the value string into words, and update their counts into the state store (we will talk about this feature later in the section).</li>
         <li>In the scheduled <code>punctuate</code> method, iterate the local state store and send the aggregated counts to the downstream processor, and commit the current stream state.</li>
-<<<<<<< HEAD
         <li>When done with the <code>KeyValueIterator&lt;String, Long&gt;</code> you <em>must</em> close the iterator, as shown above or use the try-with-resources statement.</li>
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </ul>
 
 
     <h4><a id="streams_processor_topology" href="#streams_processor_topology">Processor Topology</a></h4>
 
     <p>
-<<<<<<< HEAD
         With the customized processors defined in the Processor API, you can use <code>Topology</code> to build a processor topology
-=======
-        With the customized processors defined in the Processor API, developers can use <code>Topology</code> to build a processor topology
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         by connecting these processors together:
     </p>
 
@@ -259,31 +230,18 @@
     .addSink("SINK3", "sink-topic3", "PROCESS3");
     </pre>
 
-<<<<<<< HEAD
     Here is a quick walk through of the previous code to build the topology:
 
     <ul>
         <li>A source node (<code>"SOURCE"</code>) is added to the topology using the <code>addSource</code> method, with one Kafka topic (<code>"src-topic"</code>) fed to it.</li>
         <li>Three processor nodes are then added using the <code>addProcessor</code> method; here the first processor is a child of the source node, but is the parent of the other two processors.</li>
         <li>Three sink nodes are added to complete the topology using the <code>addSink</code> method, each piping from a different parent processor node and writing to a separate topic.</li>
-=======
-    There are several steps in the above code to build the topology, and here is a quick walk through:
-
-    <ul>
-        <li>First of all a source node named "SOURCE" is added to the topology using the <code>addSource</code> method, with one Kafka topic "src-topic" fed to it.</li>
-        <li>Three processor nodes are then added using the <code>addProcessor</code> method; here the first processor is a child of the "SOURCE" node, but is the parent of the other two processors.</li>
-        <li>Finally three sink nodes are added to complete the topology using the <code>addSink</code> method, each piping from a different parent processor node and writing to a separate topic.</li>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </ul>
 
 <h4><a id="streams_processor_statestore" href="#streams_processor_statestore">State Stores</a></h4>
 
 <p>
-<<<<<<< HEAD
 To make state stores fault-tolerant (e.g., to recover from machine crashes) as well as to allow for state store migration without data loss (e.g., to migrate a stateful stream task from one machine to another when elastically adding or removing capacity from your application), a state store can be <strong>continuously backed up</strong> to a Kafka topic behind the scenes. 
-=======
-In order to make state stores fault-tolerant (e.g., to recover from machine crashes) as well as to allow for state store migration without data loss (e.g., to migrate a stateful stream task from one machine to another when elastically adding or removing capacity from your application), a state store can be <strong>continuously backed up</strong> to a Kafka topic behind the scenes. 
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 We sometimes refer to this topic as the state store's associated <em>changelog topic</em> or simply its <em>changelog</em>. 
 In the case of a machine failure, for example, the state store and thus the application's state can be fully restored from its changelog. 
 You can enable or disable this backup feature for a state store, and thus its fault tolerance.
@@ -304,7 +262,6 @@ With deletion enabled, old windows that have expired will be cleaned up by Kafka
 The default retention setting is <code>Windows#maintainMs()</code> + 1 day. This setting can be overriden by specifying <code>StreamsConfig.WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_CONFIG</code> in the <code>StreamsConfig</code>.
 </p>
 
-<<<<<<< HEAD
 <p>
 One additional note regarding the use of state stores.  Any time you open an <code>Iterator</code> from a state store you <em>must</em> call <code>close()</code> on the iterator
 when you are done working with it to reclaim resources.  Or you can use the iterator from within a try-with-resources statement.
@@ -312,8 +269,6 @@ when you are done working with it to reclaim resources.  Or you can use the iter
 </p>
 
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 <h4><a id="restoration_progress" href="#restoration_progress">Monitoring the Restoration Progress of Fault-tolerant State Stores</a></h4>
 
 <p>
@@ -504,7 +459,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
     <h4><a id="streams_processor_describe" href="#streams_processor_describe">Describe a <code>Topology</code></a></h4>
 
     <p>
-<<<<<<< HEAD
         After a <code>Topology</code> is specified, it is possible to retrieve a description of the corresponding DAG via <code>#describe()</code> that returns a <code>TopologyDescription</code>.
         A <code>TopologyDescription</code> contains all added source, processor, and sink nodes as well as all attached stores.
         You can access the specified input and output topic names and patterns for source and sink nodes.
@@ -513,16 +467,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
         Thus, <code>TopologyDescritpion</code> allows to retrieve the DAG structure of the specified topology.
         <br />
         Note that global stores are listed explicitly because they are accessible by all nodes without the need to explicitly connect them.
-=======
-        After a <code>Topology</code> is specified it is possible to retrieve a description of the corresponding DAG via <code>#describe()</code> that returns a <code>TopologyDescription</code>.
-        A <code>TopologyDescription</code> contains all added source, processor, and sink nodes as well as all attached stores.
-        For source and sink nodes one can access the specified input/output topic name/pattern.
-        For processor nodes the attached stores are added to the description.
-        Additionally, all nodes have a list to all their connected successor and predecessor nodes.
-        Thus, <code>TopologyDescritpion</code> allows to retrieve the DAG structure of the specified topology.
-        <br />
-        Note that global stores are listed explicitly as they are accessible by all nodes without the need to explicitly connect them.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         Furthermore, nodes are grouped by <code>Sub-topologies</code>, where each sub-topology is a group of processor nodes that are directly connected to each other (i.e., either by a direct connection&mdash;but not a topic&mdash;or by sharing a store).
         During execution, each <code>Sub-topology</code> will be processed by <a href="/{{version}}/documentation/streams/architecture#streams_architecture_tasks">one or multiple tasks</a>.
         Thus, each <code>Sub-topology</code> describes an independent unit of works that can be executed by different threads in parallel.
@@ -768,11 +712,7 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                     // KStream branches[1] contains all records whose keys start with "B"
                     // KStream branches[2] contains all other records
                     // Java 7 example: cf. `filter` for how to create `Predicate` instances
-<<<<<<< HEAD
             </pre>
-=======
-	        </pre>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             </td>
         </tr>
         <tr>
@@ -799,11 +739,7 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
 
                     // A filter on a KTable that materializes the result into a StateStore
                     table.filter((key, value) -> value != 0, Materialized.&lt;String, Long, KeyValueStore&lt;Bytes, byte[]&gt;&gt;as("filtered"));
-<<<<<<< HEAD
                 </pre>
-=======
-	            </pre>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             </td>
         </tr>
         <tr>
@@ -1455,7 +1391,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                     // Java 8+ examples, using lambda expressions
 
                     // Aggregating with time-based windowing (here: with 5-minute tumbling windows)
-<<<<<<< HEAD
                     KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream
                         .windowedBy(TimeWindows.of(TimeUnit.MINUTES.toMillis(5))) /* time-based window */
                         .aggregate(
@@ -1474,28 +1409,10 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                             (aggKey, leftAggValue, rightAggValue) -> leftAggValue + rightAggValue, /* session merger */
                             Materialized.&lt;String, Long, SessionStore&lt;Bytes, byte[]&gt;&gt;as("sessionized-aggregated-stream-store") /* state store name */
                                 .withValueSerde(Serdes.Long())); /* serde for aggregate value */
-=======
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream.aggregate(
-                        () -> 0L, /* initializer */
-                        (aggKey, newValue, aggValue) -> aggValue + newValue, /* adder */
-                        TimeWindows.of(TimeUnit.MINUTES.toMillis(5)), /* time-based window */
-                        Serdes.Long(), /* serde for aggregate value */
-                        "time-windowed-aggregated-stream-store" /* state store name */);
-
-                    // Aggregating with session-based windowing (here: with an inactivity gap of 5 minutes)
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; sessionizedAggregatedStream = groupedStream.aggregate(
-                        () -> 0L, /* initializer */
-                        (aggKey, newValue, aggValue) -> aggValue + newValue, /* adder */
-                        (aggKey, leftAggValue, rightAggValue) -> leftAggValue + rightAggValue, /* session merger */
-                        SessionWindows.with(TimeUnit.MINUTES.toMillis(5)), /* session window */
-                        Serdes.Long(), /* serde for aggregate value */
-                        "sessionized-aggregated-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
                     // Java 7 examples
 
                     // Aggregating with time-based windowing (here: with 5-minute tumbling windows)
-<<<<<<< HEAD
                     KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream
                         .windowedBy(TimeWindows.of(TimeUnit.MINUTES.toMillis(5))) /* time-based window */
                         .aggregate(
@@ -1540,48 +1457,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                             Materialized.&lt;String, Long, SessionStore&lt;Bytes, byte[]&gt;&gt;as("sessionized-aggregated-stream-store") /* state store name */
                                 .withValueSerde(Serdes.Long()) /* serde for aggregate value */
                     );
-=======
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream.aggregate(
-                        new Initializer&lt;Long&gt;() { /* initializer */
-                          @Override
-                          public Long apply() {
-                            return 0L;
-                          }
-                        },
-                        new Aggregator&lt;String, Long, Long&gt;() { /* adder */
-                          @Override
-                          public Long apply(String aggKey, Long newValue, Long aggValue) {
-                            return aggValue + newValue;
-                          }
-                        },
-                        TimeWindows.of(TimeUnit.MINUTES.toMillis(5)), /* time-based window */
-                        Serdes.Long(), /* serde for aggregate value */
-                        "time-windowed-aggregated-stream-store" /* state store name */);
-
-                    // Aggregating with session-based windowing (here: with an inactivity gap of 5 minutes)
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; sessionizedAggregatedStream = groupedStream.aggregate(
-                        new Initializer&lt;Long&gt;() { /* initializer */
-                          @Override
-                          public Long apply() {
-                            return 0L;
-                          }
-                        },
-                        new Aggregator&lt;String, Long, Long&gt;() { /* adder */
-                          @Override
-                          public Long apply(String aggKey, Long newValue, Long aggValue) {
-                            return aggValue + newValue;
-                          }
-                        },
-                        new Merger&lt;String, Long&gt;() { /* session merger */
-                          @Override
-                          public Long apply(String aggKey, Long leftAggValue, Long rightAggValue) {
-                            return rightAggValue + leftAggValue;
-                          }
-                        },
-                        SessionWindows.with(TimeUnit.MINUTES.toMillis(5)), /* session window */
-                        Serdes.Long(), /* serde for aggregate value */
-                        "sessionized-aggregated-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 </pre>
 
                 <p>
@@ -1618,19 +1493,10 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                     KGroupedTable&lt;String, Long&gt; groupedTable = ...;
 
                     // Counting a KGroupedStream
-<<<<<<< HEAD
                     KTable&lt;String, Long&gt; aggregatedStream = groupedStream.count();
 
                     // Counting a KGroupedTable
                     KTable&lt;String, Long&gt; aggregatedTable = groupedTable.count();
-=======
-                    KTable&lt;String, Long&gt; aggregatedStream = groupedStream.count(
-                        "counted-stream-store" /* state store name */);
-
-                    // Counting a KGroupedTable
-                    KTable&lt;String, Long&gt; aggregatedTable = groupedTable.count(
-                        "counted-table-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 </pre>
                 <p>
                     Detailed behavior for <code>KGroupedStream</code>:
@@ -1665,7 +1531,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                     KGroupedStream&lt;String, Long&gt; groupedStream = ...;
 
                     // Counting a KGroupedStream with time-based windowing (here: with 5-minute tumbling windows)
-<<<<<<< HEAD
                     KTable&lt;Windowed&lt;String&gt;, Long&gt; aggregatedStream = groupedStream
                         .windowedBy(TimeWindows.of(TimeUnit.MINUTES.toMillis(5))) /* time-based window */
                         .count();
@@ -1674,16 +1539,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                     KTable&lt;Windowed&lt;String&gt;, Long&gt; aggregatedStream = groupedStream
                         .windowedBy(SessionWindows.with(TimeUnit.MINUTES.toMillis(5))) /* session window */
                         .count();
-=======
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; aggregatedStream = groupedStream.count(
-                        TimeWindows.of(TimeUnit.MINUTES.toMillis(5)), /* time-based window */
-                        "time-windowed-counted-stream-store" /* state store name */);
-
-                    // Counting a KGroupedStream with session-based windowing (here: with 5-minute inactivity gaps)
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; aggregatedStream = groupedStream.count(
-                        SessionWindows.with(TimeUnit.MINUTES.toMillis(5)), /* session window */
-                        "sessionized-counted-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 </pre>
                 <p>
                     Detailed behavior:
@@ -1719,24 +1574,14 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
 
                     // Reducing a KGroupedStream
                     KTable&lt;String, Long&gt; aggregatedStream = groupedStream.reduce(
-<<<<<<< HEAD
                         (aggValue, newValue) -> aggValue + newValue /* adder */
                     );
-=======
-                        (aggValue, newValue) -> aggValue + newValue, /* adder */
-                        "reduced-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
                     // Reducing a KGroupedTable
                     KTable&lt;String, Long&gt; aggregatedTable = groupedTable.reduce(
                         (aggValue, newValue) -> aggValue + newValue, /* adder */
-<<<<<<< HEAD
                         (aggValue, oldValue) -> aggValue - oldValue /* subtractor */
                     );
-=======
-                        (aggValue, oldValue) -> aggValue - oldValue, /* subtractor */
-                        "reduced-table-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 
                     // Java 7 examples
@@ -1748,13 +1593,8 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                           public Long apply(Long aggValue, Long newValue) {
                             return aggValue + newValue;
                           }
-<<<<<<< HEAD
                         }
                     );
-=======
-                        },
-                        "reduced-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
                     // Reducing a KGroupedTable
                     KTable&lt;String, Long&gt; aggregatedTable = groupedTable.reduce(
@@ -1769,13 +1609,8 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                           public Long apply(Long aggValue, Long oldValue) {
                             return aggValue - oldValue;
                           }
-<<<<<<< HEAD
                         }
                     );
-=======
-                        },
-                        "reduced-table-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 </pre>
                 <p>
                     Detailed behavior for <code>KGroupedStream</code>:
@@ -1837,7 +1672,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                     // Java 8+ examples, using lambda expressions
 
                     // Aggregating with time-based windowing (here: with 5-minute tumbling windows)
-<<<<<<< HEAD
                     KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream
                         .windowedBy(TimeWindows.of(TimeUnit.MINUTES.toMillis(5))) /* time-based window */
                         .reduce((aggValue, newValue) -> aggValue + newValue /* adder */);
@@ -1846,24 +1680,11 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                     KTable&lt;Windowed&lt;String&gt;, Long&gt; sessionzedAggregatedStream = groupedStream
                         .windowedBy(SessionWindows.with(TimeUnit.MINUTES.toMillis(5))) /* session window */
                         .reduce((aggValue, newValue) -> aggValue + newValue); /* adder */
-=======
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream.reduce(
-                        (aggValue, newValue) -> aggValue + newValue, /* adder */
-                        TimeWindows.of(TimeUnit.MINUTES.toMillis(5)), /* time-based window */
-                        "time-windowed-reduced-stream-store" /* state store name */);
-
-                    // Aggregating with session-based windowing (here: with an inactivity gap of 5 minutes)
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; sessionzedAggregatedStream = groupedStream.reduce(
-                        (aggValue, newValue) -> aggValue + newValue, /* adder */
-                        SessionWindows.with(TimeUnit.MINUTES.toMillis(5)), /* session window */
-                        "sessionized-reduced-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 
                     // Java 7 examples
 
                     // Aggregating with time-based windowing (here: with 5-minute tumbling windows)
-<<<<<<< HEAD
                     KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream
                         .windowedBy(TimeWindows.of(TimeUnit.MINUTES.toMillis(5))) /* time-based window */
                         .reduce(
@@ -1884,28 +1705,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
                                 return aggValue + newValue;
                               }
                         });
-=======
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream.reduce(
-                        new Reducer&lt;Long&gt;() { /* adder */
-                          @Override
-                          public Long apply(Long aggValue, Long newValue) {
-                            return aggValue + newValue;
-                          }
-                        },
-                        TimeWindows.of(TimeUnit.MINUTES.toMillis(5)), /* time-based window */
-                        "time-windowed-reduced-stream-store" /* state store name */);
-
-                    // Aggregating with session-based windowing (here: with an inactivity gap of 5 minutes)
-                    KTable&lt;Windowed&lt;String&gt;, Long&gt; timeWindowedAggregatedStream = groupedStream.reduce(
-                        new Reducer&lt;Long&gt;() { /* adder */
-                          @Override
-                          public Long apply(Long aggValue, Long newValue) {
-                            return aggValue + newValue;
-                          }
-                        },
-                        SessionWindows.with(TimeUnit.MINUTES.toMillis(5)), /* session window */
-                        "sessionized-reduced-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 </pre>
 
                 <p>
@@ -1935,7 +1734,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
     </p>
     <pre class="brush: java;">
         // Key: word, value: count
-<<<<<<< HEAD
         Properties streamsProperties == ...;
 
         // specify the default serdes so we don't need to elsewhere.
@@ -1952,18 +1750,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
             () -> 0, /* initializer */
             (aggKey, newValue, aggValue) -> aggValue + newValue /* adder */
         );
-=======
-        KStream&lt;String, Integer&gt; wordCounts = ...;
-
-        KGroupedStream&lt;String, Integer&gt; groupedStream = wordCounts
-            .groupByKey(Serialized.with(Serdes.String(), Serdes.Integer()));
-
-        KTable&lt;String, Integer&gt; aggregated = groupedStream.aggregate(
-            () -> 0, /* initializer */
-            (aggKey, newValue, aggValue) -> aggValue + newValue, /* adder */
-            Serdes.Integer(), /* serde for aggregate value */
-            "aggregated-stream-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </pre>
 
     <p>
@@ -2067,15 +1853,10 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
             () -> 0, /* initializer */
             (aggKey, newValue, aggValue) -> aggValue + newValue, /* adder */
             (aggKey, oldValue, aggValue) -> aggValue - oldValue, /* subtractor */
-<<<<<<< HEAD
             Materialized.&lt;String, Integer, KeyValueStore&lt;Bytes, byte[]&gt;&gt;as("aggregated-table-store")
                 .withKeySerde(Serdes.String() /* serde for aggregate key */)
                 .withValueSerde(Serdes.Long() /* serde for aggregate value */)
         );
-=======
-            Serdes.Integer(), /* serde for aggregate value */
-            "aggregated-table-store" /* state store name */);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </pre>
     <p>
         <b>Impact of <a href=#streams_developer-guide_memory-management_record-cache>record caches</a></b>:
@@ -2491,14 +2272,10 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
             .groupBy((key, word) -> word, Serialized.with(stringSerde, stringSerde));
 
           // Create a window state store named "CountsWindowStore" that contains the word counts for every minute
-<<<<<<< HEAD
           groupedByWord.windowedBy(TimeWindows.of(60000))
             .count(Materialized.&lt;String, Long, WindowStore&lt;Bytes, byte[]&gt;&gt;as("CountsWindowStore")
                 withKeySerde(Serdes.String()); // count() sets value serde to Serdes.Long() automatically
         );
-=======
-          groupedByWord.count(TimeWindows.of(60000), "CountsWindowStore");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         </pre>
 
     <p>
@@ -2641,23 +2418,14 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
           Topology topology = ...;
           ProcessorSupplier processorSuppler = ...;
 
-<<<<<<< HEAD
           // Create CustomStoreBuilder for store name the-custom-store
           MyCustomStoreBuilder customStoreBuilder = new MyCustomStoreBuilder("the-custom-store");
-=======
-          // Create CustomStoreSupplier for store name the-custom-store
-          MyCustomStoreSuppler customStoreSupplier = new MyCustomStoreSupplier("the-custom-store");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
           // Add the source topic
           topology.addSource("input", "inputTopic");
           // Add a custom processor that reads from the source topic
           topology.addProcessor("the-processor", processorSupplier, "input");
           // Connect your custom state store to the custom processor above
-<<<<<<< HEAD
           topology.addStateStore(customStoreBuilder, "the-processor");
-=======
-          topology.addStateStore(customStoreSupplier, "the-processor");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
           KafkaStreams streams = new KafkaStreams(topology, config);
           streams.start();
@@ -2732,11 +2500,7 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
 
           // This call to `count()` creates a state store named "word-count".
           // The state store is discoverable and can be queried interactively.
-<<<<<<< HEAD
           groupedByWord.count(Materialized.&ltString, Long,  KeyValueStore&lt;Bytes, byte[]&gt;&gt;as("word-count"));
-=======
-          groupedByWord.count("word-count");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
           // Start an instance of the topology
           KafkaStreams streams = new KafkaStreams(builder.build(), streamsConfiguration);
@@ -2800,11 +2564,7 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
           Optional&lt;Long&gt; result = streams.allMetadataForStore("word-count")
               .stream()
               .map(streamsMetadata -> {
-<<<<<<< HEAD
                   // Construct the (fictitious) full endpoint URL to query the current remote application instance
-=======
-                  // Construct the (fictituous) full endpoint URL to query the current remote application instance
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                   String url = "http://" + streamsMetadata.host() + ":" + streamsMetadata.port() + "/word-count/alice";
                   // Read and return the count for 'alice', if any.
                   return http.getLong(url);
@@ -3097,16 +2857,11 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
 
     <p>
         For changelog topics you can also override the default configs on a per store basis.
-<<<<<<< HEAD
         This can be done by using any method overload that has a <code>Materialized</code> as a parameter:
-=======
-        This can be done by using any method overload that has a <code>StateStoreSupplier</code> as a parameter:
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </p>
 
     <pre class="brush: java;">
         // a map to add topic config
-<<<<<<< HEAD
         Map&lt;String, String&gt; topicConfig = new HashMap&lt;&gt;();
         topicConfig.put(TopicConfig.SEGMENT_MS_CONFIG, "10000");
 
@@ -3116,19 +2871,6 @@ Note that in the <code>WordCountProcessor</code> implementation, users need to r
             .withLoggingEnabled(topicConfig); // pass in the config overrides
 
         groupedStream.count(materialized)
-=======
-        Map&lt;String, String&gt; topicConfig = new HashMap<>();
-        topicConfig.put(TopicConfig.SEGMENT_MS_CONFIG, "10000");
-
-        StateStoreSupplier supplier = Stores.create("store")
-                .withKeys(Serdes.String())
-                .withValues(Serdes.String())
-                .persistent()
-                .enableLogging(topicConfig) // pass in the config overrides
-                .build();
-        
-        groupedStream.count(supplier)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     </pre>
 
     <h4><a id="streams_execute" href="#streams_execute">Executing Your Kafka Streams Application</a></h4>
@@ -3256,8 +2998,4 @@ $(function() {
   // Display docs subnav items
   $('.b-nav__docs').parent().toggleClass('nav__item__with__subs--expanded');
 });
-<<<<<<< HEAD
 </script>
-=======
-</script>
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d

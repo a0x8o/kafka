@@ -32,18 +32,13 @@ import kafka.utils.ZkUtils._
 import com.yammer.metrics.core.MetricName
 import org.I0Itec.zkclient.exception.{ZkBadVersionException, ZkException, ZkMarshallingError, ZkNoNodeException, ZkNodeExistsException}
 import org.I0Itec.zkclient.serialize.ZkSerializer
-<<<<<<< HEAD
 import org.I0Itec.zkclient.{IZkChildListener, IZkDataListener, IZkStateListener, ZkClient, ZkConnection}
-=======
-import org.I0Itec.zkclient.{ZkClient, ZkConnection, IZkDataListener, IZkChildListener, IZkStateListener}
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.config.ConfigException
 import org.apache.kafka.common.utils.Time
 import org.apache.zookeeper.AsyncCallback.{DataCallback, StringCallback}
 import org.apache.zookeeper.KeeperException.Code
 import org.apache.zookeeper.data.{ACL, Stat}
 import org.apache.zookeeper.{CreateMode, KeeperException, ZooDefs, ZooKeeper}
-import kafka.utils.Json._
 
 import scala.collection._
 import scala.collection.JavaConverters._
@@ -272,13 +267,10 @@ class ZkUtils(zkClientWrap: ZooKeeperClientWrapper,
                               IsrChangeNotificationPath,
                               ProducerIdBlockPath,
                               LogDirEventNotificationPath)
-<<<<<<< HEAD
 
   /** Present for compatibility */
   def this(zkClient: ZkClient, zkConnection: ZkConnection, isSecure: Boolean) =
     this(new ZooKeeperClientWrapper(zkClient), zkConnection, isSecure)
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   // Visible for testing
   val zkPath = new ZkPath(zkClientWrap)
@@ -646,11 +638,7 @@ class ZkUtils(zkClientWrap: ZooKeeperClientWrapper,
   }
 
   def deletePath(path: String): Boolean = {
-<<<<<<< HEAD
     zkClientWrap(_.delete(path))
-=======
-    zkClient.delete(path)
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
   }
 
   /**
@@ -667,7 +655,6 @@ class ZkUtils(zkClientWrap: ZooKeeperClientWrapper,
   }
 
   def deletePathRecursive(path: String) {
-<<<<<<< HEAD
     zkClientWrap(_.deleteRecursive(path))
   }
 
@@ -688,28 +675,6 @@ class ZkUtils(zkClientWrap: ZooKeeperClientWrapper,
 
   def unsubscribeAll(): Unit =
     zkClientWrap(_.unsubscribeAll())
-=======
-    zkClient.deleteRecursive(path)
-  }
-
-  def subscribeDataChanges(path: String, listener: IZkDataListener): Unit =
-    zkClient.subscribeDataChanges(path, listener)
-
-  def unsubscribeDataChanges(path: String, dataListener: IZkDataListener): Unit =
-    zkClient.unsubscribeDataChanges(path, dataListener)
-
-  def subscribeStateChanges(listener: IZkStateListener): Unit =
-    zkClient.subscribeStateChanges(listener)
-
-  def subscribeChildChanges(path: String, listener: IZkChildListener): Option[Seq[String]] =
-    Option(zkClient.subscribeChildChanges(path, listener)).map(_.asScala)
-
-  def unsubscribeChildChanges(path: String, childListener: IZkChildListener): Unit =
-    zkClient.unsubscribeChildChanges(path, childListener)
-
-  def unsubscribeAll(): Unit =
-    zkClient.unsubscribeAll()
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
   def readData(path: String): (String, Stat) = {
     val stat: Stat = new Stat()
@@ -754,10 +719,6 @@ class ZkUtils(zkClientWrap: ZooKeeperClientWrapper,
    */
   def pathExists(path: String): Boolean = {
     zkClientWrap(_.exists(path))
-  }
-
-  def isTopicMarkedForDeletion(topic: String): Boolean = {
-    pathExists(getDeleteTopicPath(topic))
   }
 
   def isTopicMarkedForDeletion(topic: String): Boolean = {

@@ -54,11 +54,7 @@ private[group] case object PreparingRebalance extends GroupState
  *             member failure detected => PreparingRebalance
  *             group is removed by partition emigration => Dead
  */
-<<<<<<< HEAD
 private[group] case object CompletingRebalance extends GroupState
-=======
-private[group] case object AwaitingSync extends GroupState
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 /**
  * Group is stable

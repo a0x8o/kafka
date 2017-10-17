@@ -27,10 +27,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
-<<<<<<< HEAD
-=======
-import org.apache.kafka.common.errors.ProducerFencedException;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
@@ -295,11 +291,7 @@ public class StreamThread extends Thread implements ThreadDataProvider {
                     taskManager.suspendTasksAndState();
                 } catch (final Throwable t) {
                     log.error("Error caught during partition revocation, " +
-<<<<<<< HEAD
                               "will abort the current process and re-throw at the end of rebalance: {}", t.getMessage());
-=======
-                            "will abort the current process and re-throw at the end of rebalance: {}", t.getMessage());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     streamThread.setRebalanceException(t);
                 } finally {
                     streamThread.refreshMetadataState();
@@ -347,12 +339,9 @@ public class StreamThread extends Thread implements ThreadDataProvider {
             this.log = log;
         }
 
-<<<<<<< HEAD
         /**
          * @throws TaskMigratedException if the task producer got fenced (EOS only)
          */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         Collection<Task> createTasks(final Consumer<byte[], byte[]> consumer, final Map<TaskId, Set<TopicPartition>> tasksToBeCreated) {
             final List<Task> createdTasks = new ArrayList<>();
             for (final Map.Entry<TaskId, Set<TopicPartition>> newTaskAndPartitions : tasksToBeCreated.entrySet()) {
@@ -405,12 +394,9 @@ public class StreamThread extends Thread implements ThreadDataProvider {
             this.threadClientId = threadClientId;
         }
 
-<<<<<<< HEAD
         /**
          * @throws TaskMigratedException if the task producer got fenced (EOS only)
          */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         @Override
         StreamTask createTask(final Consumer<byte[], byte[]> consumer, final TaskId taskId, final Set<TopicPartition> partitions) {
             taskCreatedSensor.record();
@@ -589,7 +575,6 @@ public class StreamThread extends Thread implements ThreadDataProvider {
     private StreamThread.StateListener stateListener;
     private ThreadMetadataProvider metadataProvider;
     private Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> standbyRecords;
-<<<<<<< HEAD
 
     // package-private for testing
     final ConsumerRebalanceListener rebalanceListener;
@@ -598,16 +583,6 @@ public class StreamThread extends Thread implements ThreadDataProvider {
     protected final Consumer<byte[], byte[]> consumer;
     protected final InternalTopologyBuilder builder;
 
-=======
-
-    // package-private for testing
-    final ConsumerRebalanceListener rebalanceListener;
-    final Consumer<byte[], byte[]> restoreConsumer;
-
-    protected final Consumer<byte[], byte[]> consumer;
-    protected final InternalTopologyBuilder builder;
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public final String applicationId;
 
     private volatile ThreadMetadata threadMetadata;
@@ -672,11 +647,7 @@ public class StreamThread extends Thread implements ThreadDataProvider {
                                       final StreamsMetadataState streamsMetadataState,
                                       final long cacheSizeBytes,
                                       final StateDirectory stateDirectory,
-<<<<<<< HEAD
                                       final StateRestoreListener userStateRestoreListener) {
-=======
-                                      final StateRestoreListener stateRestoreListener) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         final String threadClientId = clientId + "-StreamThread-" + STREAM_THREAD_ID_SEQUENCE.getAndIncrement();
         final StreamsMetricsThreadImpl streamsMetrics = new StreamsMetricsThreadImpl(metrics,
@@ -699,16 +670,9 @@ public class StreamThread extends Thread implements ThreadDataProvider {
         log.info("Creating restore consumer client");
         final Map<String, Object> consumerConfigs = config.getRestoreConsumerConfigs(threadClientId);
         final Consumer<byte[], byte[]> restoreConsumer = clientSupplier.getRestoreConsumer(consumerConfigs);
-<<<<<<< HEAD
         final StoreChangelogReader changelogReader = new StoreChangelogReader(restoreConsumer,
                                                                               userStateRestoreListener,
                                                                               logContext);
-=======
-        final StoreChangelogReader changelogReader = new StoreChangelogReader(threadClientId,
-                                                                              restoreConsumer,
-                                                                              stateRestoreListener,
-                                                                                logContext);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         Producer<byte[], byte[]> threadProducer = null;
         if (!eosEnabled) {
@@ -806,7 +770,6 @@ public class StreamThread extends Thread implements ThreadDataProvider {
         consumer.subscribe(builder.sourceTopicPattern(), rebalanceListener);
 
         while (isRunning()) {
-<<<<<<< HEAD
             try {
                 recordsProcessedBeforeCommit = runOnce(recordsProcessedBeforeCommit);
             } catch (final TaskMigratedException ignoreAndRejoinGroup) {
@@ -824,12 +787,6 @@ public class StreamThread extends Thread implements ThreadDataProvider {
      *                               or if committing offsets failed (non-EOS)
      *                               or if the task producer got fenced (EOS)
      */
-=======
-            recordsProcessedBeforeCommit = runOnce(recordsProcessedBeforeCommit);
-        }
-    }
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     // Visible for testing
     long runOnce(final long recordsProcessedBeforeCommit) {
         long processedBeforeCommit = recordsProcessedBeforeCommit;
@@ -880,13 +837,9 @@ public class StreamThread extends Thread implements ThreadDataProvider {
         }
 
         if (rebalanceException != null) {
-<<<<<<< HEAD
             if (rebalanceException instanceof TaskMigratedException) {
                 throw (TaskMigratedException) rebalanceException;
             } else {
-=======
-            if (!(rebalanceException instanceof ProducerFencedException)) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                 throw new StreamsException(logPrefix + "Failed to rebalance.", rebalanceException);
             }
         }
@@ -909,7 +862,7 @@ public class StreamThread extends Thread implements ThreadDataProvider {
                 if (originalReset == null || (!originalReset.equals("earliest") && !originalReset.equals("latest"))) {
                     final String errorMessage = "No valid committed offset found for input topic %s (partition %s) and no valid reset policy configured." +
                         " You need to set configuration parameter \"auto.offset.reset\" or specify a topic specific reset " +
-                        "policy via KStreamBuilder#stream(StreamsConfig.AutoOffsetReset offsetReset, ...) or KStreamBuilder#table(StreamsConfig.AutoOffsetReset offsetReset, ...)";
+                        "policy via StreamsBuilder#stream(..., Consumed.with(Topology.AutoOffsetReset)) or StreamsBuilder#table(..., Consumed.with(Topology.AutoOffsetReset))";
                     throw new StreamsException(String.format(errorMessage, partition.topic(), partition.partition()), e);
                 }
 
@@ -992,12 +945,9 @@ public class StreamThread extends Thread implements ThreadDataProvider {
         return totalProcessedSinceLastMaybeCommit;
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private void punctuate() {
         final int punctuated = taskManager.punctuate();
         if (punctuated > 0) {
@@ -1240,36 +1190,22 @@ public class StreamThread extends Thread implements ThreadDataProvider {
         // its state may already be PENDING_SHUTDOWN so it will return false but we
         // intentionally do not check the returned flag
         setState(State.PENDING_SHUTDOWN);
-<<<<<<< HEAD
 
         log.info("Shutting down");
 
-=======
-
-        log.info("Shutting down");
-
-        taskManager.shutdown(cleanRun);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         try {
             taskManager.shutdown(cleanRun);
         } catch (final Throwable e) {
-<<<<<<< HEAD
             log.error("Failed to close task manager due to the following error:", e);
-=======
-            log.error("Failed to close consumer due to the following error:", e);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
         try {
             consumer.close();
         } catch (final Throwable e) {
-<<<<<<< HEAD
             log.error("Failed to close consumer due to the following error:", e);
         }
         try {
             restoreConsumer.close();
         } catch (final Throwable e) {
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             log.error("Failed to close restore consumer due to the following error:", e);
         }
         streamsMetrics.removeAllSensors();

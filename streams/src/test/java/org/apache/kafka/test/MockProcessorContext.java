@@ -147,13 +147,9 @@ public class MockProcessorContext extends AbstractProcessorContext implements Re
     }
 
     @Override
-<<<<<<< HEAD
     public void register(final StateStore store,
                          final boolean deprecatedAndIgnoredLoggingEnabled,
                          final StateRestoreCallback func) {
-=======
-    public void register(final StateStore store, final boolean loggingEnabled, final StateRestoreCallback func) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         storeMap.put(store.name(), store);
         restoreFuncs.put(store.name(), func);
     }
@@ -164,28 +160,14 @@ public class MockProcessorContext extends AbstractProcessorContext implements Re
     }
 
     @Override public Cancellable schedule(long interval, PunctuationType type, Punctuator callback) {
-<<<<<<< HEAD
-=======
         throw new UnsupportedOperationException("schedule() not supported.");
     }
 
     @Override
-    public void schedule(final long interval) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
-        throw new UnsupportedOperationException("schedule() not supported.");
-    }
-
-    @Override
-<<<<<<< HEAD
     public void schedule(final long interval) { }
 
     @Override
     public void commit() { }
-=======
-    public void commit() {
-        throw new UnsupportedOperationException("commit() not supported.");
-    }
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     @Override
     @SuppressWarnings("unchecked")

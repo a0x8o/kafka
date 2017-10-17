@@ -32,10 +32,6 @@ import org.apache.kafka.streams.processor.internals.ProcessorTopology;
 import org.apache.kafka.streams.processor.internals.SinkNode;
 import org.apache.kafka.streams.processor.internals.SourceNode;
 import org.apache.kafka.streams.state.StoreBuilder;
-<<<<<<< HEAD
-=======
-import org.apache.kafka.streams.state.internals.KeyValueStoreBuilder;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import java.util.regex.Pattern;
 
@@ -57,13 +53,9 @@ public class Topology {
     final InternalTopologyBuilder internalTopologyBuilder = new InternalTopologyBuilder();
 
     /**
-<<<<<<< HEAD
      * Sets the {@code auto.offset.reset} configuration when
      * {@link #addSource(AutoOffsetReset, String, String...) adding a source processor} or when creating {@link KStream}
      * or {@link KTable} via {@link StreamsBuilder}.
-=======
-     * Enum used to define auto offset reset policy when creating {@link KStream} or {@link KTable}
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     public enum AutoOffsetReset {
         EARLIEST, LATEST
@@ -580,10 +572,7 @@ public class Topology {
      * @return itself
      * @throws TopologyException if the processor of state is already registered
      */
-<<<<<<< HEAD
     @SuppressWarnings("unchecked")
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public synchronized Topology addGlobalStore(final StoreBuilder storeBuilder,
                                                 final String sourceName,
                                                 final Deserializer keyDeserializer,
@@ -620,12 +609,8 @@ public class Topology {
      * @return itself
      * @throws TopologyException if the processor of state is already registered
      */
-<<<<<<< HEAD
     @SuppressWarnings("unchecked")
     public synchronized Topology addGlobalStore(final StoreBuilder storeBuilder,
-=======
-    public synchronized Topology addGlobalStore(final KeyValueStoreBuilder storeBuilder,
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                                                 final String sourceName,
                                                 final TimestampExtractor timestampExtractor,
                                                 final Deserializer keyDeserializer,
@@ -657,10 +642,7 @@ public class Topology {
      *
      * @return a description of the topology.
      */
-<<<<<<< HEAD
 
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public synchronized TopologyDescription describe() {
         return internalTopologyBuilder.describe();
     }

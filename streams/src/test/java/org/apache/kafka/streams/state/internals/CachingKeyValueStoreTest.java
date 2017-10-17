@@ -50,13 +50,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
-<<<<<<< HEAD
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-=======
-import static org.junit.Assert.fail;
-import static org.junit.Assert.assertTrue;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
 
@@ -74,11 +69,7 @@ public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
         underlyingStore = new InMemoryKeyValueStore<>(storeName, Serdes.Bytes(), Serdes.ByteArray());
         cacheFlushListener = new CacheFlushListenerStub<>();
         store = new CachingKeyValueStore<>(underlyingStore, Serdes.String(), Serdes.String());
-<<<<<<< HEAD
         store.setFlushListener(cacheFlushListener, false);
-=======
-        store.setFlushListener(cacheFlushListener);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         cache = new ThreadCache(new LogContext("testCache "), maxCacheSizeBytes, new MockStreamsMetrics(new Metrics()));
         context = new MockProcessorContext(null, null, null, (RecordCollector) null, cache);
         topic = "topic";
@@ -112,11 +103,7 @@ public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
         final CacheFlushListenerStub<K, V> cacheFlushListener = new CacheFlushListenerStub<>();
 
         final CachedStateStore inner = (CachedStateStore) ((WrappedStateStore) store).wrappedStore();
-<<<<<<< HEAD
         inner.setFlushListener(cacheFlushListener, false);
-=======
-        inner.setFlushListener(cacheFlushListener);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         store.init(context, store);
         return store;
     }
@@ -165,10 +152,7 @@ public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
 
     @Test
     public void shouldForwardOldValuesWhenEnabled() {
-<<<<<<< HEAD
         store.setFlushListener(cacheFlushListener, true);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         store.put(bytesKey("1"), bytesValue("a"));
         store.flush();
         store.put(bytesKey("1"), bytesValue("b"));
@@ -178,7 +162,6 @@ public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void shouldNotForwardOldValuesWhenDisabled() {
         store.put(bytesKey("1"), bytesValue("a"));
         store.flush();
@@ -189,8 +172,6 @@ public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
     }
 
     @Test
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void shouldIterateAllStoredItems() throws IOException {
         int items = addItemsToCache();
         final KeyValueIterator<Bytes, byte[]> all = store.all();
@@ -289,7 +270,6 @@ public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
     @Test(expected = NullPointerException.class)
     public void shouldThrowNullPointerExceptionOnPutIfAbsentWithNullKey() {
         store.putIfAbsent(null, bytesValue("c"));
-<<<<<<< HEAD
     }
 
     @Test
@@ -322,40 +302,6 @@ public class CachingKeyValueStoreTest extends AbstractKeyValueStoreTest {
     }
 
     @Test
-=======
-    }
-
-    @Test
-    public void shouldThrowNullPointerExceptionOnPutAllWithNullKey() {
-        List<KeyValue<Bytes, byte[]>> entries = new ArrayList<>();
-        entries.add(new KeyValue<Bytes, byte[]>(null, bytesValue("a")));
-        try {
-            store.putAll(entries);
-            fail("Should have thrown NullPointerException while putAll null key");
-        } catch (NullPointerException e) { }
-    }
-
-    @Test
-    public void shouldPutIfAbsent() {
-        store.putIfAbsent(bytesKey("b"), bytesValue("2"));
-        assertThat(store.get(bytesKey("b")), equalTo(bytesValue("2")));
-
-        store.putIfAbsent(bytesKey("b"), bytesValue("3"));
-        assertThat(store.get(bytesKey("b")), equalTo(bytesValue("2")));
-    }
-
-    @Test
-    public void shouldPutAll() {
-        List<KeyValue<Bytes, byte[]>> entries = new ArrayList<>();
-        entries.add(new KeyValue<>(bytesKey("a"), bytesValue("1")));
-        entries.add(new KeyValue<>(bytesKey("b"), bytesValue("2")));
-        store.putAll(entries);
-        assertThat(store.get(bytesKey("a")), equalTo(bytesValue("1")));
-        assertThat(store.get(bytesKey("b")), equalTo(bytesValue("2")));
-    }
-
-    @Test
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     public void shouldReturnUnderlying() {
         assertTrue(store.underlying().equals(underlyingStore));
     }

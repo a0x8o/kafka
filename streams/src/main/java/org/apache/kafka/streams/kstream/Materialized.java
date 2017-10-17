@@ -34,7 +34,6 @@ import java.util.Objects;
 
 /**
  * Used to describe how a {@link StateStore} should be materialized.
-<<<<<<< HEAD
  * You can either provide a custom {@link StateStore} backend through one of the provided methods accepting a supplier
  * or use the default RocksDB backends by providing just a store name.
  * <p>
@@ -52,11 +51,6 @@ import java.util.Objects;
  * @param <S> type of state store (note: state stores always have key/value types {@code <Bytes,byte[]>}
  *
  * @see org.apache.kafka.streams.state.Stores
-=======
- * You can either provide a custom {@link StateStore} backend
- * through one of the provided methods accepting a supplier or use the default RocksDB backends
- * by providing just a store name.
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
  */
 public class Materialized<K, V, S extends StateStore> {
     protected StoreSupplier<S> storeSupplier;
@@ -145,7 +139,6 @@ public class Materialized<K, V, S extends StateStore> {
     }
 
     /**
-<<<<<<< HEAD
      * Materialize a {@link StateStore} with the provided key and value {@link Serde}s.
      * An internal name will be used for the store.
      *
@@ -164,8 +157,6 @@ public class Materialized<K, V, S extends StateStore> {
     }
 
     /**
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      * Set the valueSerde the materialized {@link StateStore} will use.
      *
      * @param valueSerde the value {@link Serde} to use. If the {@link Serde} is null, then the default value

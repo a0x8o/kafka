@@ -215,11 +215,7 @@ public class FetchRequest extends AbstractRequest {
 
         public static Builder forReplica(short allowedVersion, int replicaId, int maxWait, int minBytes,
                                          LinkedHashMap<TopicPartition, PartitionData> fetchData) {
-<<<<<<< HEAD
             return new Builder(allowedVersion, allowedVersion, replicaId, maxWait, minBytes, fetchData,
-=======
-            return new Builder(desiredVersion, desiredVersion, replicaId, maxWait, minBytes, fetchData,
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                     IsolationLevel.READ_UNCOMMITTED);
         }
 
@@ -260,6 +256,7 @@ public class FetchRequest extends AbstractRequest {
                     append(", minBytes=").append(minBytes).
                     append(", maxBytes=").append(maxBytes).
                     append(", fetchData=").append(fetchData).
+                    append(", isolationLevel=").append(isolationLevel).
                     append(")");
             return bld.toString();
         }

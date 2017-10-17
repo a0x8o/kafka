@@ -17,23 +17,16 @@
 package ${package};
 
 import org.apache.kafka.common.serialization.Serdes;
-<<<<<<< HEAD
 import org.apache.kafka.common.utils.Bytes;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
-<<<<<<< HEAD
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.ValueMapper;
 import org.apache.kafka.streams.state.KeyValueStore;
-=======
-import org.apache.kafka.streams.kstream.ValueMapper;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -70,7 +63,6 @@ public class WordCount {
                        return value;
                    }
                 })
-<<<<<<< HEAD
                .count(Materialized.<String, Long, KeyValueStore<Bytes, byte[]>>as("counts-store"))
                .toStream()
                .to("streams-wordcount-output", Produced.with(Serdes.String(), Serdes.Long()));
@@ -84,19 +76,6 @@ public class WordCount {
                .count(Materialized.<String, Long, KeyValueStore<Bytes, byte[]>>as("counts-store"))
                .toStream()
                .to("streams-wordcount-output", Produced.with(Serdes.String(), Serdes.Long()));
-=======
-               .count("Counts")
-               .to(Serdes.String(), Serdes.Long(), "streams-wordcount-output");
-
-
-        /* ------- use the code below for Java 8 and uncomment the above ----
-
-        builder.stream("streams-plaintext-input")
-               .flatMapValues(value -> Arrays.asList(value.toLowerCase(Locale.getDefault()).split("\\W+")))
-               .groupBy((key, value) -> value)
-               .count("Counts")
-               .to(Serdes.String(), Serdes.Long(), "streams-wordcount-output");
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
            ----------------------------------------------------------------- */
 

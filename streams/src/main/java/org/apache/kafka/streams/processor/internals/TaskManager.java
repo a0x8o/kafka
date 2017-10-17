@@ -20,10 +20,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.errors.StreamsException;
-<<<<<<< HEAD
 import org.apache.kafka.streams.errors.TaskMigratedException;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.streams.processor.TaskId;
 import org.slf4j.Logger;
 
@@ -71,12 +68,9 @@ class TaskManager {
         this.log = logContext.logger(getClass());
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     void createTasks(final Collection<TopicPartition> assignment) {
         if (threadMetadataProvider == null) {
             throw new IllegalStateException(logPrefix + "taskIdProvider has not been initialized while adding stream tasks. This should not happen.");
@@ -102,12 +96,9 @@ class TaskManager {
         this.threadMetadataProvider = threadMetadataProvider;
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private void addStreamTasks(final Collection<TopicPartition> assignment) {
         Map<TaskId, Set<TopicPartition>> assignedTasks = threadMetadataProvider.activeTasks();
         if (assignedTasks.isEmpty()) {
@@ -148,12 +139,9 @@ class TaskManager {
         }
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     private void addStandbyTasks() {
         final Map<TaskId, Set<TopicPartition>> assignedStandbyTasks = threadMetadataProvider.standbyTasks();
         if (assignedStandbyTasks.isEmpty()) {
@@ -199,10 +187,7 @@ class TaskManager {
     /**
      * Similar to shutdownTasksAndState, however does not close the task managers, in the hope that
      * soon the tasks will be assigned again
-<<<<<<< HEAD
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
      */
     void suspendTasksAndState()  {
         log.debug("Suspending all active tasks {} and standby tasks {}", active.runningTaskIds(), standby.runningTaskIds());
@@ -214,19 +199,13 @@ class TaskManager {
         // remove the changelog partitions from restore consumer
         restoreConsumer.assign(Collections.<TopicPartition>emptyList());
 
-<<<<<<< HEAD
         final Exception exception = firstException.get();
         if (exception != null) {
             throw new StreamsException(logPrefix + "failed to suspend stream tasks", exception);
-=======
-        if (firstException.get() != null) {
-            throw new StreamsException(logPrefix + "failed to suspend stream tasks", firstException.get());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
     }
 
     void shutdown(final boolean clean) {
-<<<<<<< HEAD
         final AtomicReference<RuntimeException> firstException = new AtomicReference<>(null);
 
         log.debug("Shutting down all active tasks {}, standby tasks {}, suspended tasks {}, and suspended standby tasks {}", active.runningTaskIds(), standby.runningTaskIds(),
@@ -237,12 +216,6 @@ class TaskManager {
         } catch (final RuntimeException fatalException) {
             firstException.compareAndSet(null, fatalException);
         }
-=======
-        log.debug("Shutting down all active tasks {}, standby tasks {}, suspended tasks {}, and suspended standby tasks {}", active.runningTaskIds(), standby.runningTaskIds(),
-                  active.previousTaskIds(), standby.previousTaskIds());
-
-        active.close(clean);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         standby.close(clean);
         try {
             threadMetadataProvider.close();
@@ -253,14 +226,11 @@ class TaskManager {
         restoreConsumer.assign(Collections.<TopicPartition>emptyList());
         taskCreator.close();
         standbyTaskCreator.close();
-<<<<<<< HEAD
 
         final RuntimeException fatalException = firstException.get();
         if (fatalException != null) {
             throw fatalException;
         }
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     Set<TaskId> suspendedActiveTaskIds() {
@@ -292,7 +262,6 @@ class TaskManager {
         this.consumer = consumer;
     }
 
-<<<<<<< HEAD
     /**
      * @throws IllegalStateException If store gets registered after initialized is already finished
      * @throws StreamsException if the store's change log does not contain the partition
@@ -304,15 +273,6 @@ class TaskManager {
 
         final Collection<TopicPartition> restored = changelogReader.restore(active);
         resumed.addAll(active.updateRestored(restored));
-=======
-
-    boolean updateNewAndRestoringTasks() {
-        active.initializeNewTasks();
-        standby.initializeNewTasks();
-
-        final Collection<TopicPartition> restored = changelogReader.restore();
-        final Set<TopicPartition> resumed = active.updateRestored(restored);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         if (!resumed.isEmpty()) {
             log.trace("resuming partitions {}", resumed);
@@ -352,45 +312,33 @@ class TaskManager {
         }
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if committing offsets failed (non-EOS)
      *                               or if the task producer got fenced (EOS)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     int commitAll() {
         int committed = active.commit();
         return committed + standby.commit();
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     int process() {
         return active.process();
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     int punctuate() {
         return active.punctuate();
     }
 
-<<<<<<< HEAD
     /**
      * @throws TaskMigratedException if committing offsets failed (non-EOS)
      *                               or if the task producer got fenced (EOS)
      */
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     int maybeCommitActiveTasks() {
         return active.maybeCommit();
     }

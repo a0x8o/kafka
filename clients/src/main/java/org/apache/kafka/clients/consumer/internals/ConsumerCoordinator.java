@@ -786,11 +786,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                         future.raise(new CommitFailedException());
                         return;
                     } else if (error == Errors.UNKNOWN_TOPIC_OR_PARTITION) {
-<<<<<<< HEAD
                         future.raise(new KafkaException("Topic or Partition " + tp + " does not exist"));
-=======
-                        future.raise(new KafkaException("Partition " + tp + " may not exist or user may not have Describe access to topic"));
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
                         return;
                     } else {
                         future.raise(new KafkaException("Unexpected error in commit: " + error.message()));

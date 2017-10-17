@@ -29,7 +29,6 @@ public class KeyValueStoreMaterializer<K, V> {
         this.materialized = materialized;
     }
 
-<<<<<<< HEAD
     /**
      * @return  StoreBuilder
      */
@@ -38,12 +37,6 @@ public class KeyValueStoreMaterializer<K, V> {
         if (supplier == null) {
             final String name = materialized.storeName();
             supplier = Stores.persistentKeyValueStore(name);
-=======
-    public StoreBuilder<KeyValueStore<K, V>> materialize() {
-        KeyValueBytesStoreSupplier supplier = (KeyValueBytesStoreSupplier) materialized.storeSupplier();
-        if (supplier == null) {
-            supplier = Stores.persistentKeyValueStore(materialized.storeName());
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         }
         final StoreBuilder<KeyValueStore<K, V>> builder = Stores.keyValueStoreBuilder(supplier,
                                                                                       materialized.keySerde(),

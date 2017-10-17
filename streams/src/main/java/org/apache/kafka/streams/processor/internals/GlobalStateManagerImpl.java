@@ -181,12 +181,9 @@ public class GlobalStateManagerImpl implements GlobalStateManager {
                                                      BatchingStateRestoreCallback)
                                                 ? stateRestoreCallback
                                                 : new WrappedBatchingStateRestoreCallback(stateRestoreCallback));
-<<<<<<< HEAD
 
             stateRestoreListener.onRestoreStart(topicPartition, storeName, offset, highWatermark);
             long restoreCount = 0L;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
             while (offset < highWatermark) {
                 final ConsumerRecords<byte[], byte[]> records = consumer.poll(100);
@@ -198,11 +195,8 @@ public class GlobalStateManagerImpl implements GlobalStateManager {
                     }
                 }
                 stateRestoreAdapter.restoreAll(restoreRecords);
-<<<<<<< HEAD
                 stateRestoreListener.onBatchRestored(topicPartition, storeName, offset, restoreRecords.size());
                 restoreCount += restoreRecords.size();
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
             }
             stateRestoreListener.onRestoreEnd(topicPartition, storeName, restoreCount);
             checkpointableOffsets.put(topicPartition, offset);

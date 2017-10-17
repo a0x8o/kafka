@@ -27,9 +27,6 @@ import java.util.Map;
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
 import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
 
-import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
-import static org.apache.kafka.common.protocol.CommonFields.THROTTLE_TIME_MS;
-
 public class LeaveGroupResponse extends AbstractResponse {
 
     private static final Schema LEAVE_GROUP_RESPONSE_V0 = new Schema(

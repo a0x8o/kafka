@@ -80,7 +80,6 @@ public class VerifiableProducer {
     // if null, then values are produced without a prefix
     private final Integer valuePrefix;
 
-<<<<<<< HEAD
     // The create time to set in messages, in milliseconds since epoch
     private Long createTime;
 
@@ -88,9 +87,6 @@ public class VerifiableProducer {
 
     public VerifiableProducer(KafkaProducer<String, String> producer, String topic, int throughput, int maxMessages,
                               Integer valuePrefix, Long createTime) {
-=======
-    public VerifiableProducer(KafkaProducer<String, String> producer, String topic, int throughput, int maxMessages, Integer valuePrefix) {
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         this.topic = topic;
         this.throughput = throughput;
@@ -203,13 +199,10 @@ public class VerifiableProducer {
         int throughput = res.getInt("throughput");
         String configFile = res.getString("producer.config");
         Integer valuePrefix = res.getInt("valuePrefix");
-<<<<<<< HEAD
         Long createTime = (long) res.getInt("createTime");
 
         if (createTime == -1L)
             createTime = null;
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
         Properties producerProps = new Properties();
         producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, res.getString("brokerList"));
@@ -231,22 +224,23 @@ public class VerifiableProducer {
         StringSerializer serializer = new StringSerializer();
         KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps, serializer, serializer);
 
-<<<<<<< HEAD
         return new VerifiableProducer(producer, topic, throughput, maxMessages, valuePrefix, createTime);
-=======
-        return new VerifiableProducer(producer, topic, throughput, maxMessages, valuePrefix);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     /** Produce a message with given key and value. */
     public void send(String key, String value) {
-<<<<<<< HEAD
-        ProducerRecord<String, String> record = new ProducerRecord<>(topic, null, createTime, key, value);
-        if (createTime != null)
+        ProducerRecord<String, String> record;
+
+        // Older versions of ProducerRecord don't include the message create time in the constructor. So including
+        // even a 'null' argument results in a NoSuchMethodException. Thus we only include the create time if it is
+        // explicitly specified to remain fully backward compatible with older clients.
+        if (createTime != null) {
+            record = new ProducerRecord<>(topic, null, createTime, key, value);
             createTime += System.currentTimeMillis() - startTime;
-=======
-        ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, value);
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
+        } else {
+            record = new ProducerRecord<>(topic, key, value);
+        }
+
         numSent++;
         try {
             producer.send(record, new PrintInfoCallback(key, value));
@@ -300,7 +294,6 @@ public class VerifiableProducer {
             return "shutdown_complete";
         }
     }
-<<<<<<< HEAD
 
     private static class SuccessfulSend extends ProducerEvent {
 
@@ -340,47 +333,6 @@ public class VerifiableProducer {
             return recordMetadata.partition();
         }
 
-=======
-
-    private static class SuccessfulSend extends ProducerEvent {
-
-        private String key;
-        private String value;
-        private RecordMetadata recordMetadata;
-
-        public SuccessfulSend(String key, String value, RecordMetadata recordMetadata) {
-            assert recordMetadata != null : "Expected non-null recordMetadata object.";
-            this.key = key;
-            this.value = value;
-            this.recordMetadata = recordMetadata;
-        }
-
-        @Override
-        public String name() {
-            return "producer_send_success";
-        }
-
-        @JsonProperty
-        public String key() {
-            return key;
-        }
-
-        @JsonProperty
-        public String value() {
-            return value;
-        }
-
-        @JsonProperty
-        public String topic() {
-            return recordMetadata.topic();
-        }
-
-        @JsonProperty
-        public int partition() {
-            return recordMetadata.partition();
-        }
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         @JsonProperty
         public long offset() {
             return recordMetadata.offset();
@@ -401,7 +353,6 @@ public class VerifiableProducer {
             this.topic = topic;
             this.exception = exception;
         }
-<<<<<<< HEAD
 
         @Override
         public String name() {
@@ -463,69 +414,6 @@ public class VerifiableProducer {
             return this.acked;
         }
 
-=======
-
-        @Override
-        public String name() {
-            return "producer_send_error";
-        }
-
-        @JsonProperty
-        public String key() {
-            return key;
-        }
-
-        @JsonProperty
-        public String value() {
-            return value;
-        }
-
-        @JsonProperty
-        public String topic() {
-            return topic;
-        }
-
-        @JsonProperty
-        public String exception() {
-            return exception.getClass().toString();
-        }
-
-        @JsonProperty
-        public String message() {
-            return exception.getMessage();
-        }
-    }
-
-    private static class ToolData extends ProducerEvent {
-
-        private long sent;
-        private long acked;
-        private long targetThroughput;
-        private double avgThroughput;
-
-        public ToolData(long sent, long acked, long targetThroughput, double avgThroughput) {
-            this.sent = sent;
-            this.acked = acked;
-            this.targetThroughput = targetThroughput;
-            this.avgThroughput = avgThroughput;
-        }
-
-        @Override
-        public String name() {
-            return "tool_data";
-        }
-
-        @JsonProperty
-        public long sent() {
-            return this.sent;
-        }
-
-        @JsonProperty
-        public long acked() {
-            return this.acked;
-        }
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         @JsonProperty("target_throughput")
         public long targetThroughput() {
             return this.targetThroughput;
@@ -569,19 +457,11 @@ public class VerifiableProducer {
     }
 
     public void run(ThroughputThrottler throttler) {
-<<<<<<< HEAD
 
         printJson(new StartupComplete());
         // negative maxMessages (-1) means "infinite"
         long maxMessages = (this.maxMessages < 0) ? Long.MAX_VALUE : this.maxMessages;
 
-=======
-
-        printJson(new StartupComplete());
-        // negative maxMessages (-1) means "infinite"
-        long maxMessages = (this.maxMessages < 0) ? Long.MAX_VALUE : this.maxMessages;
-
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
         for (long i = 0; i < maxMessages; i++) {
             if (this.stopProducing) {
                 break;

@@ -17,11 +17,7 @@
 package org.apache.kafka.clients;
 
 import org.apache.kafka.common.config.AbstractConfig;
-<<<<<<< HEAD
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-=======
-import org.apache.kafka.common.protocol.SecurityProtocol;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -33,13 +33,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.easymock.EasyMock.expectLastCall;
-<<<<<<< HEAD
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-=======
-import static org.junit.Assert.assertFalse;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 import static org.junit.Assert.assertTrue;
 
 @RunWith(EasyMockRunner.class)
@@ -53,11 +49,7 @@ public class WorkerConnectorTest extends EasyMockSupport {
         CONFIG.put(ConnectorConfig.NAME_CONFIG, CONNECTOR);
     }
     public ConnectorConfig connectorConfig;
-<<<<<<< HEAD
     public MockConnectMetrics metrics;
-=======
-    public ConnectMetrics metrics;
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
 
     @Mock Plugins plugins;
     @Mock Connector connector;
@@ -457,7 +449,6 @@ public class WorkerConnectorTest extends EasyMockSupport {
         assertFalse(workerConnector.metrics().isFailed());
         assertFalse(workerConnector.metrics().isPaused());
         assertFalse(workerConnector.metrics().isRunning());
-<<<<<<< HEAD
         MetricGroup metricGroup = workerConnector.metrics().metricGroup();
         String status = metrics.currentMetricValueAsString(metricGroup, "status");
         String type = metrics.currentMetricValueAsString(metricGroup, "connector-type");
@@ -466,8 +457,6 @@ public class WorkerConnectorTest extends EasyMockSupport {
         assertEquals(type, "unknown");
         assertNotNull(clazz);
         assertEquals(VERSION, version);
-=======
->>>>>>> 74551108ea1e7cb8a09861db4ae63a531bf19e9d
     }
 
     private static abstract class TestConnector extends Connector {
