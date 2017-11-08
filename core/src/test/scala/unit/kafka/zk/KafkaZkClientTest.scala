@@ -16,14 +16,11 @@
 */
 package kafka.zk
 
-import kafka.common.TopicAndPartition
-import kafka.utils.ZkUtils
+import kafka.server.Defaults
 import kafka.zookeeper.ZooKeeperClient
 import org.apache.kafka.common.TopicPartition
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.{After, Before, Test}
-
-import scala.collection.mutable
 
 class KafkaZkClientTest extends ZooKeeperTestHarness {
 
@@ -36,7 +33,7 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
   @Before
   override def setUp() {
     super.setUp()
-    zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, null)
+    zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Defaults.ZkMaxInFlightRequests, null)
     zkClient = new KafkaZkClient(zooKeeperClient, false)
   }
 
@@ -100,12 +97,13 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     assertTrue(zkClient.getTopicPartitionCount(topic).isEmpty)
 
     // create a topic path
-    zkClient.createRecursive(ZkUtils.getTopicPath(topic))
+    zkClient.createRecursive(TopicZNode.path(topic))
 
-    val assignment = new mutable.HashMap[TopicAndPartition, Seq[Int]]()
-    assignment.put(new TopicAndPartition(topic, 0), Seq(0,1))
-    assignment.put(new TopicAndPartition(topic, 1), Seq(0,1))
-    zkClient.setTopicAssignmentRaw(topic, assignment.toMap)
+    val assignment = Map(
+      new TopicPartition(topic, 0) -> Seq(0, 1),
+      new TopicPartition(topic, 1) -> Seq(0, 1)
+    )
+    zkClient.setTopicAssignmentRaw(topic, assignment)
 
     assertEquals(2, zkClient.getTopicPartitionCount(topic).get)
   }
@@ -157,4 +155,28 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     assertFalse(statusAndVersion._1)
     assertEquals(-1, statusAndVersion._2)
   }
+
+  @Test
+  def testSetGetAndDeletePartitionReassignment() {
+    zkClient.createRecursive(AdminZNode.path)
+
+    assertEquals(Map.empty, zkClient.getPartitionReassignment)
+
+    val reassignment = Map(
+      new TopicPartition("topic_a", 0) -> Seq(0, 1, 3),
+      new TopicPartition("topic_a", 1) -> Seq(2, 1, 3),
+      new TopicPartition("topic_b", 0) -> Seq(4, 5),
+      new TopicPartition("topic_c", 0) -> Seq(5, 3)
+    )
+    zkClient.setOrCreatePartitionReassignment(reassignment)
+    assertEquals(reassignment, zkClient.getPartitionReassignment)
+
+    val updatedReassingment = reassignment - new TopicPartition("topic_b", 0)
+    zkClient.setOrCreatePartitionReassignment(updatedReassingment)
+    assertEquals(updatedReassingment, zkClient.getPartitionReassignment)
+
+    zkClient.deletePartitionReassignment()
+    assertEquals(Map.empty, zkClient.getPartitionReassignment)
+  }
+
 }
