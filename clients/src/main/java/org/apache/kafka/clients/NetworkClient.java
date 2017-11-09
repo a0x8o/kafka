@@ -369,7 +369,7 @@ public class NetworkClient implements KafkaClient {
         if (!isInternalRequest) {
             // If this request came from outside the NetworkClient, validate
             // that we can send data.  If the request is internal, we trust
-            // that that internal code has done this validation.  Validation
+            // that internal code has done this validation.  Validation
             // will be slightly different for some internal requests (for
             // example, ApiVersionsRequests can be sent prior to being in
             // READY state.)
@@ -389,7 +389,7 @@ public class NetworkClient implements KafkaClient {
                     log.trace("No version information found when sending {} with correlation id {} to node {}. " +
                             "Assuming version {}.", clientRequest.apiKey(), clientRequest.correlationId(), nodeId, version);
             } else {
-                version = versionInfo.usableVersion(clientRequest.apiKey(), builder.oldestAllowedVersion(),
+                version = versionInfo.latestUsableVersion(clientRequest.apiKey(), builder.oldestAllowedVersion(),
                         builder.latestAllowedVersion());
             }
             // The call to build may also throw UnsupportedVersionException, if there are essential

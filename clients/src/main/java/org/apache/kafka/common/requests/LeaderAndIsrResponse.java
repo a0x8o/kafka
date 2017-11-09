@@ -26,6 +26,7 @@ import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +86,14 @@ public class LeaderAndIsrResponse extends AbstractResponse {
 
     public Errors error() {
         return error;
+    }
+
+    @Override
+    public Map<Errors, Integer> errorCounts() {
+        if (error != Errors.NONE)
+            // Minor optimization since the top-level error applies to all partitions
+            return Collections.singletonMap(error, responses.size());
+        return errorCounts(responses);
     }
 
     public static LeaderAndIsrResponse parse(ByteBuffer buffer, short version) {
