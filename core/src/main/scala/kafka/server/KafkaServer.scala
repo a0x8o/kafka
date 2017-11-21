@@ -37,7 +37,7 @@ import kafka.security.CredentialProvider
 import kafka.security.auth.Authorizer
 import kafka.utils._
 import kafka.zk.KafkaZkClient
-import kafka.zookeeper.{StateChangeHandler, ZooKeeperClient}
+import kafka.zookeeper.ZooKeeperClient
 import org.apache.kafka.clients.{ApiVersions, ManualMetadataUpdater, NetworkClient, NetworkClientUtils}
 import org.apache.kafka.common.internals.ClusterResourceListeners
 import org.apache.kafka.common.metrics.{JmxReporter, Metrics, _}
@@ -216,25 +216,12 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         /* register broker metrics */
         _brokerTopicStats = new BrokerTopicStats
 
-        quotaManagers = QuotaFactory.instantiate(config, metrics, time)
+        quotaManagers = QuotaFactory.instantiate(config, metrics, time, threadNamePrefix.getOrElse(""))
         notifyClusterListeners(kafkaMetricsReporters ++ reporters.asScala)
 
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
-        val zooKeeperClient = new ZooKeeperClient(config.zkConnect, config.zkSessionTimeoutMs,
-          config.zkConnectionTimeoutMs, config.zkMaxInFlightRequests, new StateChangeHandler {
-            override def onReconnectionTimeout(): Unit = {
-              error("Reconnection timeout.")
-            }
-
-            override def afterInitializingSession(): Unit = kafkaController.newSession()
-
-            override def onAuthFailure(): Unit = {
-              error("Auth failure.")
-            }
-
-            override def beforeInitializingSession(): Unit = kafkaController.expire()
-          })
+        val zooKeeperClient = new ZooKeeperClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs, config.zkMaxInFlightRequests)
         zkClient = new KafkaZkClient(zooKeeperClient, zkUtils.isSecure)
 
         /* start log manager */
@@ -291,7 +278,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
                                                            ConfigType.Broker -> new BrokerConfigHandler(config, quotaManagers))
 
         // Create the config manager. start listening to notifications
-        dynamicConfigManager = new DynamicConfigManager(zkUtils, dynamicConfigHandlers)
+        dynamicConfigManager = new DynamicConfigManager(zkUtils, zkClient, dynamicConfigHandlers)
         dynamicConfigManager.startup()
 
         /* tell everyone we are alive */
@@ -536,8 +523,13 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         if (kafkaHealthcheck != null)
           CoreUtils.swallow(kafkaHealthcheck.shutdown())
 
+        if (dynamicConfigManager != null)
+          CoreUtils.swallow(dynamicConfigManager.shutdown())
+
+        // Stop socket server to stop accepting any more connections and requests.
+        // Socket server will be shutdown towards the end of the sequence.
         if (socketServer != null)
-          CoreUtils.swallow(socketServer.shutdown())
+          CoreUtils.swallow(socketServer.stopProcessingRequests())
         if (requestHandlerPool != null)
           CoreUtils.swallow(requestHandlerPool.shutdown())
 
@@ -566,6 +558,13 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         if (zkClient != null)
           CoreUtils.swallow(zkClient.close())
 
+        if (quotaManagers != null)
+          CoreUtils.swallow(quotaManagers.shutdown())
+        // Even though socket server is stopped much earlier, controller can generate
+        // response for controlled shutdown request. Shutdown server at the end to
+        // avoid any failures (e.g. when metrics are recorded)
+        if (socketServer != null)
+          CoreUtils.swallow(socketServer.shutdown())
         if (metrics != null)
           CoreUtils.swallow(metrics.close())
         if (brokerTopicStats != null)

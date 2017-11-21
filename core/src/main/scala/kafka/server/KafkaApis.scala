@@ -86,7 +86,6 @@ class KafkaApis(val requestChannel: RequestChannel,
   this.logIdent = "[KafkaApi-%d] ".format(brokerId)
 
   def close() {
-    quotas.shutdown()
     info("Shutdown complete.")
   }
 
@@ -246,7 +245,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       }
       sendResponseExemptThrottle(request, response)
     }
-    controller.shutdownBroker(controlledShutdownRequest.brokerId, controlledShutdownCallback)
+    controller.controlledShutdown(controlledShutdownRequest.brokerId, controlledShutdownCallback)
   }
 
   /**
