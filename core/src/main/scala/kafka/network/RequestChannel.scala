@@ -21,6 +21,10 @@ import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.util.concurrent._
 
+<<<<<<< HEAD
+=======
+import com.typesafe.scalalogging.Logger
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import com.yammer.metrics.core.{Gauge, Meter}
 import kafka.metrics.KafkaMetricsGroup
 import kafka.network.RequestChannel.{BaseRequest, SendAction, ShutdownRequest, NoOpAction, CloseConnectionAction}
@@ -31,15 +35,18 @@ import org.apache.kafka.common.protocol.{ApiKeys, Errors}
 import org.apache.kafka.common.requests._
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.{Sanitizer, Time}
+<<<<<<< HEAD
 import org.apache.log4j.Logger
+=======
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 object RequestChannel extends Logging {
-  private val requestLogger = Logger.getLogger("kafka.request.logger")
+  private val requestLogger = Logger("kafka.request.logger")
 
-  def isRequestLoggingEnabled: Boolean = requestLogger.isDebugEnabled
+  def isRequestLoggingEnabled: Boolean = requestLogger.underlying.isDebugEnabled
 
   sealed trait BaseRequest
   case object ShutdownRequest extends BaseRequest
@@ -176,9 +183,12 @@ object RequestChannel extends Logging {
       recordNetworkThreadTimeCallback.foreach(record => record(networkThreadTimeNanos))
 
       if (isRequestLoggingEnabled) {
-        val detailsEnabled = requestLogger.isTraceEnabled
-        val responseString = response.responseAsString.getOrElse(
-          throw new IllegalStateException("responseAsString should always be defined if request logging is enabled"))
+        val detailsEnabled = requestLogger.underlying.isTraceEnabled
+        val responseString =
+          if (response.responseSend.isDefined)
+            response.responseAsString.getOrElse(
+              throw new IllegalStateException("responseAsString should always be defined if request logging is enabled"))
+          else ""
 
         val builder = new StringBuilder(256)
         builder.append("Completed request:").append(requestDesc(detailsEnabled))
@@ -315,8 +325,17 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
     }
   }
 
+<<<<<<< HEAD
   def shutdown() {
+=======
+  def clear() {
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     requestQueue.clear()
+  }
+
+  def shutdown() {
+    clear()
+    metrics.close()
   }
 
   def sendShutdownRequest(): Unit = requestQueue.put(ShutdownRequest)

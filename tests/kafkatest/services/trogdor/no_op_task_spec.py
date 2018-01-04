@@ -32,6 +32,7 @@ class NoOpTaskSpec(TaskSpec):
         :param duration_ms:     The duration in milliseconds.
         """
         super(NoOpTaskSpec, self).__init__(start_ms, duration_ms)
+<<<<<<< HEAD
 
     def message(self):
         return {
@@ -39,3 +40,6 @@ class NoOpTaskSpec(TaskSpec):
             "startMs": self.start_ms,
             "durationMs": self.duration_ms,
         }
+=======
+        self.message["class"] = "org.apache.kafka.trogdor.task.NoOpTaskSpec";
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f

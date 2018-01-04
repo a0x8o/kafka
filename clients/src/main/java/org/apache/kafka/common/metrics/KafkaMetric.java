@@ -28,7 +28,12 @@ public final class KafkaMetric implements Metric {
     private final MetricValueProvider<?> metricValueProvider;
     private MetricConfig config;
 
+<<<<<<< HEAD
     KafkaMetric(Object lock, MetricName metricName, MetricValueProvider<?> valueProvider,
+=======
+    // public for testing
+    public KafkaMetric(Object lock, MetricName metricName, MetricValueProvider<?> valueProvider,
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             MetricConfig config, Time time) {
         this.metricName = metricName;
         this.lock = lock;

@@ -22,9 +22,10 @@ import java.util.Properties
 import java.util.concurrent.atomic.AtomicBoolean
 
 import kafka.log.LogConfig
-import kafka.utils.{MockScheduler, MockTime, TestUtils, ZkUtils}
+import kafka.utils.{MockScheduler, MockTime, TestUtils}
 import TestUtils.createBroker
 import kafka.utils.timer.MockTimer
+import kafka.zk.KafkaZkClient
 import org.I0Itec.zkclient.ZkClient
 import org.apache.kafka.common.metrics.Metrics
 import org.apache.kafka.common.protocol.{ApiKeys, Errors}
@@ -48,14 +49,26 @@ class ReplicaManagerTest {
   val time = new MockTime
   val metrics = new Metrics
   var zkClient: ZkClient = _
+<<<<<<< HEAD
   var zkUtils: ZkUtils = _
+=======
+  var kafkaZkClient: KafkaZkClient = _
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
   @Before
   def setUp() {
     zkClient = EasyMock.createMock(classOf[ZkClient])
+<<<<<<< HEAD
     EasyMock.expect(zkClient.readData(EasyMock.anyString(), EasyMock.anyObject[Stat])).andReturn(null).anyTimes()
     EasyMock.replay(zkClient)
     zkUtils = ZkUtils(zkClient, isZkSecurityEnabled = false)
+=======
+    kafkaZkClient = EasyMock.createMock(classOf[KafkaZkClient])
+    EasyMock.expect(kafkaZkClient.getEntityConfigs(EasyMock.anyString(), EasyMock.anyString())).andReturn(new Properties()).anyTimes()
+    EasyMock.replay(kafkaZkClient)
+    EasyMock.expect(zkClient.readData(EasyMock.anyString(), EasyMock.anyObject[Stat])).andReturn(null).anyTimes()
+    EasyMock.replay(zkClient)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @After
@@ -68,8 +81,13 @@ class ReplicaManagerTest {
     val props = TestUtils.createBrokerConfig(1, TestUtils.MockZkConnect)
     val config = KafkaConfig.fromProps(props)
     val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)))
+<<<<<<< HEAD
     val rm = new ReplicaManager(config, metrics, time, zkUtils, new MockScheduler(time), mockLogMgr,
       new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time), new BrokerTopicStats,
+=======
+    val rm = new ReplicaManager(config, metrics, time, kafkaZkClient, new MockScheduler(time), mockLogMgr,
+      new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time, ""), new BrokerTopicStats,
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       new MetadataCache(config.brokerId), new LogDirFailureChannel(config.logDirs.size))
     try {
       val partition = rm.getOrCreatePartition(new TopicPartition(topic, 1))
@@ -87,8 +105,13 @@ class ReplicaManagerTest {
     props.put("log.dir", TestUtils.tempRelativeDir("data").getAbsolutePath)
     val config = KafkaConfig.fromProps(props)
     val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)))
+<<<<<<< HEAD
     val rm = new ReplicaManager(config, metrics, time, zkUtils, new MockScheduler(time), mockLogMgr,
       new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time), new BrokerTopicStats,
+=======
+    val rm = new ReplicaManager(config, metrics, time, kafkaZkClient, new MockScheduler(time), mockLogMgr,
+      new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time, ""), new BrokerTopicStats,
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       new MetadataCache(config.brokerId), new LogDirFailureChannel(config.logDirs.size))
     try {
       val partition = rm.getOrCreatePartition(new TopicPartition(topic, 1))
@@ -105,8 +128,13 @@ class ReplicaManagerTest {
     val props = TestUtils.createBrokerConfig(1, TestUtils.MockZkConnect)
     val config = KafkaConfig.fromProps(props)
     val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)))
+<<<<<<< HEAD
     val rm = new ReplicaManager(config, metrics, time, zkUtils, new MockScheduler(time), mockLogMgr,
       new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time), new BrokerTopicStats,
+=======
+    val rm = new ReplicaManager(config, metrics, time, kafkaZkClient, new MockScheduler(time), mockLogMgr,
+      new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time, ""), new BrokerTopicStats,
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       new MetadataCache(config.brokerId), new LogDirFailureChannel(config.logDirs.size), Option(this.getClass.getName))
     try {
       def callback(responseStatus: Map[TopicPartition, PartitionResponse]) = {
@@ -138,8 +166,13 @@ class ReplicaManagerTest {
     val metadataCache = EasyMock.createMock(classOf[MetadataCache])
     EasyMock.expect(metadataCache.getAliveBrokers).andReturn(aliveBrokers).anyTimes()
     EasyMock.replay(metadataCache)
+<<<<<<< HEAD
     val rm = new ReplicaManager(config, metrics, time, zkUtils, new MockScheduler(time), mockLogMgr,
       new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time), new BrokerTopicStats,
+=======
+    val rm = new ReplicaManager(config, metrics, time, kafkaZkClient, new MockScheduler(time), mockLogMgr,
+      new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time, ""), new BrokerTopicStats,
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       metadataCache, new LogDirFailureChannel(config.logDirs.size))
 
     try {
@@ -610,8 +643,13 @@ class ReplicaManagerTest {
     val mockDeleteRecordsPurgatory = new DelayedOperationPurgatory[DelayedDeleteRecords](
       purgatoryName = "DeleteRecords", timer, reaperEnabled = false)
 
+<<<<<<< HEAD
     new ReplicaManager(config, metrics, time, zkUtils, new MockScheduler(time), mockLogMgr,
       new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time), new BrokerTopicStats,
+=======
+    new ReplicaManager(config, metrics, time, kafkaZkClient, new MockScheduler(time), mockLogMgr,
+      new AtomicBoolean(false), QuotaFactory.instantiate(config, metrics, time, ""), new BrokerTopicStats,
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       metadataCache, new LogDirFailureChannel(config.logDirs.size), mockProducePurgatory, mockFetchPurgatory,
       mockDeleteRecordsPurgatory, Option(this.getClass.getName))
   }

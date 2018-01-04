@@ -20,7 +20,10 @@ package kafka.controller
 import java.util.Properties
 import java.util.concurrent.CountDownLatch
 
+<<<<<<< HEAD
 import kafka.admin.AdminUtils
+=======
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import kafka.integration.KafkaServerTestHarness
 import kafka.server.KafkaConfig
 import kafka.utils._
@@ -60,7 +63,11 @@ class ControllerFailoverTest extends KafkaServerTestHarness with Logging {
     }
     val initialEpoch = initialController.epoch
     // Create topic with one partition
+<<<<<<< HEAD
     AdminUtils.createTopic(servers.head.zkUtils, topic, 1, 1)
+=======
+    adminZkClient.createTopic(topic, 1, 1)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     val topicPartition = new TopicPartition("topic1", 0)
     TestUtils.waitUntilTrue(() =>
       initialController.partitionStateMachine.partitionsInState(OnlinePartition).contains(topicPartition),

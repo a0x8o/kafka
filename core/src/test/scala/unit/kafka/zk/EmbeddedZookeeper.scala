@@ -19,10 +19,9 @@ package kafka.zk
 
 import org.apache.zookeeper.server.ZooKeeperServer
 import org.apache.zookeeper.server.NIOServerCnxnFactory
-import kafka.utils.TestUtils
+import kafka.utils.{CoreUtils, Logging, TestUtils}
 import java.net.InetSocketAddress
 
-import kafka.utils.CoreUtils
 import org.apache.kafka.common.utils.Utils
 
 /**
@@ -35,7 +34,11 @@ import org.apache.kafka.common.utils.Utils
 // This should be named EmbeddedZooKeeper for consistency with other classes, but since this is widely used by other
 // projects (even though it's internal), we keep the name as it is until we have a publicly supported test library for
 // others to use.
+<<<<<<< HEAD
 class EmbeddedZookeeper() {
+=======
+class EmbeddedZookeeper() extends Logging {
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
   val snapshotDir = TestUtils.tempDir()
   val logDir = TestUtils.tempDir()
@@ -48,8 +51,8 @@ class EmbeddedZookeeper() {
   val port = zookeeper.getClientPort
 
   def shutdown() {
-    CoreUtils.swallow(zookeeper.shutdown())
-    CoreUtils.swallow(factory.shutdown())
+    CoreUtils.swallow(zookeeper.shutdown(), this)
+    CoreUtils.swallow(factory.shutdown(), this)
 
     def isDown(): Boolean = {
       try {

@@ -59,7 +59,11 @@ class IsrExpirationTest {
     EasyMock.replay(logManager)
 
     replicaManager = new ReplicaManager(configs.head, metrics, time, null, null, logManager, new AtomicBoolean(false),
+<<<<<<< HEAD
       QuotaFactory.instantiate(configs.head, metrics, time), new BrokerTopicStats, new MetadataCache(configs.head.brokerId),
+=======
+      QuotaFactory.instantiate(configs.head, metrics, time, ""), new BrokerTopicStats, new MetadataCache(configs.head.brokerId),
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       new LogDirFailureChannel(configs.head.logDirs.size))
   }
 

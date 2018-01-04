@@ -95,9 +95,14 @@
 
     <p>The <code>connector.class</code> config supports several formats: the full name or alias of the class for this connector. If the connector is org.apache.kafka.connect.file.FileStreamSinkConnector, you can either specify this full name or use FileStreamSink or FileStreamSinkConnector to make the configuration a bit shorter.</p>
 
+<<<<<<< HEAD
     <p>Sink connectors also have one additional option to control their input:</p>
+=======
+    <p>Sink connectors also have a few additional options to control their input. Each sink connector must set one of the following:</p>
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     <ul>
-        <li><code>topics</code> - A list of topics to use as input for this connector</li>
+        <li><code>topics</code> - A comma-separated list of topics to use as input for this connector</li>
+        <li><code>topics.regex</code> - A Java regular expression of topics to use as input for this connector</li>
     </ul>
 
     <p>For any other options, you should consult the documentation for the connector.</p>

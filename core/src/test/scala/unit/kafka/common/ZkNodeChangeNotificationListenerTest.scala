@@ -16,6 +16,11 @@
  */
 package kafka.common
 
+<<<<<<< HEAD
+=======
+import java.nio.charset.StandardCharsets
+
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import kafka.utils.TestUtils
 import kafka.zk.{AclChangeNotificationSequenceZNode, AclChangeNotificationZNode, ZooKeeperTestHarness}
 import org.junit.Test
@@ -27,8 +32,8 @@ class ZkNodeChangeNotificationListenerTest extends ZooKeeperTestHarness {
     @volatile var notification: String = null
     @volatile var invocationCount = 0
     val notificationHandler = new NotificationHandler {
-      override def processNotification(notificationMessage: String): Unit = {
-        notification = notificationMessage
+      override def processNotification(notificationMessage: Array[Byte]): Unit = {
+        notification = new String(notificationMessage, StandardCharsets.UTF_8)
         invocationCount += 1
       }
     }

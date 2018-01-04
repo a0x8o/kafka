@@ -19,6 +19,7 @@ package kafka.log
 
 import java.io.{File, IOException}
 import java.nio._
+import java.nio.file.Files
 import java.util.Date
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
@@ -422,14 +423,20 @@ private[log] class Cleaner(val id: Int,
                                  deleteHorizonMs: Long,
                                  stats: CleanerStats) {
 
+<<<<<<< HEAD
     def deleteAndGetCleanedFile(file: File): File = {
       val f = new File(file.getPath + Log.CleanedFileSuffix)
       f.delete()
       f
+=======
+    def deleteCleanedFileIfExists(file: File): Unit = {
+      Files.deleteIfExists(new File(file.getPath + Log.CleanedFileSuffix).toPath)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     // create a new segment with a suffix appended to the name of the log and indexes
     val firstSegment = segments.head
+<<<<<<< HEAD
     val logFile = deleteAndGetCleanedFile(firstSegment.log.file)
     val indexFile = deleteAndGetCleanedFile(firstSegment.index.file)
     val timeIndexFile = deleteAndGetCleanedFile(firstSegment.timeIndex.file)
@@ -442,6 +449,16 @@ private[log] class Cleaner(val id: Int,
     val txnIndex = new TransactionIndex(startOffset, txnIndexFile)
     val cleaned = new LogSegment(records, index, timeIndex, txnIndex, startOffset, firstSegment.indexIntervalBytes,
       log.config.randomSegmentJitter, time)
+=======
+    deleteCleanedFileIfExists(firstSegment.log.file)
+    deleteCleanedFileIfExists(firstSegment.offsetIndex.file)
+    deleteCleanedFileIfExists(firstSegment.timeIndex.file)
+    deleteCleanedFileIfExists(firstSegment.txnIndex.file)
+
+    val baseOffset = firstSegment.baseOffset
+    val cleaned = LogSegment.open(log.dir, baseOffset, log.config, time, fileSuffix = Log.CleanedFileSuffix,
+      initFileSize = log.initFileSize, preallocate = log.config.preallocate)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     try {
       // clean segments into the new destination segment
@@ -454,7 +471,7 @@ private[log] class Cleaner(val id: Int,
         val startOffset = currentSegment.baseOffset
         val upperBoundOffset = nextSegmentOpt.map(_.baseOffset).getOrElse(map.latestOffset + 1)
         val abortedTransactions = log.collectAbortedTransactions(startOffset, upperBoundOffset)
-        val transactionMetadata = CleanedTransactionMetadata(abortedTransactions, Some(txnIndex))
+        val transactionMetadata = CleanedTransactionMetadata(abortedTransactions, Some(cleaned.txnIndex))
 
         val retainDeletes = currentSegment.lastModified > deleteHorizonMs
         info(s"Cleaning segment $startOffset in log ${log.name} (largest timestamp ${new Date(currentSegment.largestTimestamp)}) " +
@@ -465,18 +482,7 @@ private[log] class Cleaner(val id: Int,
         currentSegmentOpt = nextSegmentOpt
       }
 
-      // trim log segment
-      cleaned.log.trim()
-
-      // trim excess index
-      index.trimToValidSize()
-
-      // Append the last index entry
       cleaned.onBecomeInactiveSegment()
-
-      // trim time index
-      timeIndex.trimToValidSize()
-
       // flush new segment to disk before swap
       cleaned.flush()
 
@@ -485,12 +491,16 @@ private[log] class Cleaner(val id: Int,
       cleaned.lastModified = modified
 
       // swap in new segment
-      info("Swapping in cleaned segment %d for segment(s) %s in log %s.".format(cleaned.baseOffset, segments.map(_.baseOffset).mkString(","), log.name))
+      info(s"Swapping in cleaned segment ${cleaned.baseOffset} for segment(s) ${segments.map(_.baseOffset).mkString(",")} " +
+        s"in log ${log.name}")
       log.replaceSegments(cleaned, segments)
     } catch {
       case e: LogCleaningAbortedException =>
-        cleaned.delete()
-        throw e
+        try cleaned.deleteIfExists()
+        catch {
+          case deleteException: Exception =>
+            e.addSuppressed(deleteException)
+        } finally throw e
     }
   }
 
@@ -657,17 +667,21 @@ private[log] class Cleaner(val id: Int,
     while(segs.nonEmpty) {
       var group = List(segs.head)
       var logSize = segs.head.size.toLong
+<<<<<<< HEAD
       var indexSize = segs.head.index.sizeInBytes.toLong
+=======
+      var indexSize = segs.head.offsetIndex.sizeInBytes.toLong
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       var timeIndexSize = segs.head.timeIndex.sizeInBytes.toLong
       segs = segs.tail
       while(segs.nonEmpty &&
             logSize + segs.head.size <= maxSize &&
-            indexSize + segs.head.index.sizeInBytes <= maxIndexSize &&
+            indexSize + segs.head.offsetIndex.sizeInBytes <= maxIndexSize &&
             timeIndexSize + segs.head.timeIndex.sizeInBytes <= maxIndexSize &&
             lastOffsetForFirstSegment(segs, firstUncleanableOffset) - group.last.baseOffset <= Int.MaxValue) {
         group = segs.head :: group
         logSize += segs.head.size
-        indexSize += segs.head.index.sizeInBytes
+        indexSize += segs.head.offsetIndex.sizeInBytes
         timeIndexSize += segs.head.timeIndex.sizeInBytes
         segs = segs.tail
       }
@@ -748,7 +762,7 @@ private[log] class Cleaner(val id: Int,
                                        maxLogMessageSize: Int,
                                        transactionMetadata: CleanedTransactionMetadata,
                                        stats: CleanerStats): Boolean = {
-    var position = segment.index.lookup(startOffset).position
+    var position = segment.offsetIndex.lookup(startOffset).position
     val maxDesiredMapSize = (map.slots * this.dupBufferLoadFactor).toInt
     while (position < segment.log.sizeInBytes) {
       checkDone(topicPartition)

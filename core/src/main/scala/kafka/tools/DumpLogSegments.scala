@@ -31,7 +31,7 @@ import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.record._
 import org.apache.kafka.common.utils.Utils
 
-import scala.collection.mutable
+import scala.collection.{Map, mutable}
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 
@@ -334,12 +334,23 @@ object DumpLogSegments {
         }
       }.mkString("{", ",", "}")
 
+<<<<<<< HEAD
       val keyString = Json.encode(Map("metadata" -> groupId))
       val valueString = Json.encode(Map(
           "protocolType" -> protocolType,
           "protocol" -> group.protocol,
           "generationId" -> group.generationId,
           "assignment" -> assignment))
+=======
+      val keyString = Json.encodeAsString(Map("metadata" -> groupId).asJava)
+
+      val valueString = Json.encodeAsString(Map(
+        "protocolType" -> protocolType,
+        "protocol" -> group.protocol,
+        "generationId" -> group.generationId,
+        "assignment" -> assignment
+      ).asJava)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
       (Some(keyString), Some(valueString))
     }

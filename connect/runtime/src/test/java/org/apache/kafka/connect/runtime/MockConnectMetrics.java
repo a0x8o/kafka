@@ -20,7 +20,11 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
+<<<<<<< HEAD
 import org.apache.kafka.connect.util.MockTime;
+=======
+import org.apache.kafka.common.utils.MockTime;
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 import java.util.HashMap;
 import java.util.List;
@@ -56,10 +60,13 @@ public class MockConnectMetrics extends ConnectMetrics {
         this(new MockTime());
     }
 
+<<<<<<< HEAD
     public MockConnectMetrics(org.apache.kafka.common.utils.MockTime time) {
         super("mock", new WorkerConfig(WorkerConfig.baseConfigDef(), DEFAULT_WORKER_CONFIG), time);
     }
 
+=======
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     public MockConnectMetrics(MockTime time) {
         super("mock", new WorkerConfig(WorkerConfig.baseConfigDef(), DEFAULT_WORKER_CONFIG), time);
     }

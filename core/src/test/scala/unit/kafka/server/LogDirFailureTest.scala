@@ -23,14 +23,23 @@ import java.util.concurrent.{ExecutionException, TimeUnit}
 import kafka.server.LogDirFailureTest._
 import kafka.api.IntegrationTestHarness
 import kafka.controller.{OfflineReplica, PartitionAndReplica}
+<<<<<<< HEAD
 import kafka.utils.{CoreUtils, Exit, TestUtils, ZkUtils}
+=======
+import kafka.utils.{CoreUtils, Exit, TestUtils}
+import kafka.zk.LogDirEventNotificationZNode
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.{ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.utils.Utils
 import org.apache.kafka.common.errors.{KafkaStorageException, NotLeaderForPartitionException}
 import org.junit.{Before, Test}
+<<<<<<< HEAD
 import org.junit.Assert.{assertTrue, assertFalse, assertEquals}
+=======
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 import scala.collection.JavaConverters._
 
@@ -54,7 +63,11 @@ class LogDirFailureTest extends IntegrationTestHarness {
   @Before
   override def setUp() {
     super.setUp()
+<<<<<<< HEAD
     TestUtils.createTopic(zkUtils, topic, partitionNum, serverCount, servers = servers)
+=======
+    createTopic(topic, partitionNum, serverCount)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
@@ -79,7 +92,11 @@ class LogDirFailureTest extends IntegrationTestHarness {
       val kafkaConfig = KafkaConfig.fromProps(props)
       val logDir = new File(kafkaConfig.logDirs.head)
       // Make log directory of the partition on the leader broker inaccessible by replacing it with a file
+<<<<<<< HEAD
       CoreUtils.swallow(Utils.delete(logDir))
+=======
+      CoreUtils.swallow(Utils.delete(logDir), this)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       logDir.createNewFile()
       assertTrue(logDir.isFile)
 
@@ -144,7 +161,11 @@ class LogDirFailureTest extends IntegrationTestHarness {
     // Make log directory of the partition on the leader broker inaccessible by replacing it with a file
     val replica = leaderServer.replicaManager.getReplicaOrException(partition)
     val logDir = replica.log.get.dir.getParentFile
+<<<<<<< HEAD
     CoreUtils.swallow(Utils.delete(logDir))
+=======
+    CoreUtils.swallow(Utils.delete(logDir), this)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     logDir.createNewFile()
     assertTrue(logDir.isFile)
 
@@ -190,7 +211,11 @@ class LogDirFailureTest extends IntegrationTestHarness {
     }, "Expected some messages", 3000L)
 
     // There should be no remaining LogDirEventNotification znode
+<<<<<<< HEAD
     assertTrue(zkUtils.getChildrenParentMayNotExist(ZkUtils.LogDirEventNotificationPath).isEmpty)
+=======
+    assertTrue(zkUtils.getChildrenParentMayNotExist(LogDirEventNotificationZNode.path).isEmpty)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     // The controller should have marked the replica on the original leader as offline
     val controllerServer = servers.find(_.kafkaController.isActive).get

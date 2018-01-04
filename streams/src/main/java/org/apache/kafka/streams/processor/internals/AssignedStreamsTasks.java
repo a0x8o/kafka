@@ -23,6 +23,10 @@ import org.apache.kafka.streams.errors.TaskMigratedException;
 import org.apache.kafka.streams.processor.TaskId;
 import org.slf4j.Logger;
 
+<<<<<<< HEAD
+=======
+import java.util.HashMap;
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import java.util.Iterator;
 import java.util.Map;
 
@@ -69,6 +73,22 @@ class AssignedStreamsTasks extends AssignedTasks<StreamTask> implements Restorin
     }
 
     /**
+<<<<<<< HEAD
+=======
+     * Returns a map of offsets up to which the records can be deleted; this function should only be called
+     * after the commit call to make sure all consumed offsets are actually committed as well
+     */
+    Map<TopicPartition, Long> recordsToDelete() {
+        final Map<TopicPartition, Long> recordsToDelete = new HashMap<>();
+        for (final StreamTask task : running.values()) {
+            recordsToDelete.putAll(task.purgableOffsets());
+        }
+
+        return recordsToDelete;
+    }
+
+    /**
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
     int process() {

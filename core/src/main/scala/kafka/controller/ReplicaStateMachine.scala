@@ -105,7 +105,7 @@ class ReplicaStateMachine(config: KafkaConfig,
         }
         controllerBrokerRequestBatch.sendRequestsToBrokers(controllerContext.epoch)
       } catch {
-        case e: Throwable => error("Error while moving some replicas to %s state".format(targetState), e)
+        case e: Throwable => error(s"Error while moving some replicas to $targetState state", e)
       }
     }
   }
@@ -381,16 +381,26 @@ class ReplicaStateMachine(config: KafkaConfig,
 
   private def logInvalidTransition(replica: PartitionAndReplica, targetState: ReplicaState): Unit = {
     val currState = replicaState(replica)
+<<<<<<< HEAD
     val e = new IllegalStateException("Replica %s should be in the %s states before moving to %s state"
       .format(replica, targetState.validPreviousStates.mkString(","), targetState) + ". Instead it is in %s state"
       .format(currState))
+=======
+    val e = new IllegalStateException(s"Replica $replica should be in the ${targetState.validPreviousStates.mkString(",")} " +
+      s"states before moving to $targetState state. Instead it is in $currState state")
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     logFailedStateChange(replica, currState, targetState, e)
   }
 
   private def logFailedStateChange(replica: PartitionAndReplica, currState: ReplicaState, targetState: ReplicaState, t: Throwable): Unit = {
     stateChangeLogger.withControllerEpoch(controllerContext.epoch)
+<<<<<<< HEAD
       .error("Controller %d epoch %d initiated state change of replica %d for partition [%s,%d] from %s to %s failed"
       .format(controllerId, controllerContext.epoch, replica.replica, replica.topic, replica.partition, currState, targetState), t)
+=======
+      .error(s"Controller $controllerId epoch ${controllerContext.epoch} initiated state change of replica ${replica.replica} " +
+        s"for partition ${replica.topicPartition} from $currState to $targetState failed", t)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 }
 

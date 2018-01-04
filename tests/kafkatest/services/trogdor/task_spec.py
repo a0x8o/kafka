@@ -32,6 +32,7 @@ class TaskSpec(object):
         :param start_ms:        The target start time in milliseconds since the epoch.
         :param duration_ms:     The duration in milliseconds.
         """
+<<<<<<< HEAD
         self.start_ms = start_ms
         self.duration_ms = duration_ms
 
@@ -43,3 +44,25 @@ class TaskSpec(object):
 
     def __str__(self):
         return json.dumps(self.message())
+=======
+        self.message = {
+            'startMs': start_ms,
+            'durationMs': duration_ms
+        }
+
+    @staticmethod
+    def to_node_names(nodes):
+        """
+        Convert an array of nodes or node names to an array of node names.
+        """
+        node_names = []
+        for obj in nodes:
+            if isinstance(obj, basestring):
+                node_names.append(obj)
+            else:
+                node_names.append(obj.name)
+        return node_names
+
+    def __str__(self):
+        return json.dumps(self.message)
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f

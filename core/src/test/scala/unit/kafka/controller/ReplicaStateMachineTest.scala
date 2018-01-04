@@ -21,7 +21,11 @@ import kafka.server.KafkaConfig
 import kafka.utils.TestUtils
 import kafka.zk.KafkaZkClient.UpdateLeaderAndIsrResult
 import kafka.zk.{KafkaZkClient, TopicPartitionStateZNode}
+<<<<<<< HEAD
 import kafka.zookeeper.GetDataResponse
+=======
+import kafka.zookeeper.{GetDataResponse, ResponseMetadata}
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.common.TopicPartition
 import org.apache.zookeeper.KeeperException.Code
 import org.apache.zookeeper.data.Stat
@@ -182,7 +186,11 @@ class ReplicaStateMachineTest extends JUnitSuite {
     val updatedLeaderIsrAndControllerEpoch = LeaderIsrAndControllerEpoch(updatedLeaderAndIsr, controllerEpoch)
     EasyMock.expect(mockZkClient.getTopicPartitionStatesRaw(partitions)).andReturn(
       Seq(GetDataResponse(Code.OK, null, Some(partition),
+<<<<<<< HEAD
         TopicPartitionStateZNode.encode(leaderIsrAndControllerEpoch), stat)))
+=======
+        TopicPartitionStateZNode.encode(leaderIsrAndControllerEpoch), stat, ResponseMetadata(0, 0))))
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     EasyMock.expect(mockZkClient.updateLeaderAndIsr(Map(partition -> adjustedLeaderAndIsr), controllerEpoch))
       .andReturn(UpdateLeaderAndIsrResult(Map(partition -> updatedLeaderAndIsr), Seq.empty, Map.empty))
     EasyMock.expect(mockTopicDeletionManager.isPartitionToBeDeleted(partition)).andReturn(false)

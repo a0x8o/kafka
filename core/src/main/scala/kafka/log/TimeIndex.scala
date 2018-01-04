@@ -184,10 +184,20 @@ class TimeIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writable:
     }
   }
 
+<<<<<<< HEAD
   override def resize(newSize: Int) {
     inLock(lock) {
       super.resize(newSize)
       _lastEntry = lastEntryFromIndexFile
+=======
+  override def resize(newSize: Int): Boolean = {
+    inLock(lock) {
+      if (super.resize(newSize)) {
+        _lastEntry = lastEntryFromIndexFile
+        true
+      } else
+        false
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
   }
 
@@ -205,6 +215,7 @@ class TimeIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writable:
   override def sanityCheck() {
     val lastTimestamp = lastEntry.timestamp
     val lastOffset = lastEntry.offset
+<<<<<<< HEAD
     require(_entries == 0 || (lastTimestamp >= timestamp(mmap, 0)),
       s"Corrupt time index found, time index file (${file.getAbsolutePath}) has non-zero size but the last timestamp " +
           s"is $lastTimestamp which is no larger than the first timestamp ${timestamp(mmap, 0)}")
@@ -215,5 +226,17 @@ class TimeIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writable:
     require(len % entrySize == 0,
       "Time index file " + file.getAbsolutePath + " is corrupt, found " + len +
           " bytes which is not positive or not a multiple of 12.")
+=======
+    if (_entries != 0 && lastTimestamp < timestamp(mmap, 0))
+      throw new CorruptIndexException(s"Corrupt time index found, time index file (${file.getAbsolutePath}) has " +
+        s"non-zero size but the last timestamp is $lastTimestamp which is less than the first timestamp " +
+        s"${timestamp(mmap, 0)}")
+    if (_entries != 0 && lastOffset < baseOffset)
+      throw new CorruptIndexException(s"Corrupt time index found, time index file (${file.getAbsolutePath}) has " +
+        s"non-zero size but the last offset is $lastOffset which is less than the first offset $baseOffset")
+    if (length % entrySize != 0)
+      throw new CorruptIndexException(s"Time index file ${file.getAbsolutePath} is corrupt, found $length bytes " +
+        s"which is neither positive nor a multiple of $entrySize.")
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 }

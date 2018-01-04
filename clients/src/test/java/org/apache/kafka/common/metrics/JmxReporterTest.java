@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.common.metrics;
 
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.stats.Avg;
 import org.apache.kafka.common.metrics.stats.Total;
 import org.junit.Test;
@@ -35,7 +36,12 @@ public class JmxReporterTest {
         Metrics metrics = new Metrics();
         MBeanServer server = ManagementFactory.getPlatformMBeanServer();
         try {
+<<<<<<< HEAD
             metrics.addReporter(new JmxReporter());
+=======
+            JmxReporter reporter = new JmxReporter();
+            metrics.addReporter(reporter);
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
             assertFalse(server.isRegistered(new ObjectName(":type=grp1")));
 
@@ -48,13 +54,27 @@ public class JmxReporterTest {
             assertTrue(server.isRegistered(new ObjectName(":type=grp2")));
             assertEquals(0.0, server.getAttribute(new ObjectName(":type=grp2"), "pack.bean2.total"));
 
+<<<<<<< HEAD
             metrics.removeMetric(metrics.metricName("pack.bean1.avg", "grp1"));
+=======
+            MetricName metricName = metrics.metricName("pack.bean1.avg", "grp1");
+            String mBeanName = JmxReporter.getMBeanName("", metricName);
+            assertTrue(reporter.containsMbean(mBeanName));
+            metrics.removeMetric(metricName);
+            assertFalse(reporter.containsMbean(mBeanName));
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
             assertFalse(server.isRegistered(new ObjectName(":type=grp1")));
             assertTrue(server.isRegistered(new ObjectName(":type=grp2")));
             assertEquals(0.0, server.getAttribute(new ObjectName(":type=grp2"), "pack.bean2.total"));
 
+<<<<<<< HEAD
             metrics.removeMetric(metrics.metricName("pack.bean2.total", "grp2"));
+=======
+            metricName = metrics.metricName("pack.bean2.total", "grp2");
+            metrics.removeMetric(metricName);
+            assertFalse(reporter.containsMbean(mBeanName));
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
             assertFalse(server.isRegistered(new ObjectName(":type=grp1")));
             assertFalse(server.isRegistered(new ObjectName(":type=grp2")));

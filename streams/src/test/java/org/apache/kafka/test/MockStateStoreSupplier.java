@@ -16,14 +16,9 @@
  */
 package org.apache.kafka.test;
 
-import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.common.serialization.IntegerDeserializer;
-import org.apache.kafka.streams.processor.ProcessorContext;
-import org.apache.kafka.streams.processor.StateRestoreCallback;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreSupplier;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 
@@ -65,6 +60,7 @@ public class MockStateStoreSupplier implements StateStoreSupplier {
     public boolean loggingEnabled() {
         return loggingEnabled;
     }
+<<<<<<< HEAD
 
     public static class MockStateStore implements StateStore {
         private final String name;
@@ -124,4 +120,6 @@ public class MockStateStoreSupplier implements StateStoreSupplier {
             }
         };
     }
+=======
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 }

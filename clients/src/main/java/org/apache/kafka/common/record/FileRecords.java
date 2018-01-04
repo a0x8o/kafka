@@ -30,8 +30,8 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
+import java.nio.file.Files;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -179,11 +179,13 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
     /**
      * Delete this message set from the filesystem
-     * @return True iff this message set was deleted.
+     * @throws IOException if deletion fails due to an I/O error
+     * @return  {@code true} if the file was deleted by this method; {@code false} if the file could not be deleted
+     *          because it did not exist
      */
-    public boolean delete() {
+    public boolean deleteIfExists() throws IOException {
         Utils.closeQuietly(channel, "FileChannel");
-        return file.delete();
+        return Files.deleteIfExists(file.toPath());
     }
 
     /**
@@ -237,8 +239,13 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
     @Override
     public ConvertedRecords<? extends Records> downConvert(byte toMagic, long firstOffset, Time time) {
+<<<<<<< HEAD
         List<? extends RecordBatch> batches = Utils.toList(batches().iterator());
         if (batches.isEmpty()) {
+=======
+        ConvertedRecords<MemoryRecords> convertedRecords = downConvert(batches, toMagic, firstOffset, time);
+        if (convertedRecords.recordsProcessingStats().numRecordsConverted() == 0) {
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             // This indicates that the message is too large, which means that the buffer is not large
             // enough to hold a full record batch. We just return all the bytes in this instance.
             // Even though the record batch does not have the right format version, we expect old clients
@@ -248,7 +255,11 @@ public class FileRecords extends AbstractRecords implements Closeable {
             // one full record batch, even if it requires exceeding the max fetch size requested by the client.
             return new ConvertedRecords<>(this, RecordsProcessingStats.EMPTY);
         } else {
+<<<<<<< HEAD
             return downConvert(batches, toMagic, firstOffset, time);
+=======
+            return convertedRecords;
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         }
     }
 
