@@ -423,33 +423,12 @@ private[log] class Cleaner(val id: Int,
                                  deleteHorizonMs: Long,
                                  stats: CleanerStats) {
 
-<<<<<<< HEAD
-    def deleteAndGetCleanedFile(file: File): File = {
-      val f = new File(file.getPath + Log.CleanedFileSuffix)
-      f.delete()
-      f
-=======
     def deleteCleanedFileIfExists(file: File): Unit = {
       Files.deleteIfExists(new File(file.getPath + Log.CleanedFileSuffix).toPath)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     // create a new segment with a suffix appended to the name of the log and indexes
     val firstSegment = segments.head
-<<<<<<< HEAD
-    val logFile = deleteAndGetCleanedFile(firstSegment.log.file)
-    val indexFile = deleteAndGetCleanedFile(firstSegment.index.file)
-    val timeIndexFile = deleteAndGetCleanedFile(firstSegment.timeIndex.file)
-    val txnIndexFile = deleteAndGetCleanedFile(firstSegment.txnIndex.file)
-
-    val startOffset = firstSegment.baseOffset
-    val records = FileRecords.open(logFile, false, log.initFileSize, log.config.preallocate)
-    val index = new OffsetIndex(indexFile, startOffset, firstSegment.index.maxIndexSize)
-    val timeIndex = new TimeIndex(timeIndexFile, startOffset, firstSegment.timeIndex.maxIndexSize)
-    val txnIndex = new TransactionIndex(startOffset, txnIndexFile)
-    val cleaned = new LogSegment(records, index, timeIndex, txnIndex, startOffset, firstSegment.indexIntervalBytes,
-      log.config.randomSegmentJitter, time)
-=======
     deleteCleanedFileIfExists(firstSegment.log.file)
     deleteCleanedFileIfExists(firstSegment.offsetIndex.file)
     deleteCleanedFileIfExists(firstSegment.timeIndex.file)
@@ -458,7 +437,6 @@ private[log] class Cleaner(val id: Int,
     val baseOffset = firstSegment.baseOffset
     val cleaned = LogSegment.open(log.dir, baseOffset, log.config, time, fileSuffix = Log.CleanedFileSuffix,
       initFileSize = log.initFileSize, preallocate = log.config.preallocate)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     try {
       // clean segments into the new destination segment
@@ -667,11 +645,7 @@ private[log] class Cleaner(val id: Int,
     while(segs.nonEmpty) {
       var group = List(segs.head)
       var logSize = segs.head.size.toLong
-<<<<<<< HEAD
-      var indexSize = segs.head.index.sizeInBytes.toLong
-=======
       var indexSize = segs.head.offsetIndex.sizeInBytes.toLong
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       var timeIndexSize = segs.head.timeIndex.sizeInBytes.toLong
       segs = segs.tail
       while(segs.nonEmpty &&

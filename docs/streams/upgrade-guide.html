@@ -124,13 +124,8 @@
         New methods in <code>KafkaStreams</code>:
     </p>
     <ul>
-<<<<<<< HEAD
-        <li>retrieve the current runtime information about the local threads via <code>#localThreadsMetadata()</code> </li>
-        <li>observe the restoration of all state stores via <code>#setGlobalStateRestoreListener()</code>, in which users can provide their customized implementation of the <code>org.apache.kafka.streams.processor.StateRestoreListener</code> interface</li>
-=======
         <li>retrieve the current runtime information about the local threads via <code>localThreadsMetadata()</code> </li>
         <li>observe the restoration of all state stores via <code>setGlobalStateRestoreListener()</code>, in which users can provide their customized implementation of the <code>org.apache.kafka.streams.processor.StateRestoreListener</code> interface</li>
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     </ul>
 
     <p>
@@ -139,11 +134,7 @@
     <ul>
         <li>
             <code>toString()</code>, <code>toString(final String indent)</code> were previously used to return static and runtime information.
-<<<<<<< HEAD
-            They have been deprecated in favor of using the new classes/methods <code>#localThreadsMetadata()</code> / <code>ThreadMetadata</code> (returning runtime information) and
-=======
             They have been deprecated in favor of using the new classes/methods <code>localThreadsMetadata()</code> / <code>ThreadMetadata</code> (returning runtime information) and
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             <code>TopologyDescription</code> / <code>Topology#describe()</code> (returning static information).
         </li>
         <li>

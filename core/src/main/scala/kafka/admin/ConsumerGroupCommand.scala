@@ -73,39 +73,8 @@ object ConsumerGroupCommand extends Logging {
     try {
       if (opts.options.has(opts.listOpt))
         consumerGroupService.listGroups().foreach(println(_))
-<<<<<<< HEAD
-      else if (opts.options.has(opts.describeOpt)) {
-        val (state, assignments) = consumerGroupService.describeGroup()
-        val groupId = opts.options.valuesOf(opts.groupOpt).asScala.head
-        assignments match {
-          case None =>
-            // applies to both old and new consumer
-            printError(s"The consumer group '$groupId' does not exist.")
-          case Some(assignments) =>
-            if (opts.useOldConsumer)
-              printAssignment(assignments, false)
-            else
-              state match {
-                case Some("Dead") =>
-                  printError(s"Consumer group '$groupId' does not exist.")
-                case Some("Empty") =>
-                  System.err.println(s"Consumer group '$groupId' has no active members.")
-                  printAssignment(assignments, true)
-                case Some("PreparingRebalance") | Some("CompletingRebalance") =>
-                  System.err.println(s"Warning: Consumer group '$groupId' is rebalancing.")
-                  printAssignment(assignments, true)
-                case Some("Stable") =>
-                  printAssignment(assignments, true)
-                case other =>
-                  // the control should never reach here
-                  throw new KafkaException(s"Expected a valid consumer group state, but found '${other.getOrElse("NONE")}'.")
-              }
-        }
-      }
-=======
       else if (opts.options.has(opts.describeOpt))
         consumerGroupService.describeGroup()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       else if (opts.options.has(opts.deleteOpt)) {
         consumerGroupService match {
           case service: ZkConsumerGroupService => service.deleteGroups()
@@ -536,7 +505,7 @@ object ConsumerGroupCommand extends Logging {
     private def getZkConsumer(brokerId: Int): Option[SimpleConsumer] = {
       try {
         zkUtils.getBrokerInfo(brokerId)
-          .map(_.getBrokerEndPoint(ListenerName.forSecurityProtocol(SecurityProtocol.PLAINTEXT)))
+          .map(_.brokerEndPoint(ListenerName.forSecurityProtocol(SecurityProtocol.PLAINTEXT)))
           .map(endPoint => new SimpleConsumer(endPoint.host, endPoint.port, 10000, 100000, "ConsumerGroupCommand"))
           .orElse(throw new BrokerNotAvailableException("Broker id %d does not exist".format(brokerId)))
       } catch {

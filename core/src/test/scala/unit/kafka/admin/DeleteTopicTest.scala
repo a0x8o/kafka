@@ -24,11 +24,7 @@ import org.junit.Assert._
 import org.junit.{After, Test}
 import java.util.Properties
 
-<<<<<<< HEAD
-import kafka.common.{TopicAndPartition, TopicAlreadyMarkedForDeletionException}
-=======
 import kafka.common.TopicAlreadyMarkedForDeletionException
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
 
@@ -130,13 +126,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // reassign partition 0
     val oldAssignedReplicas = zkClient.getReplicasForPartition(new TopicPartition(topic, 0))
     val newReplicas = Seq(1, 2, 3)
-<<<<<<< HEAD
-    val reassignPartitionsCommand = new ReassignPartitionsCommand(zkUtils, None,
-      Map(new TopicAndPartition(topicPartition) -> newReplicas))
-=======
     val reassignPartitionsCommand = new ReassignPartitionsCommand(zkClient, None,
       Map(topicPartition -> newReplicas),  adminZkClient = adminZkClient)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertTrue("Partition reassignment should fail for [test,0]", reassignPartitionsCommand.reassignPartitions())
     // wait until reassignment is completed
     TestUtils.waitUntilTrue(() => {
@@ -148,11 +139,7 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     val controller = servers.filter(s => s.config.brokerId == controllerId).head
     assertFalse("Partition reassignment should fail",
       controller.kafkaController.controllerContext.partitionsBeingReassigned.contains(topicPartition))
-<<<<<<< HEAD
-    val assignedReplicas = zkUtils.getReplicasForPartition(topic, 0)
-=======
     val assignedReplicas = zkClient.getReplicasForPartition(new TopicPartition(topic, 0))
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertEquals("Partition should not be reassigned to 0, 1, 2", oldAssignedReplicas, assignedReplicas)
     follower.startup()
     TestUtils.verifyTopicDeletion(zkClient, topic, 1, servers)
@@ -191,20 +178,12 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     zkClient.createTopLevelPaths()
     val topic = "test"
     servers = createTestTopicAndCluster(topic)
-<<<<<<< HEAD
-    val brokers = AdminUtils.getBrokerMetadatas(zkUtils)
-=======
     val brokers = adminZkClient.getBrokerMetadatas()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     // start topic deletion
     adminZkClient.deleteTopic(topic)
     // add partitions to topic
     val newPartition = new TopicPartition(topic, 1)
-<<<<<<< HEAD
-    AdminUtils.addPartitions(zkUtils, topic, expectedReplicaAssignment, brokers, 2,
-=======
     adminZkClient.addPartitions(topic, expectedReplicaAssignment, brokers, 2,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       Some(Map(1 -> Seq(0, 1, 2), 2 -> Seq(0, 1, 2))))
     TestUtils.verifyTopicDeletion(zkClient, topic, 1, servers)
     // verify that new partition doesn't exist on any broker either
@@ -243,11 +222,7 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
       case _: UnknownTopicOrPartitionException => // expected exception
     }
     // verify delete topic path for test2 is removed from ZooKeeper
-<<<<<<< HEAD
-    TestUtils.verifyTopicDeletion(zkUtils, "test2", 1, servers)
-=======
     TestUtils.verifyTopicDeletion(zkClient, "test2", 1, servers)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     // verify that topic test is untouched
     TestUtils.waitUntilTrue(() => servers.forall(_.getLogManager().getLog(topicPartition).isDefined),
       "Replicas for topic test not created")

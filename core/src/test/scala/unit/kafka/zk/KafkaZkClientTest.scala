@@ -16,14 +16,6 @@
 */
 package kafka.zk
 
-<<<<<<< HEAD
-import java.util.UUID
-
-import kafka.security.auth._
-import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.security.auth.KafkaPrincipal
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
-=======
 import java.util.{Properties, UUID}
 import java.nio.charset.StandardCharsets.UTF_8
 
@@ -38,7 +30,6 @@ import org.apache.kafka.common.network.ListenerName
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
 import org.apache.zookeeper.KeeperException.NodeExistsException
 import org.junit.Assert._
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.junit.Test
 
 class KafkaZkClientTest extends ZooKeeperTestHarness {
@@ -87,36 +78,12 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
 
     zkClient.createRecursive("/create/some/random/long/path")
     assertTrue(zkClient.pathExists("/create/some/random/long/path"))
-<<<<<<< HEAD
-    zkClient.createRecursive("/create/some/random/long/path") // no errors if path already exists
-=======
     zkClient.createRecursive("/create/some/random/long/path", throwIfPathExists = false) // no errors if path already exists
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     intercept[IllegalArgumentException](zkClient.createRecursive("create-invalid-path"))
   }
 
   @Test
-<<<<<<< HEAD
-  def testGetTopicPartitionCount() {
-    val topic = "mytest"
-
-    // test with non-existing topic
-    assertTrue(zkClient.getTopicPartitionCount(topic).isEmpty)
-
-    // create a topic path
-    zkClient.createRecursive(TopicZNode.path(topic))
-
-    val assignment = Map(
-      new TopicPartition(topic, 0) -> Seq(0, 1),
-      new TopicPartition(topic, 1) -> Seq(0, 1)
-    )
-    zkClient.setTopicAssignmentRaw(topic, assignment)
-
-    assertEquals(2, zkClient.getTopicPartitionCount(topic).get)
-  }
-
-=======
   def testTopicAssignmentMethods() {
     val topic1 = "topic1"
     val topic2 = "topic2"
@@ -162,32 +129,12 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
 
     assertEquals(Set(topic1, topic2), zkClient.getAllTopicsInCluster.toSet)
   }
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
   @Test
   def testGetDataAndVersion() {
     val path = "/testpath"
 
     // test with non-existing path
-<<<<<<< HEAD
-    var dataAndVersion = zkClient.getDataAndVersion(path)
-    assertTrue(dataAndVersion._1.isEmpty)
-    assertEquals(-1, dataAndVersion._2)
-
-    // create a test path
-    zkClient.createRecursive(path)
-    zkClient.conditionalUpdatePath(path, "version1", 0)
-
-    // test with existing path
-    dataAndVersion = zkClient.getDataAndVersion(path)
-    assertEquals("version1", dataAndVersion._1.get)
-    assertEquals(1, dataAndVersion._2)
-
-    zkClient.conditionalUpdatePath(path, "version2", 1)
-    dataAndVersion = zkClient.getDataAndVersion(path)
-    assertEquals("version2", dataAndVersion._1.get)
-    assertEquals(2, dataAndVersion._2)
-=======
     val (data0, version0) = zkClient.getDataAndVersion(path)
     assertTrue(data0.isEmpty)
     assertEquals(-1, version0)
@@ -205,7 +152,6 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     val (data2, version2) = zkClient.getDataAndVersion(path)
     assertEquals("version2", new String(data2.get, UTF_8))
     assertEquals(2, version2)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
@@ -213,11 +159,7 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     val path = "/testconditionalpath"
 
     // test with non-existing path
-<<<<<<< HEAD
-    var statusAndVersion = zkClient.conditionalUpdatePath(path, "version0", 0)
-=======
     var statusAndVersion = zkClient.conditionalUpdatePath(path, "version0".getBytes(UTF_8), 0)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertFalse(statusAndVersion._1)
     assertEquals(-1, statusAndVersion._2)
 
@@ -225,27 +167,17 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     zkClient.createRecursive(path)
 
     // test with valid expected version
-<<<<<<< HEAD
-    statusAndVersion = zkClient.conditionalUpdatePath(path, "version1", 0)
-=======
     statusAndVersion = zkClient.conditionalUpdatePath(path, "version1".getBytes(UTF_8), 0)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertTrue(statusAndVersion._1)
     assertEquals(1, statusAndVersion._2)
 
     // test with invalid expected version
-<<<<<<< HEAD
-    statusAndVersion = zkClient.conditionalUpdatePath(path, "version2", 2)
-=======
     statusAndVersion = zkClient.conditionalUpdatePath(path, "version2".getBytes(UTF_8), 2)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertFalse(statusAndVersion._1)
     assertEquals(-1, statusAndVersion._2)
   }
 
   @Test
-<<<<<<< HEAD
-=======
   def testCreateSequentialPersistentPath(): Unit = {
     val path = "/testpath"
     zkClient.createRecursive(path)
@@ -301,7 +233,6 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
   }
 
   @Test
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   def testSetGetAndDeletePartitionReassignment() {
     zkClient.createRecursive(AdminZNode.path)
 
@@ -322,12 +253,9 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
 
     zkClient.deletePartitionReassignment()
     assertEquals(Map.empty, zkClient.getPartitionReassignment)
-<<<<<<< HEAD
-=======
 
     zkClient.createPartitionReassignment(reassignment)
     assertEquals(reassignment, zkClient.getPartitionReassignment)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
@@ -335,25 +263,6 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     val path = "/testpath"
 
     // test with non-existing path
-<<<<<<< HEAD
-    var dataAndVersion = zkClient.getDataAndStat(path)
-    assertTrue(dataAndVersion._1.isEmpty)
-    assertEquals(0, dataAndVersion._2.getVersion)
-
-    // create a test path
-    zkClient.createRecursive(path)
-    zkClient.conditionalUpdatePath(path, "version1", 0)
-
-    // test with existing path
-    dataAndVersion = zkClient.getDataAndStat(path)
-    assertEquals("version1", dataAndVersion._1.get)
-    assertEquals(1, dataAndVersion._2.getVersion)
-
-    zkClient.conditionalUpdatePath(path, "version2", 1)
-    dataAndVersion = zkClient.getDataAndStat(path)
-    assertEquals("version2", dataAndVersion._1.get)
-    assertEquals(2, dataAndVersion._2.getVersion)
-=======
     val (data0, version0) = zkClient.getDataAndStat(path)
     assertTrue(data0.isEmpty)
     assertEquals(0, version0.getVersion)
@@ -371,7 +280,6 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     val (data2, version2) = zkClient.getDataAndStat(path)
     assertEquals("version2", new String(data2.get, UTF_8))
     assertEquals(2, version2.getVersion)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
@@ -461,10 +369,6 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
 
     zkClient.deleteAclChangeNotifications()
     assertTrue(zkClient.getChildren(AclChangeNotificationZNode.path).isEmpty)
-<<<<<<< HEAD
-
-  }
-=======
   }
 
   @Test
@@ -568,5 +472,4 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     data.map(new String(_, UTF_8))
   }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 }

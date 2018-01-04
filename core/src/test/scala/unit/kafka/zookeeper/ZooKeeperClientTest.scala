@@ -16,38 +16,10 @@
  */
 package kafka.zookeeper
 
-<<<<<<< HEAD
-import java.net.UnknownHostException
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch, TimeUnit}
-<<<<<<< HEAD
-import javax.security.auth.login.Configuration
-
-import kafka.zk.ZooKeeperTestHarness
-import org.apache.kafka.common.security.JaasUtils
-import org.apache.zookeeper.KeeperException.Code
-import org.apache.zookeeper.{CreateMode, ZooDefs}
-import org.junit.Assert.{assertArrayEquals, assertEquals, assertTrue}
-import org.junit.{After, Test}
-
-class ZooKeeperClientTest extends ZooKeeperTestHarness {
-  private val mockPath = "/foo"
-
-  @After
-  override def tearDown() {
-    super.tearDown()
-    System.clearProperty(JaasUtils.JAVA_LOGIN_CONFIG_PARAM)
-    Configuration.setConfiguration(null)
-  }
-
-  @Test(expected = classOf[UnknownHostException])
-  def testUnresolvableConnectString(): Unit = {
-    new ZooKeeperClient("some.invalid.hostname.foo.bar.local", -1, -1, Int.MaxValue)
-=======
 
 import com.yammer.metrics.Metrics
 import com.yammer.metrics.core.{Gauge, Meter, MetricName}
@@ -89,51 +61,34 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
   def testUnresolvableConnectString(): Unit = {
     new ZooKeeperClient("some.invalid.hostname.foo.bar.local", -1, -1, Int.MaxValue, time, "testMetricGroup",
       "testMetricType").close()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test(expected = classOf[ZooKeeperClientTimeoutException])
   def testConnectionTimeout(): Unit = {
     zookeeper.shutdown()
-<<<<<<< HEAD
-    new ZooKeeperClient(zkConnect, zkSessionTimeout, connectionTimeoutMs = 100, Int.MaxValue)
-=======
     new ZooKeeperClient(zkConnect, zkSessionTimeout, connectionTimeoutMs = 100, Int.MaxValue, time, "testMetricGroup",
       "testMetricType").close()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
   def testConnection(): Unit = {
-<<<<<<< HEAD
-    new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue)
-=======
     new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time, "testMetricGroup",
       "testMetricType").close()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
   def testDeleteNonExistentZNode(): Unit = {
     val deleteResponse = zooKeeperClient.handleRequest(DeleteRequest(mockPath, -1))
     assertEquals("Response code should be NONODE", Code.NONODE, deleteResponse.resultCode)
-<<<<<<< HEAD
-=======
     intercept[NoNodeException] {
       deleteResponse.maybeThrow()
     }
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
   def testDeleteExistingZNode(): Unit = {
-<<<<<<< HEAD
-    import scala.collection.JavaConverters._
-    val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte], ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
-=======
     val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte],
       ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertEquals("Response code for create should be OK", Code.OK, createResponse.resultCode)
     val deleteResponse = zooKeeperClient.handleRequest(DeleteRequest(mockPath, -1))
     assertEquals("Response code for delete should be OK", Code.OK, deleteResponse.resultCode)
@@ -148,12 +103,8 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
   @Test
   def testExistsExistingZNode(): Unit = {
     import scala.collection.JavaConverters._
-<<<<<<< HEAD
-    val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte], ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
-=======
     val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte],
       ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertEquals("Response code for create should be OK", Code.OK, createResponse.resultCode)
     val existsResponse = zooKeeperClient.handleRequest(ExistsRequest(mockPath))
     assertEquals("Response code for exists should be OK", Code.OK, existsResponse.resultCode)
@@ -388,13 +339,6 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
       }
     }
 
-<<<<<<< HEAD
-    val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue)
-    zooKeeperClient.registerStateChangeHandler(stateChangeHandler)
-    zooKeeperClient.reinitialize()
-
-    assertTrue("Failed to receive auth failed notification", stateChangeHandlerCountDownLatch.await(5, TimeUnit.SECONDS))
-=======
     val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time,
       "testMetricGroup", "testMetricType")
     try {
@@ -403,42 +347,11 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
 
       assertTrue("Failed to receive auth failed notification", stateChangeHandlerCountDownLatch.await(5, TimeUnit.SECONDS))
     } finally zooKeeperClient.close()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test
   def testConnectionLossRequestTermination(): Unit = {
     val batchSize = 10
-<<<<<<< HEAD
-    val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, 2)
-    zookeeper.shutdown()
-    val requests = (1 to batchSize).map(i => GetDataRequest(s"/$i"))
-    val countDownLatch = new CountDownLatch(1)
-    val running = new AtomicBoolean(true)
-    val unexpectedResponses = new ArrayBlockingQueue[GetDataResponse](batchSize)
-    val requestThread = new Thread {
-      override def run(): Unit = {
-        while (running.get()) {
-          val responses = zooKeeperClient.handleRequests(requests)
-          val suffix = responses.dropWhile(response => response.resultCode != Code.CONNECTIONLOSS)
-          if (!suffix.forall(response => response.resultCode == Code.CONNECTIONLOSS))
-            responses.foreach(unexpectedResponses.add)
-          if (!unexpectedResponses.isEmpty || suffix.nonEmpty)
-            running.set(false)
-        }
-        countDownLatch.countDown()
-      }
-    }
-    requestThread.start()
-    val requestThreadTerminated = countDownLatch.await(30, TimeUnit.SECONDS)
-    if (!requestThreadTerminated) {
-      running.set(false)
-      requestThread.join(5000)
-      fail("Failed to receive a CONNECTIONLOSS response code after zookeeper has shutdown.")
-    } else if (!unexpectedResponses.isEmpty) {
-      fail(s"Received an unexpected non-CONNECTIONLOSS response code after a CONNECTIONLOSS response code from a single batch: $unexpectedResponses")
-    }
-=======
     val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, 2, time,
       "testGroupType", "testGroupName")
     zookeeper.shutdown()
@@ -518,7 +431,6 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
   private def cleanMetricsRegistry() {
     val metrics = Metrics.defaultRegistry
     metrics.allMetrics.keySet.asScala.foreach(metrics.removeMetric)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   private def bytes = UUID.randomUUID().toString.getBytes(StandardCharsets.UTF_8)

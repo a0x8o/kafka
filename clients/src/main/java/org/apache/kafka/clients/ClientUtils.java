@@ -17,13 +17,6 @@
 package org.apache.kafka.clients;
 
 import org.apache.kafka.common.config.AbstractConfig;
-<<<<<<< HEAD
-import org.apache.kafka.common.network.ChannelBuilders;
-import org.apache.kafka.common.security.JaasContext;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.apache.kafka.common.network.ChannelBuilder;
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.network.ChannelBuilder;

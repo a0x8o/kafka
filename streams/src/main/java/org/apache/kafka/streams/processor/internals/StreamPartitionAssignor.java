@@ -187,15 +187,9 @@ public class StreamPartitionAssignor implements PartitionAssignor, Configurable 
         final StreamsConfig streamsConfig = new StreamsConfig(configs);
 
         // Setting the logger with the passed in client thread name
-<<<<<<< HEAD
-        logPrefix = String.format("stream-thread [%s] ", configs.get(CommonClientConfigs.CLIENT_ID_CONFIG));
-        final LogContext logContext = new LogContext(logPrefix);
-        this.log = logContext.logger(getClass());
-=======
         logPrefix = String.format("stream-thread [%s] ", streamsConfig.getString(CommonClientConfigs.CLIENT_ID_CONFIG));
         final LogContext logContext = new LogContext(logPrefix);
         log = logContext.logger(getClass());
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         final Object o = configs.get(StreamsConfig.InternalConfig.TASK_MANAGER_FOR_PARTITION_ASSIGNOR);
         if (o == null) {
@@ -212,15 +206,11 @@ public class StreamPartitionAssignor implements PartitionAssignor, Configurable 
 
         taskManager = (TaskManager) o;
 
-<<<<<<< HEAD
-        String userEndPoint = (String) configs.get(StreamsConfig.APPLICATION_SERVER_CONFIG);
-=======
         numStandbyReplicas = streamsConfig.getInt(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG);
 
         partitionGrouper = streamsConfig.getConfiguredInstance(StreamsConfig.PARTITION_GROUPER_CLASS_CONFIG, PartitionGrouper.class);
 
         final String userEndPoint = streamsConfig.getString(StreamsConfig.APPLICATION_SERVER_CONFIG);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         if (userEndPoint != null && !userEndPoint.isEmpty()) {
             try {
                 String host = getHost(userEndPoint);
@@ -645,20 +635,6 @@ public class StreamPartitionAssignor implements PartitionAssignor, Configurable 
         }
 
         log.debug("Completed validating internal topics in partition assignor.");
-<<<<<<< HEAD
-    }
-
-    private boolean allTopicsCreated(final Set<String> topicNamesToMakeReady, final Map<InternalTopicConfig, Integer> topicsToMakeReady) {
-        final Map<String, Integer> partitions = internalTopicManager.getNumPartitions(topicNamesToMakeReady);
-        for (Map.Entry<InternalTopicConfig, Integer> entry : topicsToMakeReady.entrySet()) {
-            final Integer numPartitions = partitions.get(entry.getKey().name());
-            if (numPartitions == null || !numPartitions.equals(entry.getValue())) {
-                return false;
-            }
-        }
-        return true;
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     private void ensureCopartitioning(Collection<Set<String>> copartitionGroups,

@@ -51,10 +51,7 @@ public class ResetIntegrationWithSslTest extends AbstractResetIntegrationTest {
 
     @ClassRule
     public static final EmbeddedKafkaCluster CLUSTER;
-<<<<<<< HEAD
-=======
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     static {
         final Properties props = new Properties();
         // we double the value passed to `time.sleep` in each iteration in one of the map functions, so we disable
@@ -93,8 +90,4 @@ public class ResetIntegrationWithSslTest extends AbstractResetIntegrationTest {
     public void testReprocessingFromScratchAfterResetWithoutIntermediateUserTopic() throws Exception {
         super.testReprocessingFromScratchAfterResetWithoutIntermediateUserTopic();
     }
-<<<<<<< HEAD
-
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 }

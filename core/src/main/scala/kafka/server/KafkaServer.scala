@@ -36,12 +36,7 @@ import kafka.network.SocketServer
 import kafka.security.CredentialProvider
 import kafka.security.auth.Authorizer
 import kafka.utils._
-<<<<<<< HEAD
-import kafka.zk.KafkaZkClient
-import kafka.zookeeper.ZooKeeperClient
-=======
 import kafka.zk.{BrokerInfo, KafkaZkClient}
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.clients.{ApiVersions, ManualMetadataUpdater, NetworkClient, NetworkClientUtils}
 import org.apache.kafka.common.internals.ClusterResourceListeners
 import org.apache.kafka.common.metrics.{JmxReporter, Metrics, _}
@@ -140,12 +135,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   var metadataCache: MetadataCache = null
   var quotaManagers: QuotaFactory.QuotaManagers = null
 
-<<<<<<< HEAD
-  var zkUtils: ZkUtils = null
-  private var zkClient: KafkaZkClient = null
-=======
   private var _zkClient: KafkaZkClient = null
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   val correlationId: AtomicInteger = new AtomicInteger(0)
   val brokerMetaPropsFile = "meta.properties"
   val brokerMetadataCheckpoints = config.logDirs.map(logDir => (logDir, new BrokerMetadataCheckpoint(new File(logDir + File.separator + brokerMetaPropsFile)))).toMap
@@ -233,9 +223,6 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
-        val zooKeeperClient = new ZooKeeperClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs, config.zkMaxInFlightRequests)
-        zkClient = new KafkaZkClient(zooKeeperClient, zkUtils.isSecure)
-
         /* start log manager */
         logManager = LogManager(config, initialOfflineDirs, zkClient, brokerState, kafkaScheduler, time, brokerTopicStats, logDirFailureChannel)
         logManager.startup()
@@ -257,11 +244,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         checkpointBrokerId(config.brokerId)
 
         /* start kafka controller */
-<<<<<<< HEAD
-        kafkaController = new KafkaController(config, zkClient, time, metrics, threadNamePrefix)
-=======
         kafkaController = new KafkaController(config, zkClient, time, metrics, brokerInfo, threadNamePrefix)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         kafkaController.startup()
 
         adminManager = new AdminManager(config, metrics, metadataCache, zkClient)
@@ -285,11 +268,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         /* start processing requests */
         apis = new KafkaApis(socketServer.requestChannel, replicaManager, adminManager, groupCoordinator, transactionCoordinator,
-<<<<<<< HEAD
-          kafkaController, zkUtils, zkClient, config.brokerId, config, metadataCache, metrics, authorizer, quotaManagers,
-=======
           kafkaController, zkClient, config.brokerId, config, metadataCache, metrics, authorizer, quotaManagers,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
           brokerTopicStats, clusterId, time)
 
         requestHandlerPool = new KafkaRequestHandlerPool(config.brokerId, socketServer.requestChannel, apis, time,
@@ -304,11 +283,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
                                                            ConfigType.Broker -> new BrokerConfigHandler(config, quotaManagers))
 
         // Create the config manager. start listening to notifications
-<<<<<<< HEAD
-        dynamicConfigManager = new DynamicConfigManager(zkUtils, zkClient, dynamicConfigHandlers)
-=======
         dynamicConfigManager = new DynamicConfigManager(zkClient, dynamicConfigHandlers)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         dynamicConfigManager.startup()
 
 
@@ -336,11 +311,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   }
 
   protected def createReplicaManager(isShuttingDown: AtomicBoolean): ReplicaManager =
-<<<<<<< HEAD
-    new ReplicaManager(config, metrics, time, zkUtils, kafkaScheduler, logManager, isShuttingDown, quotaManagers,
-=======
     new ReplicaManager(config, metrics, time, zkClient, kafkaScheduler, logManager, isShuttingDown, quotaManagers,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       brokerTopicStats, metadataCache, logDirFailureChannel)
 
   private def initZkClient(time: Time): Unit = {
@@ -365,33 +336,14 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
     // make sure chroot path exists
     chrootOption.foreach { chroot =>
       val zkConnForChrootCreation = config.zkConnect.substring(0, chrootIndex)
-<<<<<<< HEAD
-      val zkClientForChrootCreation = ZkUtils.withMetrics(zkConnForChrootCreation,
-                                              sessionTimeout = config.zkSessionTimeoutMs,
-                                              connectionTimeout = config.zkConnectionTimeoutMs,
-                                              secureAclsEnabled,
-                                              time)
-      zkClientForChrootCreation.makeSurePersistentPathExists(chroot)
-=======
       val zkClient = createZkClient(zkConnForChrootCreation, secureAclsEnabled)
       zkClient.makeSurePersistentPathExists(chroot)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       info(s"Created zookeeper path $chroot")
       zkClient.close()
     }
 
-<<<<<<< HEAD
-    val zkUtils = ZkUtils.withMetrics(config.zkConnect,
-                          sessionTimeout = config.zkSessionTimeoutMs,
-                          connectionTimeout = config.zkConnectionTimeoutMs,
-                          secureAclsEnabled,
-                          time)
-    zkUtils.setupCommonPaths()
-    zkUtils
-=======
     _zkClient = createZkClient(config.zkConnect, secureAclsEnabled)
     _zkClient.createTopLevelPaths()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   private def getOrGenerateClusterId(zkClient: KafkaZkClient): String = {
@@ -422,10 +374,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
    */
   private def controlledShutdown() {
 
-    def node(broker: Broker): Node = {
-      val brokerEndPoint = broker.getBrokerEndPoint(config.interBrokerListenerName)
-      new Node(brokerEndPoint.id, brokerEndPoint.host, brokerEndPoint.port)
-    }
+    def node(broker: Broker): Node = broker.node(config.interBrokerListenerName)
 
     val socketTimeoutMs = config.controllerSocketTimeoutMs
 
@@ -583,20 +532,11 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         CoreUtils.swallow(controlledShutdown(), this)
         brokerState.newState(BrokerShuttingDown)
 
-<<<<<<< HEAD
-        if (kafkaHealthcheck != null)
-          CoreUtils.swallow(kafkaHealthcheck.shutdown())
-
-        if (dynamicConfigManager != null)
-          CoreUtils.swallow(dynamicConfigManager.shutdown())
-
-=======
         if (dynamicConfigManager != null)
           CoreUtils.swallow(dynamicConfigManager.shutdown(), this)
 
         // Stop socket server to stop accepting any more connections and requests.
         // Socket server will be shutdown towards the end of the sequence.
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         if (socketServer != null)
           CoreUtils.swallow(socketServer.stopProcessingRequests(), this)
         if (requestHandlerPool != null)
@@ -621,18 +561,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
           CoreUtils.swallow(logManager.shutdown(), this)
 
         if (kafkaController != null)
-<<<<<<< HEAD
-          CoreUtils.swallow(kafkaController.shutdown())
-        if (zkUtils != null)
-          CoreUtils.swallow(zkUtils.close())
-        if (zkClient != null)
-          CoreUtils.swallow(zkClient.close())
-=======
           CoreUtils.swallow(kafkaController.shutdown(), this)
 
         if (zkClient != null)
           CoreUtils.swallow(zkClient.close(), this)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         if (quotaManagers != null)
           CoreUtils.swallow(quotaManagers.shutdown(), this)
@@ -650,11 +582,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         startupComplete.set(false)
         isShuttingDown.set(false)
-<<<<<<< HEAD
-        CoreUtils.swallow(AppInfoParser.unregisterAppInfo(jmxPrefix, config.brokerId.toString, metrics))
-=======
         CoreUtils.swallow(AppInfoParser.unregisterAppInfo(jmxPrefix, config.brokerId.toString, metrics), this)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         shutdownLatch.countDown()
         info("shut down completed")
       }

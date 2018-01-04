@@ -630,63 +630,6 @@ public class KafkaStreams {
         final LogContext logContext = new LogContext(String.format("stream-client [%s] ", clientId));
         this.log = logContext.logger(getClass());
 
-<<<<<<< HEAD
-        long cacheSize = config.getLong(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG);
-        if (cacheSize < 0) {
-            cacheSize = 0;
-            log.warn("Negative cache size passed in. Reverting to cache size of 0 bytes.");
-        }
-
-        final StateRestoreListener delegatingStateRestoreListener = new StateRestoreListener() {
-            @Override
-            public void onRestoreStart(final TopicPartition topicPartition, final String storeName, final long startingOffset, final long endingOffset) {
-                if (globalStateRestoreListener != null) {
-                    try {
-                        globalStateRestoreListener.onRestoreStart(topicPartition, storeName, startingOffset, endingOffset);
-                    } catch (final Exception fatalUserException) {
-                        throw new StreamsException(
-                            String.format("Fatal user code error in store restore listener for store %s, partition %s.",
-                                storeName,
-                                topicPartition),
-                            fatalUserException);
-                    }
-                }
-            }
-
-            @Override
-            public void onBatchRestored(final TopicPartition topicPartition, final String storeName, final long batchEndOffset, final long numRestored) {
-                if (globalStateRestoreListener != null) {
-                    try {
-                        globalStateRestoreListener.onBatchRestored(topicPartition, storeName, batchEndOffset, numRestored);
-                    } catch (final Exception fatalUserException) {
-                        throw new StreamsException(
-                            String.format("Fatal user code error in store restore listener for store %s, partition %s.",
-                                storeName,
-                                topicPartition),
-                            fatalUserException);
-                    }
-                }
-            }
-
-            @Override
-            public void onRestoreEnd(final TopicPartition topicPartition, final String storeName, final long totalRestored) {
-                if (globalStateRestoreListener != null) {
-                    try {
-                        globalStateRestoreListener.onRestoreEnd(topicPartition, storeName, totalRestored);
-                    } catch (final Exception fatalUserException) {
-                        throw new StreamsException(
-                            String.format("Fatal user code error in store restore listener for store %s, partition %s.",
-                                storeName,
-                                topicPartition),
-                            fatalUserException);
-                    }
-                }
-            }
-        };
-
-        threads = new StreamThread[config.getInt(StreamsConfig.NUM_STREAM_THREADS_CONFIG)];
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         try {
             stateDirectory = new StateDirectory(config, time);
         } catch (final ProcessorStateException fatal) {
@@ -731,11 +674,7 @@ public class KafkaStreams {
                                                         stateDirectory,
                                                         cacheSizePerThread,
                                                         metrics,
-<<<<<<< HEAD
-                                                        Time.SYSTEM,
-=======
                                                         time,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                                                         globalThreadId,
                                                         delegatingStateRestoreListener);
             globalThreadState = globalStreamThread.state();
@@ -799,25 +738,6 @@ public class KafkaStreams {
     }
 
     /**
-<<<<<<< HEAD
-     * Check if the used brokers have version 0.10.1.x or higher.
-     * <p>
-     * Note, for <em>pre</em> 0.10.x brokers the broker version cannot be checked and the client will hang and retry
-     * until it {@link StreamsConfig#REQUEST_TIMEOUT_MS_CONFIG times out}.
-     *
-     * @throws StreamsException if brokers have version 0.10.0.x
-     */
-    private void checkBrokerVersionCompatibility() throws StreamsException {
-        final StreamsKafkaClient client = StreamsKafkaClient.create(config);
-
-        client.checkBrokerCompatibility(EXACTLY_ONCE.equals(config.getString(PROCESSING_GUARANTEE_CONFIG)));
-
-        client.close();
-    }
-
-    /**
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
      * Start the {@code KafkaStreams} instance by starting all its threads.
      * This function is expected to be called only once during the life cycle of the client.
      * <p>

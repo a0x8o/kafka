@@ -45,11 +45,7 @@ import org.apache.kafka.streams.state.internals.OffsetCheckpoint;
 import org.apache.kafka.test.MockProcessorNode;
 import org.apache.kafka.test.MockSourceNode;
 import org.apache.kafka.test.MockStateRestoreListener;
-<<<<<<< HEAD
-import org.apache.kafka.test.MockStateStoreSupplier;
-=======
 import org.apache.kafka.test.MockStateStore;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.test.MockTimestampExtractor;
 import org.apache.kafka.test.NoOpRecordCollector;
 import org.apache.kafka.test.TestUtils;
@@ -534,65 +530,9 @@ public class StreamTaskTest {
 
     @Test
     public void shouldCheckpointOffsetsOnCommit() throws IOException {
-<<<<<<< HEAD
-        final String storeName = "test";
-        final String changelogTopic = ProcessorStateManager.storeChangelogTopic("appId", storeName);
-        final InMemoryKeyValueStore inMemoryStore = new InMemoryKeyValueStore(storeName, null, null) {
-            @Override
-            public void init(final ProcessorContext context, final StateStore root) {
-                context.register(root, false, null);
-            }
-
-            @Override
-            public boolean persistent() {
-                return true;
-            }
-        };
-        Map<String, SourceNode> sourceByTopics =  new HashMap() { {
-                put(partition1.topic(), source1);
-                put(partition2.topic(), source2);
-            }
-        };
-        final ProcessorTopology topology = new ProcessorTopology(Collections.<ProcessorNode>emptyList(),
-                                                                 sourceByTopics,
-                                                                 Collections.<String, SinkNode>emptyMap(),
-                                                                 Collections.<StateStore>singletonList(inMemoryStore),
-                                                                 Collections.singletonMap(storeName, changelogTopic),
-                                                                 Collections.<StateStore>emptyList());
-
-        final TopicPartition partition = new TopicPartition(changelogTopic, 0);
-
-        restoreStateConsumer.updatePartitions(changelogTopic,
-                                              Collections.singletonList(
-                                                      new PartitionInfo(changelogTopic, 0, null, new Node[0], new Node[0])));
-        restoreStateConsumer.updateEndOffsets(Collections.singletonMap(partition, 0L));
-        restoreStateConsumer.updateBeginningOffsets(Collections.singletonMap(partition, 0L));
-
-        final long offset = 543L;
-        final StreamTask streamTask = new StreamTask(taskId00, "appId", partitions, topology, consumer,
-            changelogReader, config, streamsMetrics, stateDirectory, null, time, producer) {
-
-            @Override
-            RecordCollector createRecordCollector(final LogContext logContext) {
-                return new NoOpRecordCollector() {
-                    @Override
-                    public Map<TopicPartition, Long> offsets() {
-
-                        return Collections.singletonMap(partition, offset);
-                    }
-                };
-            }
-        };
-        streamTask.initialize();
-
-        time.sleep(config.getLong(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG));
-
-        streamTask.commit();
-=======
         task = createStatefulTask(false, true);
         task.initialize();
         task.commit();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final OffsetCheckpoint checkpoint = new OffsetCheckpoint(new File(stateDirectory.directoryForTask(taskId00),
                                                                           ProcessorStateManager.CHECKPOINT_FILE_NAME));
 
@@ -601,70 +541,9 @@ public class StreamTaskTest {
 
     @Test
     public void shouldNotCheckpointOffsetsOnCommitIfEosIsEnabled() {
-<<<<<<< HEAD
-        final Map<String, Object> properties = config.originals();
-        properties.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
-        final StreamsConfig testConfig = new StreamsConfig(properties);
-
-        final String storeName = "test";
-        final String changelogTopic = ProcessorStateManager.storeChangelogTopic("appId", storeName);
-        final InMemoryKeyValueStore inMemoryStore = new InMemoryKeyValueStore(storeName, null, null) {
-            @Override
-            public void init(final ProcessorContext context, final StateStore root) {
-                context.register(root, false, null);
-            }
-
-            @Override
-            public boolean persistent() {
-                return true;
-            }
-        };
-        Map<String, SourceNode> sourceByTopics =  new HashMap() {
-            {
-                put(partition1.topic(), source1);
-                put(partition2.topic(), source2);
-            }
-        };
-        final ProcessorTopology topology = new ProcessorTopology(Collections.<ProcessorNode>emptyList(),
-            sourceByTopics,
-            Collections.<String, SinkNode>emptyMap(),
-            Collections.<StateStore>singletonList(inMemoryStore),
-            Collections.singletonMap(storeName, changelogTopic),
-            Collections.<StateStore>emptyList());
-
-        final TopicPartition partition = new TopicPartition(changelogTopic, 0);
-
-        restoreStateConsumer.updatePartitions(changelogTopic,
-            Collections.singletonList(
-                new PartitionInfo(changelogTopic, 0, null, new Node[0], new Node[0])));
-        restoreStateConsumer.updateEndOffsets(Collections.singletonMap(partition, 0L));
-        restoreStateConsumer.updateBeginningOffsets(Collections.singletonMap(partition, 0L));
-
-        final long offset = 543L;
-        final StreamTask streamTask = new StreamTask(taskId00, "appId", partitions, topology, consumer,
-            changelogReader, testConfig, streamsMetrics, stateDirectory, null, time, producer) {
-
-            @Override
-            RecordCollector createRecordCollector(final LogContext logContext) {
-                return new NoOpRecordCollector() {
-                    @Override
-                    public Map<TopicPartition, Long> offsets() {
-
-                        return Collections.singletonMap(partition, offset);
-                    }
-                };
-            }
-        };
-
-        time.sleep(testConfig.getLong(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG));
-
-        streamTask.commit();
-
-=======
         task = createStatefulTask(true, true);
         task.initialize();
         task.commit();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final File checkpointFile = new File(stateDirectory.directoryForTask(taskId00),
                                              ProcessorStateManager.CHECKPOINT_FILE_NAME);
 
@@ -932,73 +811,18 @@ public class StreamTaskTest {
 
     @Test
     public void shouldBeInitializedIfChangelogPartitionsIsEmpty() {
-<<<<<<< HEAD
-        final ProcessorTopology topology = new ProcessorTopology(Collections.<ProcessorNode>singletonList(source1),
-                                                                 Collections.<String, SourceNode>singletonMap(topic1[0], source1),
-                                                                 Collections.<String, SinkNode>emptyMap(),
-                                                                 Collections.<StateStore>singletonList(
-                                                                         new MockStateStoreSupplier.MockStateStore("store",
-                                                                                                                   false)),
-                                                                 Collections.<String, String>emptyMap(),
-                                                                 Collections.<StateStore>emptyList());
-
-
-        final StreamTask task = new StreamTask(taskId00,
-                                               applicationId,
-                                               Utils.mkSet(partition1),
-                                               topology,
-                                               consumer,
-                                               changelogReader,
-                                               config,
-                                               streamsMetrics,
-                                               stateDirectory,
-                                               null,
-                                               time,
-                                               producer);
-=======
         final StreamTask task = createStatefulTask(false, false);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         assertTrue(task.initialize());
     }
 
     @Test
     public void shouldNotBeInitializedIfChangelogPartitionsIsNonEmpty() {
-<<<<<<< HEAD
-        final ProcessorTopology topology = new ProcessorTopology(Collections.<ProcessorNode>singletonList(source1),
-                                                                 Collections.<String, SourceNode>singletonMap(topic1[0], source1),
-                                                                 Collections.<String, SinkNode>emptyMap(),
-                                                                 Collections.<StateStore>singletonList(
-                                                                         new MockStateStoreSupplier.MockStateStore("store",
-                                                                                                                   false)),
-                                                                 Collections.singletonMap("store", "changelog"),
-                                                                 Collections.<StateStore>emptyList());
-
-
-        final StreamTask task = new StreamTask(taskId00,
-                                               applicationId,
-                                               Utils.mkSet(partition1),
-                                               topology,
-                                               consumer,
-                                               changelogReader,
-                                               config,
-                                               streamsMetrics,
-                                               stateDirectory,
-                                               null,
-                                               time,
-                                               producer);
-=======
         final StreamTask task = createStatefulTask(false, true);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         assertFalse(task.initialize());
     }
 
-<<<<<<< HEAD
-    @SuppressWarnings("unchecked")
-    private StreamTask createTaskThatThrowsExceptionOnClose() {
-        final MockSourceNode processorNode = new MockSourceNode(topic1, intDeserializer, intDeserializer) {
-=======
     @Test
     public void shouldReturnOffsetsForRepartitionTopicsForPurging() {
         final TopicPartition repartition = new TopicPartition("repartition", 1);
@@ -1105,7 +929,6 @@ public class StreamTaskTest {
         return new StreamTask(taskId00, partitions, topology, consumer, changelogReader, config,
             streamsMetrics, stateDirectory, null, time, producer) {
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             @Override
             protected void flushState() {
                 throw new RuntimeException("KABOOM!");

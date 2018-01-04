@@ -32,19 +32,6 @@ class TaskSpec(object):
         :param start_ms:        The target start time in milliseconds since the epoch.
         :param duration_ms:     The duration in milliseconds.
         """
-<<<<<<< HEAD
-        self.start_ms = start_ms
-        self.duration_ms = duration_ms
-
-    def message(self):
-        """
-        Return a message suitable for sending to the Trogdor daemon.
-        """
-        raise NotImplemented
-
-    def __str__(self):
-        return json.dumps(self.message())
-=======
         self.message = {
             'startMs': start_ms,
             'durationMs': duration_ms
@@ -65,4 +52,3 @@ class TaskSpec(object):
 
     def __str__(self):
         return json.dumps(self.message)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f

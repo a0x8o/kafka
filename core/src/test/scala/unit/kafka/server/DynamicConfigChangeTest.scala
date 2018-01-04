@@ -190,11 +190,7 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
     EasyMock.expectLastCall().once()
     EasyMock.replay(handler)
 
-<<<<<<< HEAD
-    val configManager = new DynamicConfigManager(zkUtils, zkClient, Map(ConfigType.Topic -> handler))
-=======
     val configManager = new DynamicConfigManager(zkClient, Map(ConfigType.Topic -> handler))
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     // Notifications created using the old TopicConfigManager are ignored.
     configManager.ConfigChangedNotificationHandler.processNotification("not json".getBytes(StandardCharsets.UTF_8))
 

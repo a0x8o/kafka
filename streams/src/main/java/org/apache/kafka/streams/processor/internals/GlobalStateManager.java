@@ -21,19 +21,12 @@ import org.apache.kafka.streams.errors.StreamsException;
 import java.util.Set;
 
 public interface GlobalStateManager extends StateManager {
-<<<<<<< HEAD
-=======
 
     void setGlobalProcessorContext(final InternalProcessorContext processorContext);
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     /**
      * @throws IllegalStateException If store gets registered after initialized is already finished
      * @throws StreamsException if the store's change log does not contain the partition
      */
-<<<<<<< HEAD
-    Set<String> initialize(InternalProcessorContext processorContext);
-=======
     Set<String> initialize();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 }

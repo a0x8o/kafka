@@ -22,11 +22,7 @@ import java.nio.charset.StandardCharsets
 import kafka.common.{NotificationHandler, ZkNodeChangeNotificationListener}
 import kafka.utils.{Json, Logging}
 import kafka.utils.json.JsonObject
-<<<<<<< HEAD
-import kafka.zk.KafkaZkClient
-=======
 import kafka.zk.{KafkaZkClient, AdminZkClient, ConfigEntityChangeNotificationZNode, ConfigEntityChangeNotificationSequenceZNode}
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.common.config.types.Password
 import org.apache.kafka.common.security.scram.ScramMechanism
 import org.apache.kafka.common.utils.Time
@@ -87,12 +83,7 @@ object ConfigEntityName {
  * on startup where a change might be missed between the initial config load and registering for change notifications.
  *
  */
-<<<<<<< HEAD
-class DynamicConfigManager(private val oldZkUtils: ZkUtils,
-                           private val zkClient: KafkaZkClient,
-=======
 class DynamicConfigManager(private val zkClient: KafkaZkClient,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                            private val configHandlers: Map[String, ConfigHandler],
                            private val changeExpirationMs: Long = 15*60*1000,
                            private val time: Time = Time.SYSTEM) extends Logging {
@@ -129,13 +120,8 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
           s"Received: ${new String(jsonBytes, StandardCharsets.UTF_8)}")
       }
 
-<<<<<<< HEAD
-      val entityConfig = AdminUtils.fetchEntityConfig(oldZkUtils, entityType, entity)
-      logger.info(s"Processing override for entityType: $entityType, entity: $entity with config: $entityConfig")
-=======
       val entityConfig = adminZkClient.fetchEntityConfig(entityType, entity)
       info(s"Processing override for entityType: $entityType, entity: $entity with config: $entityConfig")
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       configHandlers(entityType).processConfigChanges(entity, entityConfig)
 
     }
@@ -156,11 +142,7 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
       }
       val fullSanitizedEntityName = entityPath.substring(index + 1)
 
-<<<<<<< HEAD
-      val entityConfig = AdminUtils.fetchEntityConfig(oldZkUtils, rootEntityType, fullSanitizedEntityName)
-=======
       val entityConfig = adminZkClient.fetchEntityConfig(rootEntityType, fullSanitizedEntityName)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       val loggableConfig = entityConfig.asScala.map {
         case (k, v) => (k, if (ScramMechanism.isScram(k)) Password.HIDDEN else v)
       }
@@ -170,13 +152,8 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
     }
   }
 
-<<<<<<< HEAD
-  private val configChangeListener = new ZkNodeChangeNotificationListener(zkClient, ZkUtils.ConfigChangesPath,
-    AdminUtils.EntityConfigChangeZnodePrefix, ConfigChangedNotificationHandler)
-=======
   private val configChangeListener = new ZkNodeChangeNotificationListener(zkClient, ConfigEntityChangeNotificationZNode.path,
     ConfigEntityChangeNotificationSequenceZNode.SequenceNumberPrefix, ConfigChangedNotificationHandler)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
   /**
    * Begin watching for config changes
@@ -187,16 +164,6 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
     // Apply all existing client/user configs to the ClientIdConfigHandler/UserConfigHandler to bootstrap the overrides
     configHandlers.foreach {
       case (ConfigType.User, handler) =>
-<<<<<<< HEAD
-        AdminUtils.fetchAllEntityConfigs(oldZkUtils, ConfigType.User).foreach {
-          case (sanitizedUser, properties) => handler.processConfigChanges(sanitizedUser, properties)
-        }
-        AdminUtils.fetchAllChildEntityConfigs(oldZkUtils, ConfigType.User, ConfigType.Client).foreach {
-          case (sanitizedUserClientId, properties) => handler.processConfigChanges(sanitizedUserClientId, properties)
-        }
-      case (configType, handler) =>
-        AdminUtils.fetchAllEntityConfigs(oldZkUtils, configType).foreach {
-=======
         adminZkClient.fetchAllEntityConfigs(ConfigType.User).foreach {
           case (sanitizedUser, properties) => handler.processConfigChanges(sanitizedUser, properties)
         }
@@ -205,7 +172,6 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
         }
       case (configType, handler) =>
         adminZkClient.fetchAllEntityConfigs(configType).foreach {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
           case (entityName, properties) => handler.processConfigChanges(entityName, properties)
         }
     }

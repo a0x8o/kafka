@@ -51,17 +51,6 @@ import static org.junit.Assert.fail;
 public class GlobalStateTaskTest {
 
     private final LogContext logContext = new LogContext();
-<<<<<<< HEAD
-    private Map<TopicPartition, Long> offsets;
-    private GlobalStateUpdateTask globalStateTask;
-    private GlobalStateManagerStub stateMgr;
-    private List<ProcessorNode> processorNodes;
-    private NoOpProcessorContext context;
-    private TopicPartition t1;
-    private TopicPartition t2;
-    private MockSourceNode sourceOne;
-    private MockSourceNode sourceTwo;
-=======
 
     private final String topic1 = "t1";
     private final String topic2 = "t2";
@@ -79,7 +68,6 @@ public class GlobalStateTaskTest {
     private final Map<TopicPartition, Long> offsets = new HashMap<>();
     private final NoOpProcessorContext context = new NoOpProcessorContext();
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private ProcessorTopology topology;
     private GlobalStateManagerStub stateMgr;
     private GlobalStateUpdateTask globalStateTask;
@@ -187,13 +175,8 @@ public class GlobalStateTaskTest {
             stateMgr,
             new LogAndContinueExceptionHandler(),
             logContext);
-<<<<<<< HEAD
-        final byte[] key = new LongSerializer().serialize("t2", 1L);
-        final byte[] recordValue = new IntegerSerializer().serialize("t2", 10);
-=======
         final byte[] key = new LongSerializer().serialize(topic2, 1L);
         final byte[] recordValue = new IntegerSerializer().serialize(topic2, 10);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         maybeDeserialize(globalStateTask2, key, recordValue, false);
     }
@@ -206,13 +189,8 @@ public class GlobalStateTaskTest {
             stateMgr,
             new LogAndContinueExceptionHandler(),
             logContext);
-<<<<<<< HEAD
-        final byte[] key = new IntegerSerializer().serialize("t2", 1);
-        final byte[] recordValue = new LongSerializer().serialize("t2", 10L);
-=======
         final byte[] key = new IntegerSerializer().serialize(topic2, 1);
         final byte[] recordValue = new LongSerializer().serialize(topic2, 10L);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         maybeDeserialize(globalStateTask2, key, recordValue, false);
     }

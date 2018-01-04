@@ -409,11 +409,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             }
             ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config);
             Sensor throttleTimeSensor = Sender.throttleTimeSensor(metricsRegistry.senderMetrics);
-<<<<<<< HEAD
-            NetworkClient client = new NetworkClient(
-=======
             KafkaClient client = kafkaClient != null ? kafkaClient : new NetworkClient(
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                     new Selector(config.getLong(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG),
                             this.metrics, time, "producer", channelBuilder, logContext),
                     this.metadata,

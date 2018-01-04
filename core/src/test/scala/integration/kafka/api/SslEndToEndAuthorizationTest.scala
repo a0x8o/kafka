@@ -22,10 +22,7 @@ import java.util.Properties
 import kafka.utils.TestUtils
 import org.apache.kafka.common.config.SslConfigs
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
-<<<<<<< HEAD
-=======
 import org.apache.kafka.common.network.Mode
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.common.security.auth._
 import org.junit.Before
 

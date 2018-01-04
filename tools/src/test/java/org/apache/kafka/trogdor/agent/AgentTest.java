@@ -20,24 +20,18 @@ package org.apache.kafka.trogdor.agent;
 import org.apache.kafka.common.utils.MockScheduler;
 import org.apache.kafka.common.utils.MockTime;
 import org.apache.kafka.common.utils.Scheduler;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.test.TestUtils;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.trogdor.basic.BasicNode;
 import org.apache.kafka.trogdor.basic.BasicPlatform;
 import org.apache.kafka.trogdor.basic.BasicTopology;
 import org.apache.kafka.trogdor.common.ExpectedTasks;
 import org.apache.kafka.trogdor.common.ExpectedTasks.ExpectedTaskBuilder;
 import org.apache.kafka.trogdor.common.Node;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.trogdor.fault.FilesUnreadableFaultSpec;
 import org.apache.kafka.trogdor.fault.Kibosh;
 import org.apache.kafka.trogdor.fault.Kibosh.KiboshControlFile;
 import org.apache.kafka.trogdor.fault.Kibosh.KiboshFilesUnreadableFaultSpec;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.trogdor.rest.AgentStatusResponse;
 
 import org.apache.kafka.trogdor.rest.CreateWorkerRequest;
@@ -48,10 +42,7 @@ import org.apache.kafka.trogdor.rest.WorkerDone;
 import org.apache.kafka.trogdor.rest.WorkerRunning;
 import org.apache.kafka.trogdor.task.NoOpTaskSpec;
 import org.apache.kafka.trogdor.task.SampleTaskSpec;
-<<<<<<< HEAD
-=======
 import org.junit.Assert;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.junit.Rule;
 import org.junit.rules.Timeout;
 import org.junit.Test;
@@ -130,7 +121,6 @@ public class AgentTest {
         new ExpectedTasks().addTask(new ExpectedTaskBuilder("foo").
                 workerState(new WorkerRunning(fooSpec, 0, "")).
                 build()).
-<<<<<<< HEAD
             waitFor(client);
 
         final NoOpTaskSpec barSpec = new NoOpTaskSpec(2000, 900000);
@@ -145,22 +135,6 @@ public class AgentTest {
                 build()).
             waitFor(client);
 
-=======
-            waitFor(client);
-
-        final NoOpTaskSpec barSpec = new NoOpTaskSpec(2000, 900000);
-        client.createWorker(new CreateWorkerRequest("bar", barSpec));
-        client.createWorker(new CreateWorkerRequest("bar", barSpec));
-        new ExpectedTasks().
-            addTask(new ExpectedTaskBuilder("foo").
-                workerState(new WorkerRunning(fooSpec, 0, "")).
-                build()).
-            addTask(new ExpectedTaskBuilder("bar").
-                workerState(new WorkerRunning(barSpec, 0, "")).
-                build()).
-            waitFor(client);
-
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final NoOpTaskSpec bazSpec = new NoOpTaskSpec(1, 450000);
         client.createWorker(new CreateWorkerRequest("baz", bazSpec));
         new ExpectedTasks().
@@ -193,8 +167,6 @@ public class AgentTest {
             addTask(new ExpectedTaskBuilder("foo").
                 workerState(new WorkerRunning(fooSpec, 0, "")).
                 build()).
-<<<<<<< HEAD
-=======
             waitFor(client);
 
         time.sleep(1);
@@ -208,29 +180,8 @@ public class AgentTest {
             addTask(new ExpectedTaskBuilder("bar").
                 workerState(new WorkerRunning(barSpec, 1, "")).
                 build()).
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             waitFor(client);
 
-        time.sleep(1);
-
-<<<<<<< HEAD
-        final NoOpTaskSpec barSpec = new NoOpTaskSpec(2000, 900000);
-        client.createWorker(new CreateWorkerRequest("bar", barSpec));
-        new ExpectedTasks().
-            addTask(new ExpectedTaskBuilder("foo").
-                workerState(new WorkerRunning(fooSpec, 0, "")).
-=======
-        new ExpectedTasks().
-            addTask(new ExpectedTaskBuilder("foo").
-                workerState(new WorkerDone(fooSpec, 0, 2, "", "")).
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
-                build()).
-            addTask(new ExpectedTaskBuilder("bar").
-                workerState(new WorkerRunning(barSpec, 1, "")).
-                build()).
-            waitFor(client);
-
-<<<<<<< HEAD
         time.sleep(1);
 
         new ExpectedTasks().
@@ -242,8 +193,6 @@ public class AgentTest {
                 build()).
             waitFor(client);
 
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         time.sleep(5);
         client.stopWorker(new StopWorkerRequest("bar"));
         new ExpectedTasks().
@@ -298,8 +247,6 @@ public class AgentTest {
                 build()).
             waitFor(client);
     }
-<<<<<<< HEAD
-=======
 
     private static class MockKibosh implements AutoCloseable {
         private final File tempDir;
@@ -366,5 +313,4 @@ public class AgentTest {
                 new KiboshFilesUnreadableFaultSpec("/bar", 456))), mockKibosh.read());
         }
     }
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 };

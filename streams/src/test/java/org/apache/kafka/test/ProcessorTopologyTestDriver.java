@@ -218,14 +218,6 @@ public class ProcessorTopologyTestDriver {
                 globalPartitionsByTopic.put(topicName, partition);
                 offsetsByTopicPartition.put(partition, new AtomicLong());
             }
-<<<<<<< HEAD
-            final GlobalStateManagerImpl stateManager = new GlobalStateManagerImpl(globalTopology,
-                                                                                   globalConsumer,
-                                                                                   stateDirectory,
-                                                                                   stateRestoreListener);
-            globalStateTask = new GlobalStateUpdateTask(globalTopology,
-                                                        new GlobalProcessorContextImpl(config, stateManager, streamsMetrics, cache),
-=======
             final GlobalStateManagerImpl stateManager = new GlobalStateManagerImpl(new LogContext("mock "),
                                                                                    globalTopology,
                                                                                    globalConsumer,
@@ -236,7 +228,6 @@ public class ProcessorTopologyTestDriver {
             stateManager.setGlobalProcessorContext(globalProcessorContext);
             globalStateTask = new GlobalStateUpdateTask(globalTopology,
                                                         globalProcessorContext,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                                                         stateManager,
                                                         new LogAndContinueExceptionHandler(),
                                                         new LogContext());

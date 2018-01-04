@@ -22,11 +22,7 @@ import kafka.utils.TestUtils
 import kafka.utils.Implicits._
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
-<<<<<<< HEAD
-import org.apache.kafka.common.errors.TopicAuthorizationException
-=======
 import org.apache.kafka.common.errors.{GroupAuthorizationException, TopicAuthorizationException}
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.junit.{Before, Test}
 import org.junit.Assert.{assertEquals, assertTrue}
 
@@ -82,18 +78,12 @@ abstract class SaslEndToEndAuthorizationTest extends EndToEndAuthorizationTest {
 
     try {
       consumeRecords(consumer2)
-<<<<<<< HEAD
-      fail("Expected exception as consumer2 has no access to topic")
-    } catch {
-      case _: TopicAuthorizationException => //expected
-=======
       fail("Expected exception as consumer2 has no access to topic or group")
     } catch {
       // Either exception is possible depending on the order that the first Metadata
       // and FindCoordinator requests are received
       case e: TopicAuthorizationException => assertTrue(e.unauthorizedTopics.contains(topic))
       case e: GroupAuthorizationException => assertEquals(group, e.groupId)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
   }
 }

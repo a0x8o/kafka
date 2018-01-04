@@ -20,10 +20,7 @@ package kafka.security.auth
 import kafka.utils.Json
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.SecurityUtils
-<<<<<<< HEAD
-=======
 import scala.collection.JavaConverters._
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 object Acl {
   val WildCardPrincipal: KafkaPrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "*")

@@ -49,14 +49,6 @@ class ControllerEventManager(controllerId: Int, rateAndTimeMetrics: Map[Controll
   def put(event: ControllerEvent): Unit = inLock(putLock) {
     queue.put(event)
   }
-<<<<<<< HEAD
-
-  def clearAndPut(event: ControllerEvent): Unit = inLock(putLock) {
-    queue.clear()
-    queue.put(event)
-  }
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
   def clearAndPut(event: ControllerEvent): Unit = inLock(putLock) {
     queue.clear()

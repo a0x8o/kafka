@@ -117,11 +117,8 @@ public final class TaskManager {
                 this.nodeManagers.put(node.name(), new NodeManager(node, this));
             }
         }
-<<<<<<< HEAD
-=======
         log.info("Created TaskManager for agent(s) on: {}",
             Utils.join(nodeManagers.keySet(), ", "));
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     enum ManagedTaskState {

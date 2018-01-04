@@ -158,11 +158,7 @@ class ReplicaManager(val config: KafkaConfig,
            metadataCache: MetadataCache,
            logDirFailureChannel: LogDirFailureChannel,
            threadNamePrefix: Option[String] = None) {
-<<<<<<< HEAD
-    this(config, metrics, time, zkUtils, scheduler, logManager, isShuttingDown,
-=======
     this(config, metrics, time, zkClient, scheduler, logManager, isShuttingDown,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       quotaManagers, brokerTopicStats, metadataCache, logDirFailureChannel,
       DelayedOperationPurgatory[DelayedProduce](
         purgatoryName = "Produce", brokerId = config.brokerId,
@@ -1308,7 +1304,7 @@ class ReplicaManager(val config: KafkaConfig,
         // we do not need to check if the leader exists again since this has been done at the beginning of this process
         val partitionsToMakeFollowerWithLeaderAndOffset = partitionsToMakeFollower.map(partition =>
           partition.topicPartition -> BrokerAndInitialOffset(
-            metadataCache.getAliveBrokers.find(_.id == partition.leaderReplicaIdOpt.get).get.getBrokerEndPoint(config.interBrokerListenerName),
+            metadataCache.getAliveBrokers.find(_.id == partition.leaderReplicaIdOpt.get).get.brokerEndPoint(config.interBrokerListenerName),
             partition.getReplica().get.highWatermark.messageOffset)).toMap
         replicaFetcherManager.addFetcherForPartitions(partitionsToMakeFollowerWithLeaderAndOffset)
 
@@ -1410,7 +1406,6 @@ class ReplicaManager(val config: KafkaConfig,
       val newOfflinePartitions = nonOfflinePartitionsIterator.filter { partition =>
         partition.getReplica(config.brokerId).exists { replica =>
           replica.log.isDefined && replica.log.get.dir.getParent == dir
-<<<<<<< HEAD
         }
       }.map(_.topicPartition).toSet
 
@@ -1423,20 +1418,6 @@ class ReplicaManager(val config: KafkaConfig,
       replicaFetcherManager.removeFetcherForPartitions(newOfflinePartitions)
       replicaAlterLogDirsManager.removeFetcherForPartitions(newOfflinePartitions ++ partitionsWithOfflineFutureReplica.map(_.topicPartition))
 
-=======
-        }
-      }.map(_.topicPartition).toSet
-
-      val partitionsWithOfflineFutureReplica = nonOfflinePartitionsIterator.filter { partition =>
-        partition.getReplica(Request.FutureLocalReplicaId).exists { replica =>
-          replica.log.isDefined && replica.log.get.dir.getParent == dir
-        }
-      }.toSet
-
-      replicaFetcherManager.removeFetcherForPartitions(newOfflinePartitions)
-      replicaAlterLogDirsManager.removeFetcherForPartitions(newOfflinePartitions ++ partitionsWithOfflineFutureReplica.map(_.topicPartition))
-
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       partitionsWithOfflineFutureReplica.foreach(partition => partition.removeFutureLocalReplica())
       newOfflinePartitions.foreach { topicPartition =>
         val partition = allPartitions.put(topicPartition, ReplicaManager.OfflinePartition)

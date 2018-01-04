@@ -221,13 +221,6 @@ public final class NodeManager {
                         }
                     } else if (state instanceof WorkerDone) {
                         if (!(worker.state instanceof WorkerDone)) {
-<<<<<<< HEAD
-                            String error = ((WorkerDone) state).error();
-                            if (error.isEmpty()) {
-                                log.warn("{}: Worker {} finished with no error.", node.name(), id);
-                            } else {
-                                log.warn("{}: Worker {} finished with error '{}'", node.name(), id, error);
-=======
                             WorkerDone workerDoneState =  (WorkerDone) state;
                             String error = workerDoneState.error();
                             if (error.isEmpty()) {
@@ -236,7 +229,6 @@ public final class NodeManager {
                             } else {
                                 log.warn("{}: Worker {} finished with error '{}' and status '{}'",
                                     node.name(), id, error, workerDoneState.status());
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                             }
                             taskManager.handleWorkerCompletion(node.name(), worker.id, error);
                         }

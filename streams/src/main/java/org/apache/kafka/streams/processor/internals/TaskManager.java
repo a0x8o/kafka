@@ -24,10 +24,7 @@ import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.errors.StreamsException;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.streams.errors.TaskIdFormatException;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.streams.errors.TaskMigratedException;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.state.HostInfo;
@@ -50,10 +47,7 @@ class TaskManager {
     // activeTasks needs to be concurrent as it can be accessed
     // by QueryableState
     private final Logger log;
-<<<<<<< HEAD
-=======
     private final UUID processId;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private final AssignedStreamsTasks active;
     private final AssignedStandbyTasks standby;
     private final ChangelogReader changelogReader;
@@ -61,9 +55,6 @@ class TaskManager {
     private final Consumer<byte[], byte[]> restoreConsumer;
     private final StreamThread.AbstractTaskCreator<StreamTask> taskCreator;
     private final StreamThread.AbstractTaskCreator<StandbyTask> standbyTaskCreator;
-<<<<<<< HEAD
-    private ThreadMetadataProvider threadMetadataProvider;
-=======
     private final StreamsMetadataState streamsMetadataState;
 
     final AdminClient adminClient;
@@ -74,22 +65,16 @@ class TaskManager {
     private Map<TaskId, Set<TopicPartition>> assignedActiveTasks;
     private Map<TaskId, Set<TopicPartition>> assignedStandbyTasks;
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private Consumer<byte[], byte[]> consumer;
 
     TaskManager(final ChangelogReader changelogReader,
                 final UUID processId,
                 final String logPrefix,
                 final Consumer<byte[], byte[]> restoreConsumer,
-<<<<<<< HEAD
-                final StreamThread.AbstractTaskCreator<StreamTask> taskCreator,
-                final StreamThread.AbstractTaskCreator<StandbyTask> standbyTaskCreator,
-=======
                 final StreamsMetadataState streamsMetadataState,
                 final StreamThread.AbstractTaskCreator<StreamTask> taskCreator,
                 final StreamThread.AbstractTaskCreator<StandbyTask> standbyTaskCreator,
                 final AdminClient adminClient,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                 final AssignedStreamsTasks active,
                 final AssignedStandbyTasks standby) {
         this.changelogReader = changelogReader;
@@ -129,13 +114,6 @@ class TaskManager {
         consumer.pause(partitions);
     }
 
-<<<<<<< HEAD
-    void setThreadMetadataProvider(final ThreadMetadataProvider threadMetadataProvider) {
-        this.threadMetadataProvider = threadMetadataProvider;
-    }
-
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
@@ -288,15 +266,6 @@ class TaskManager {
         log.debug("Shutting down all active tasks {}, standby tasks {}, suspended tasks {}, and suspended standby tasks {}", active.runningTaskIds(), standby.runningTaskIds(),
                   active.previousTaskIds(), standby.previousTaskIds());
 
-<<<<<<< HEAD
-        try {
-            active.close(clean);
-        } catch (final RuntimeException fatalException) {
-            firstException.compareAndSet(null, fatalException);
-        }
-        standby.close(clean);
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         try {
             active.close(clean);
         } catch (final RuntimeException fatalException) {
@@ -394,8 +363,6 @@ class TaskManager {
         }
     }
 
-<<<<<<< HEAD
-=======
     void setClusterMetadata(final Cluster cluster) {
         this.cluster = cluster;
     }
@@ -434,7 +401,6 @@ class TaskManager {
         }
     }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     /**
      * @throws TaskMigratedException if committing offsets failed (non-EOS)
      *                               or if the task producer got fenced (EOS)

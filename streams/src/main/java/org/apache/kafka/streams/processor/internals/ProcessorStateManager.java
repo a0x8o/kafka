@@ -37,15 +37,8 @@ import java.util.List;
 import java.util.Map;
 
 
-<<<<<<< HEAD
-public class ProcessorStateManager implements StateManager {
-
-    private static final String STATE_CHANGELOG_TOPIC_SUFFIX = "-changelog";
-    static final String CHECKPOINT_FILE_NAME = ".checkpoint";
-=======
 public class ProcessorStateManager extends AbstractStateManager {
     private static final String STATE_CHANGELOG_TOPIC_SUFFIX = "-changelog";
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     private final Logger log;
     private final TaskId taskId;

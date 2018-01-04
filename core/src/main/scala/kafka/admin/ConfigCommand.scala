@@ -24,20 +24,12 @@ import kafka.common.Config
 import kafka.common.InvalidConfigException
 import kafka.log.LogConfig
 import kafka.server.{ConfigEntityName, ConfigType, DynamicConfig}
-<<<<<<< HEAD
-import kafka.utils.{CommandLineUtils, ZkUtils}
-=======
 import kafka.utils.CommandLineUtils
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import kafka.utils.Implicits._
 import kafka.zk.{AdminZkClient, KafkaZkClient}
 import org.apache.kafka.common.security.JaasUtils
 import org.apache.kafka.common.security.scram._
-<<<<<<< HEAD
-import org.apache.kafka.common.utils.{Sanitizer, Utils}
-=======
 import org.apache.kafka.common.utils.{Sanitizer, Time, Utils}
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 import scala.collection._
 import scala.collection.JavaConverters._

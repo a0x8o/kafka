@@ -21,10 +21,6 @@ import kafka.common.BrokerEndPointNotAvailableException
 import org.apache.kafka.common.Node
 import org.apache.kafka.common.network.ListenerName
 import org.apache.kafka.common.security.auth.SecurityProtocol
-<<<<<<< HEAD
-import org.apache.kafka.common.utils.Time
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 /**
  * A Kafka broker.
@@ -51,13 +47,16 @@ case class Broker(id: Int, endPoints: Seq[EndPoint], rack: Option[String]) {
     this(bep.id, bep.host, bep.port, listenerName, protocol)
   }
 
-  def getNode(listenerName: ListenerName): Node = {
-    val endpoint = endPointsMap.getOrElse(listenerName,
-      throw new BrokerEndPointNotAvailableException(s"End point with listener name ${listenerName.value} not found for broker $id"))
-    new Node(id, endpoint.host, endpoint.port, rack.orNull)
-  }
+  def node(listenerName: ListenerName): Node =
+    getNode(listenerName).getOrElse {
+      throw new BrokerEndPointNotAvailableException(s"End point with listener name ${listenerName.value} not found " +
+        s"for broker $id")
+    }
 
-  def getBrokerEndPoint(listenerName: ListenerName): BrokerEndPoint = {
+  def getNode(listenerName: ListenerName): Option[Node] =
+    endPointsMap.get(listenerName).map(endpoint => new Node(id, endpoint.host, endpoint.port, rack.orNull))
+
+  def brokerEndPoint(listenerName: ListenerName): BrokerEndPoint = {
     val endpoint = endPointsMap.getOrElse(listenerName,
       throw new BrokerEndPointNotAvailableException(s"End point with listener name ${listenerName.value} not found for broker $id"))
     new BrokerEndPoint(id, endpoint.host, endpoint.port)

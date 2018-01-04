@@ -43,10 +43,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-<<<<<<< HEAD
-=======
 import java.util.HashMap;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -87,31 +84,17 @@ public class TaskManagerTest {
     private Consumer<byte[], byte[]> consumer;
     @Mock(type = MockType.NICE)
     private StreamThread.AbstractTaskCreator<StreamTask> activeTaskCreator;
-<<<<<<< HEAD
-    @Mock(type = MockType.NICE)
-    private StreamThread.AbstractTaskCreator<StandbyTask> standbyTaskCreator;
-=======
     @Mock(type = MockType.NICE)
     private StreamThread.AbstractTaskCreator<StandbyTask> standbyTaskCreator;
     @Mock(type = MockType.NICE)
     private AdminClient adminClient;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     @Mock(type = MockType.NICE)
-    private StreamTask streamTask;
-    @Mock(type = MockType.NICE)
-<<<<<<< HEAD
     private StreamTask streamTask;
     @Mock(type = MockType.NICE)
     private StandbyTask standbyTask;
     @Mock(type = MockType.NICE)
     private AssignedStreamsTasks active;
     @Mock(type = MockType.NICE)
-=======
-    private StandbyTask standbyTask;
-    @Mock(type = MockType.NICE)
-    private AssignedStreamsTasks active;
-    @Mock(type = MockType.NICE)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private AssignedStandbyTasks standby;
 
     private TaskManager taskManager;
@@ -657,8 +640,6 @@ public class TaskManagerTest {
         EasyMock.verify(consumer);
     }
 
-<<<<<<< HEAD
-=======
     @Test
     public void shouldUpdateTasksFromPartitionAssignment() {
         final Map<TaskId, Set<TopicPartition>> activeTasks = new HashMap<>();
@@ -679,7 +660,6 @@ public class TaskManagerTest {
         assertThat(taskManager.assignedStandbyTasks(), equalTo(standbyTasks));
     }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private void mockAssignStandbyPartitions(final long offset) {
         final StandbyTask task = EasyMock.createNiceMock(StandbyTask.class);
         EasyMock.expect(active.initializeNewTasks()).andReturn(new HashSet<TopicPartition>());

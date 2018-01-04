@@ -21,10 +21,7 @@ import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.util.concurrent._
 
-<<<<<<< HEAD
-=======
 import com.typesafe.scalalogging.Logger
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import com.yammer.metrics.core.{Gauge, Meter}
 import kafka.metrics.KafkaMetricsGroup
 import kafka.network.RequestChannel.{BaseRequest, SendAction, ShutdownRequest, NoOpAction, CloseConnectionAction}
@@ -35,10 +32,6 @@ import org.apache.kafka.common.protocol.{ApiKeys, Errors}
 import org.apache.kafka.common.requests._
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.{Sanitizer, Time}
-<<<<<<< HEAD
-import org.apache.log4j.Logger
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -325,11 +318,7 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
     }
   }
 
-<<<<<<< HEAD
-  def shutdown() {
-=======
   def clear() {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     requestQueue.clear()
   }
 
@@ -339,6 +328,7 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
   }
 
   def sendShutdownRequest(): Unit = requestQueue.put(ShutdownRequest)
+
 }
 
 object RequestMetrics {

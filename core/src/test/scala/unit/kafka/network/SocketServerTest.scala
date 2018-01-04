@@ -155,17 +155,6 @@ class SocketServerTest extends JUnitSuite {
   def shutdownServerAndMetrics(server: SocketServer): Unit = {
     server.shutdown()
     server.metrics.close()
-<<<<<<< HEAD
-    server.requestChannel.metrics.close()
-  }
-
-  @After
-  def tearDown() {
-    shutdownServerAndMetrics(server)
-    sockets.foreach(_.close())
-    sockets.clear()
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   private def producerRequestBytes: Array[Byte] = {
@@ -612,29 +601,13 @@ class SocketServerTest extends JUnitSuite {
   }
 
   @Test
-<<<<<<< HEAD
-  def testRequestMetricsAfterShutdown(): Unit = {
-    server.shutdown()
-=======
   def testRequestMetricsAfterStop(): Unit = {
     server.stopProcessingRequests()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     server.requestChannel.metrics(ApiKeys.PRODUCE.name).requestRate.mark()
     server.requestChannel.updateErrorMetrics(ApiKeys.PRODUCE, Map(Errors.NONE -> 1))
     val nonZeroMeters = Map("kafka.network:type=RequestMetrics,name=RequestsPerSec,request=Produce" -> 1,
         "kafka.network:type=RequestMetrics,name=ErrorsPerSec,request=Produce,error=NONE" -> 1)
-<<<<<<< HEAD
-
-    def requestMetricMeters = YammerMetrics
-      .defaultRegistry
-      .allMetrics.asScala
-      .filterKeys(k => k.getType == "RequestMetrics")
-      .collect { case (k, metric: Meter) => (k.toString, metric.count) }
-
-    assertEquals(nonZeroMeters, requestMetricMeters.filter { case (_, value) => value != 0 })
-    server.requestChannel.metrics.close()
-=======
 
     def requestMetricMeters = YammerMetrics
       .defaultRegistry
@@ -644,7 +617,6 @@ class SocketServerTest extends JUnitSuite {
 
     assertEquals(nonZeroMeters, requestMetricMeters.filter { case (_, value) => value != 0 })
     server.shutdown()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertEquals(Map.empty, requestMetricMeters)
   }
 

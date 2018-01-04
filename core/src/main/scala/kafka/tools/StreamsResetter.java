@@ -21,10 +21,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import joptsimple.OptionSpecBuilder;
-<<<<<<< HEAD
-=======
 import kafka.utils.CommandLineUtils;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
@@ -46,10 +43,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-<<<<<<< HEAD
-=======
 import java.util.Date;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -136,13 +130,8 @@ public class StreamsResetter {
 
             final HashMap<Object, Object> consumerConfig = new HashMap<>(config);
             consumerConfig.putAll(properties);
-<<<<<<< HEAD
-            maybeResetInputAndSeekToEndIntermediateTopicOffsets(consumerConfig);
-            maybeDeleteInternalTopics(kafkaAdminClient);
-=======
             exitCode = maybeResetInputAndSeekToEndIntermediateTopicOffsets(consumerConfig, dryRun);
             maybeDeleteInternalTopics(kafkaAdminClient, dryRun);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         } catch (final Throwable e) {
             exitCode = EXIT_CODE_ERROR;
@@ -196,8 +185,6 @@ public class StreamsResetter {
             .ofType(String.class)
             .withValuesSeparatedBy(',')
             .describedAs("list");
-<<<<<<< HEAD
-=======
         toOffsetOption = optionParser.accepts("to-offset", "Reset offsets to a specific offset.")
             .withRequiredArg()
             .ofType(Long.class);
@@ -216,7 +203,6 @@ public class StreamsResetter {
             .withRequiredArg()
             .describedAs("number-of-offsets")
             .ofType(Long.class);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         commandConfigOption = optionParser.accepts("config-file", "Property file containing configs to be passed to admin clients and embedded consumer.")
             .withRequiredArg()
             .ofType(String.class)
@@ -251,11 +237,7 @@ public class StreamsResetter {
         CommandLineUtils.checkInvalidArgs(optionParser, options, shiftByOption, allScenarioOptions.$minus(shiftByOption));
     }
 
-<<<<<<< HEAD
-    private void maybeResetInputAndSeekToEndIntermediateTopicOffsets(final Map consumerConfig) {
-=======
     private int maybeResetInputAndSeekToEndIntermediateTopicOffsets(final Map consumerConfig, final boolean dryRun) throws Exception {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final List<String> inputTopics = options.valuesOf(inputTopicsOption);
         final List<String> intermediateTopics = options.valuesOf(intermediateTopicsOption);
         int topicNotFound = EXIT_CODE_SUCCESS;
@@ -353,19 +335,10 @@ public class StreamsResetter {
         return topicNotFound;
     }
 
-<<<<<<< HEAD
-    private void maybeSeekToEnd(final KafkaConsumer<byte[], byte[]> client,
-                                final Set<TopicPartition> intermediateTopicPartitions) {
-
-        final String groupId = options.valueOf(applicationIdOption);
-        final List<String> intermediateTopics = options.valuesOf(intermediateTopicsOption);
-
-=======
     // visible for testing
     public void maybeSeekToEnd(final String groupId,
                                 final Consumer<byte[], byte[]> client,
                                 final Set<TopicPartition> intermediateTopicPartitions) {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         if (intermediateTopicPartitions.size() > 0) {
             System.out.println("Following intermediate topics offsets will be reset to end (for consumer group " + groupId + ")");
             for (final TopicPartition topicPartition : intermediateTopicPartitions) {

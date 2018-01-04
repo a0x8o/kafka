@@ -16,11 +16,6 @@
  */
 package org.apache.kafka.streams.processor.internals;
 
-<<<<<<< HEAD
-import org.apache.kafka.common.requests.MetadataResponse;
-import org.apache.kafka.common.utils.LogContext;
-import org.apache.kafka.common.utils.Time;
-=======
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -33,7 +28,6 @@ import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.StreamsConfig;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.streams.errors.StreamsException;
 import org.slf4j.Logger;
 
@@ -50,37 +44,13 @@ public class InternalTopicManager {
     private final static String INTERRUPTED_ERROR_MESSAGE = "Thread got interrupted. This indicates a bug. " +
         "Please report at https://issues.apache.org/jira/projects/KAFKA or dev-mailing list (https://kafka.apache.org/contact).";
 
-<<<<<<< HEAD
-    static final Long WINDOW_CHANGE_LOG_ADDITIONAL_RETENTION_DEFAULT = TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS);
-
-    public static final String CLEANUP_POLICY_PROP = "cleanup.policy";
-    public static final String RETENTION_MS = "retention.ms";
-    private static final int MAX_TOPIC_READY_TRY = 5;
-
     private final Logger log;
-    private final Time time;
-=======
-    private final Logger log;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private final long windowChangeLogAdditionalRetention;
     private final Map<String, String> defaultTopicConfigs = new HashMap<>();
 
     private final short replicationFactor;
     private final AdminClient adminClient;
 
-<<<<<<< HEAD
-    public InternalTopicManager(final StreamsKafkaClient streamsKafkaClient,
-                                final int replicationFactor,
-                                final long windowChangeLogAdditionalRetention,
-                                final Time time) {
-        this.streamsKafkaClient = streamsKafkaClient;
-        this.replicationFactor = replicationFactor;
-        this.windowChangeLogAdditionalRetention = windowChangeLogAdditionalRetention;
-        this.time = time;
-
-        LogContext logContext = new LogContext(String.format("stream-thread [%s] ", Thread.currentThread().getName()));
-        this.log = logContext.logger(getClass());
-=======
     private final int retries;
 
     public InternalTopicManager(final AdminClient adminClient,
@@ -107,7 +77,6 @@ public class InternalTopicManager {
                 defaultTopicConfigs.put(entry.getKey(), entry.getValue().toString());
             }
         }
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     /**
@@ -234,10 +203,6 @@ public class InternalTopicManager {
                 }
             }
 
-<<<<<<< HEAD
-    public void close() {
-        streamsKafkaClient.close();
-=======
             if (retry) {
                 topics.removeAll(existingNumberOfPartitionsPerTopic.keySet());
                 continue;
@@ -247,7 +212,6 @@ public class InternalTopicManager {
         } while (remainingRetries-- > 0);
 
         return Collections.emptyMap();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     /**

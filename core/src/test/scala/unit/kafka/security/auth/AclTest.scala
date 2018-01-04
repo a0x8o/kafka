@@ -39,11 +39,7 @@ class AclTest extends JUnitSuite {
     val acls = Set[Acl](acl1, acl2, acl3)
     val jsonAcls = Json.encodeAsBytes(Acl.toJsonCompatibleMap(acls).asJava)
 
-<<<<<<< HEAD
-    Assert.assertEquals(acls, Acl.fromBytes(jsonAcls.getBytes(UTF_8)))
-=======
     Assert.assertEquals(acls, Acl.fromBytes(jsonAcls))
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     Assert.assertEquals(acls, Acl.fromBytes(AclJson.getBytes(UTF_8)))
   }
 

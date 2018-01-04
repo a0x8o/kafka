@@ -62,10 +62,7 @@ public class NioEchoServer extends Thread {
     private volatile WritableByteChannel outputChannel;
     private final CredentialCache credentialCache;
     private final Metrics metrics;
-<<<<<<< HEAD
-=======
     private int numSent = 0;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     public NioEchoServer(ListenerName listenerName, SecurityProtocol securityProtocol, AbstractConfig config,
             String serverHost, ChannelBuilder channelBuilder, CredentialCache credentialCache) throws Exception {

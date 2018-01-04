@@ -346,11 +346,7 @@ class ReassignPartitionsCommandTest  extends ZooKeeperTestHarness  with Logging 
   def shouldRemoveThrottleLimitFromAllBrokers(): Unit = {
     //Given 3 brokers, but with assignment only covering 2 of them
     val brokers = Seq(100, 101, 102)
-<<<<<<< HEAD
-    val status = mutable.Map(TopicAndPartition("topic1", 0) -> ReassignmentCompleted)
-=======
     val status = mutable.Map(new TopicPartition("topic1", 0) -> ReassignmentCompleted)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     val existingBrokerConfigs = propsWith(
       (DynamicConfig.Broker.FollowerReplicationThrottledRateProp, "10"),
       (DynamicConfig.Broker.LeaderReplicationThrottledRateProp, "100"),
@@ -384,13 +380,8 @@ class ReassignPartitionsCommandTest  extends ZooKeeperTestHarness  with Logging 
   @Test
   def shouldRemoveThrottleReplicaListBasedOnProposedAssignment(): Unit = {
     //Given two topics with existing config
-<<<<<<< HEAD
-    val status = mutable.Map(TopicAndPartition("topic1", 0) -> ReassignmentCompleted,
-                             TopicAndPartition("topic2", 0) -> ReassignmentCompleted)
-=======
     val status = mutable.Map(new TopicPartition("topic1", 0) -> ReassignmentCompleted,
                              new TopicPartition("topic2", 0) -> ReassignmentCompleted)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     val existingConfigs = CoreUtils.propsWith(
       (LogConfig.LeaderReplicationThrottledReplicasProp, "1:100:2:100"),
       (LogConfig.FollowerReplicationThrottledReplicasProp, "1:101,2:101"),

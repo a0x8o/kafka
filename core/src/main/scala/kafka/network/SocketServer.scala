@@ -141,8 +141,6 @@ class SocketServer(val config: KafkaConfig, val metrics: Metrics, val time: Time
     this.synchronized {
       acceptors.values.foreach(_.shutdown)
       processors.foreach(_.shutdown)
-<<<<<<< HEAD
-=======
       requestChannel.clear()
       stoppedProcessingRequests = true
     }
@@ -158,7 +156,6 @@ class SocketServer(val config: KafkaConfig, val metrics: Metrics, val time: Time
     this.synchronized {
       if (!stoppedProcessingRequests)
         stopProcessingRequests()
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       requestChannel.shutdown()
     }
     info("Shutdown completed")

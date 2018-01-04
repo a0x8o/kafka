@@ -539,8 +539,6 @@ public class SslTransportLayerTest {
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
         server.verifyAuthenticationMetrics(0, 1);
-<<<<<<< HEAD
-=======
     }
 
     /**
@@ -587,7 +585,6 @@ public class SslTransportLayerTest {
         List<NetworkReceive> receiveList = selector.completedReceives();
         assertEquals(1, receiveList.size());
         assertEquals(message, new String(Utils.toArray(receiveList.get(0).payload())));
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     /**

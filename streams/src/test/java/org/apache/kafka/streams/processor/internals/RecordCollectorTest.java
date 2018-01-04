@@ -129,8 +129,6 @@ public class RecordCollectorTest {
     @SuppressWarnings("unchecked")
     @Test(expected = StreamsException.class)
     public void shouldThrowStreamsExceptionOnAnyExceptionButProducerFencedException() {
-<<<<<<< HEAD
-=======
         final RecordCollector collector = new RecordCollectorImpl(
                 new MockProducer(cluster, true, new DefaultPartitioner(), byteArraySerializer, byteArraySerializer) {
                     @Override
@@ -148,40 +146,28 @@ public class RecordCollectorTest {
     @SuppressWarnings("unchecked")
     @Test
     public void shouldThrowStreamsExceptionOnSubsequentCallIfASendFailsWithDefaultExceptionHandler() {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final RecordCollector collector = new RecordCollectorImpl(
                 new MockProducer(cluster, true, new DefaultPartitioner(), byteArraySerializer, byteArraySerializer) {
                     @Override
                     public synchronized Future<RecordMetadata> send(final ProducerRecord record, final Callback callback) {
-<<<<<<< HEAD
-                        throw new KafkaException();
-=======
                         callback.onCompletion(null, new Exception());
                         return null;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                     }
                 },
                 "test",
                 logContext,
                 new DefaultProductionExceptionHandler());
         collector.send("topic1", "3", "0", null, stringSerializer, stringSerializer, streamPartitioner);
-<<<<<<< HEAD
-=======
 
         try {
             collector.send("topic1", "3", "0", null, stringSerializer, stringSerializer, streamPartitioner);
             fail("Should have thrown StreamsException");
         } catch (final StreamsException expected) { /* ok */ }
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     @SuppressWarnings("unchecked")
     @Test
-<<<<<<< HEAD
-    public void shouldThrowStreamsExceptionOnSubsequentCallIfASendFails() {
-=======
     public void shouldNotThrowStreamsExceptionOnSubsequentCallIfASendFailsWithContinueExceptionHandler() {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final RecordCollector collector = new RecordCollectorImpl(
                 new MockProducer(cluster, true, new DefaultPartitioner(), byteArraySerializer, byteArraySerializer) {
                     @Override
@@ -195,23 +181,12 @@ public class RecordCollectorTest {
                 new AlwaysContinueProductionExceptionHandler());
         collector.send("topic1", "3", "0", null, stringSerializer, stringSerializer, streamPartitioner);
 
-<<<<<<< HEAD
-        try {
-            collector.send("topic1", "3", "0", null, stringSerializer, stringSerializer, streamPartitioner);
-            fail("Should have thrown StreamsException");
-        } catch (final StreamsException expected) { /* ok */ }
-=======
         collector.send("topic1", "3", "0", null, stringSerializer, stringSerializer, streamPartitioner);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     @SuppressWarnings("unchecked")
     @Test
-<<<<<<< HEAD
-    public void shouldThrowStreamsExceptionOnFlushIfASendFailed() {
-=======
     public void shouldThrowStreamsExceptionOnFlushIfASendFailedWithDefaultExceptionHandler() {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final RecordCollector collector = new RecordCollectorImpl(
                 new MockProducer(cluster, true, new DefaultPartitioner(), byteArraySerializer, byteArraySerializer) {
                     @Override
@@ -229,8 +204,6 @@ public class RecordCollectorTest {
             collector.flush();
             fail("Should have thrown StreamsException");
         } catch (final StreamsException expected) { /* ok */ }
-<<<<<<< HEAD
-=======
     }
 
     @SuppressWarnings("unchecked")
@@ -250,14 +223,10 @@ public class RecordCollectorTest {
         collector.send("topic1", "3", "0", null, stringSerializer, stringSerializer, streamPartitioner);
 
         collector.flush();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     @SuppressWarnings("unchecked")
     @Test
-<<<<<<< HEAD
-    public void shouldThrowStreamsExceptionOnCloseIfASendFailed() {
-=======
     public void shouldThrowStreamsExceptionOnCloseIfASendFailedWithDefaultExceptionHandler() {
         final RecordCollector collector = new RecordCollectorImpl(
                 new MockProducer(cluster, true, new DefaultPartitioner(), byteArraySerializer, byteArraySerializer) {
@@ -281,7 +250,6 @@ public class RecordCollectorTest {
     @SuppressWarnings("unchecked")
     @Test
     public void shouldNotThrowStreamsExceptionOnCloseIfASendFailedWithContinueExceptionHandler() {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final RecordCollector collector = new RecordCollectorImpl(
                 new MockProducer(cluster, true, new DefaultPartitioner(), byteArraySerializer, byteArraySerializer) {
                     @Override
@@ -295,14 +263,7 @@ public class RecordCollectorTest {
                 new AlwaysContinueProductionExceptionHandler());
         collector.send("topic1", "3", "0", null, stringSerializer, stringSerializer, streamPartitioner);
 
-<<<<<<< HEAD
-        try {
-            collector.close();
-            fail("Should have thrown StreamsException");
-        } catch (final StreamsException expected) { /* ok */ }
-=======
         collector.close();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     @SuppressWarnings("unchecked")

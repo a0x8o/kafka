@@ -34,19 +34,6 @@ class ProducerIdManagerTest {
   @Test
   def testGetProducerId() {
     var zkVersion: Option[Int] = None
-<<<<<<< HEAD
-    var data: String = null
-    EasyMock.expect(zkClient.getDataAndVersion(EasyMock.anyString)).andAnswer(new IAnswer[(Option[String], Int)] {
-      override def answer(): (Option[String], Int) = zkVersion.map(Some(data) -> _).getOrElse(None, 0)
-    }).anyTimes()
-
-    val capturedVersion: Capture[Int] = EasyMock.newCapture()
-    val capturedData: Capture[String] = EasyMock.newCapture()
-    EasyMock.expect(zkClient.conditionalUpdatePath(EasyMock.anyString(),
-      EasyMock.capture(capturedData),
-      EasyMock.capture(capturedVersion),
-      EasyMock.anyObject[Option[(KafkaZkClient, String, String) => (Boolean, Int)]])).andAnswer(new IAnswer[(Boolean, Int)] {
-=======
     var data: Array[Byte] = null
     EasyMock.expect(zkClient.getDataAndVersion(EasyMock.anyString)).andAnswer(new IAnswer[(Option[Array[Byte]], Int)] {
       override def answer(): (Option[Array[Byte]], Int) = zkVersion.map(Some(data) -> _).getOrElse(None, 0)
@@ -58,7 +45,6 @@ class ProducerIdManagerTest {
       EasyMock.capture(capturedData),
       EasyMock.capture(capturedVersion),
       EasyMock.anyObject[Option[(KafkaZkClient, String, Array[Byte]) => (Boolean, Int)]])).andAnswer(new IAnswer[(Boolean, Int)] {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         override def answer(): (Boolean, Int) = {
           val newZkVersion = capturedVersion.getValue + 1
           zkVersion = Some(newZkVersion)
@@ -90,13 +76,8 @@ class ProducerIdManagerTest {
 
   @Test(expected = classOf[KafkaException])
   def testExceedProducerIdLimit() {
-<<<<<<< HEAD
-    EasyMock.expect(zkClient.getDataAndVersion(EasyMock.anyString)).andAnswer(new IAnswer[(Option[String], Int)] {
-      override def answer(): (Option[String], Int) = {
-=======
     EasyMock.expect(zkClient.getDataAndVersion(EasyMock.anyString)).andAnswer(new IAnswer[(Option[Array[Byte]], Int)] {
       override def answer(): (Option[Array[Byte]], Int) = {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         val json = ProducerIdManager.generateProducerIdBlockJson(
           ProducerIdBlock(0, Long.MaxValue - ProducerIdManager.PidBlockSize, Long.MaxValue))
         (Some(json), 0)

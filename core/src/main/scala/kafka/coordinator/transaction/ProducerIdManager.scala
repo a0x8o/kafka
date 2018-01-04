@@ -19,15 +19,10 @@ package kafka.coordinator.transaction
 import java.nio.charset.StandardCharsets
 
 import kafka.common.KafkaException
-<<<<<<< HEAD
-import kafka.utils.{Json, Logging, ZkUtils}
-import kafka.zk.KafkaZkClient
-=======
 import kafka.utils.{Json, Logging}
 import kafka.zk.{KafkaZkClient, ProducerIdBlockZNode}
 
 import scala.collection.JavaConverters._
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 /**
  * ProducerIdManager is the part of the transaction coordinator that provides ProducerIds in a unique way
@@ -92,11 +87,7 @@ class ProducerIdManager(val brokerId: Int, val zkClient: KafkaZkClient) extends 
     var zkWriteComplete = false
     while (!zkWriteComplete) {
       // refresh current producerId block from zookeeper again
-<<<<<<< HEAD
-      val (dataOpt, zkVersion) = zkClient.getDataAndVersion(ZkUtils.ProducerIdBlockPath)
-=======
       val (dataOpt, zkVersion) = zkClient.getDataAndVersion(ProducerIdBlockZNode.path)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
       // generate the new producerId block
       currentProducerIdBlock = dataOpt match {
@@ -119,11 +110,7 @@ class ProducerIdManager(val brokerId: Int, val zkClient: KafkaZkClient) extends 
       val newProducerIdBlockData = ProducerIdManager.generateProducerIdBlockJson(currentProducerIdBlock)
 
       // try to write the new producerId block into zookeeper
-<<<<<<< HEAD
-      val (succeeded, version) = zkClient.conditionalUpdatePath(ZkUtils.ProducerIdBlockPath,
-=======
       val (succeeded, version) = zkClient.conditionalUpdatePath(ProducerIdBlockZNode.path,
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         newProducerIdBlockData, zkVersion, Some(checkProducerIdBlockZkData))
       zkWriteComplete = succeeded
 
@@ -132,20 +119,11 @@ class ProducerIdManager(val brokerId: Int, val zkClient: KafkaZkClient) extends 
     }
   }
 
-<<<<<<< HEAD
-  private def checkProducerIdBlockZkData(zkClient: KafkaZkClient, path: String, expectedData: String): (Boolean, Int) = {
-    try {
-      val expectedPidBlock = ProducerIdManager.parseProducerIdBlockData(expectedData)
-      val (dataOpt, zkVersion) = zkClient.getDataAndVersion(ZkUtils.ProducerIdBlockPath)
-      dataOpt match {
-        case Some(data) =>
-=======
   private def checkProducerIdBlockZkData(zkClient: KafkaZkClient, path: String, expectedData: Array[Byte]): (Boolean, Int) = {
     try {
       val expectedPidBlock = ProducerIdManager.parseProducerIdBlockData(expectedData)
       zkClient.getDataAndVersion(ProducerIdBlockZNode.path) match {
         case (Some(data), zkVersion) =>
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
           val currProducerIdBLock = ProducerIdManager.parseProducerIdBlockData(data)
           (currProducerIdBLock == expectedPidBlock, zkVersion)
         case (None, _) => (false, -1)

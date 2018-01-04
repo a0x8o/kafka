@@ -369,8 +369,6 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
         }
     }
 
-<<<<<<< HEAD
-=======
     Map<TopicPartition, Long> purgableOffsets() {
         final Map<TopicPartition, Long> purgableConsumedOffsets = new HashMap<>();
         for (final Map.Entry<TopicPartition, Long> entry : consumedOffsets.entrySet()) {
@@ -382,7 +380,6 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator 
         return purgableConsumedOffsets;
     }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private void initTopology() {
         // initialize the task by initializing all its processor nodes in the topology
         log.trace("Initializing processor nodes of the topology");

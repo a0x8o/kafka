@@ -59,14 +59,8 @@ public class GlobalStateManagerStub implements GlobalStateManager {
     }
 
     @Override
-<<<<<<< HEAD
-    public void register(final StateStore store, final StateRestoreCallback stateRestoreCallback) {
-
-    }
-=======
     public void register(final StateStore store,
                          final StateRestoreCallback stateRestoreCallback) {}
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     @Override
     public void flush() {}

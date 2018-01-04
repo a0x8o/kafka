@@ -80,11 +80,7 @@ class LogOffsetTest extends ZooKeeperTestHarness {
     val part = Integer.valueOf(topicPartition.split("-").last).intValue
 
     // setup brokers in ZooKeeper as owners of partitions for this test
-<<<<<<< HEAD
-    AdminUtils.createTopic(zkUtils, topic, 1, 1)
-=======
     adminZkClient.createTopic(topic, 1, 1)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     val logManager = server.getLogManager
     waitUntilTrue(() => logManager.getLog(new TopicPartition(topic, part)).isDefined,
@@ -119,11 +115,7 @@ class LogOffsetTest extends ZooKeeperTestHarness {
     val part = Integer.valueOf(topicPartition.split("-").last).intValue
 
     // setup brokers in ZooKeeper as owners of partitions for this test
-<<<<<<< HEAD
-    AdminUtils.createTopic(zkUtils, topic, 1, 1)
-=======
     adminZkClient.createTopic(topic, 1, 1)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     val logManager = server.getLogManager
     waitUntilTrue(() => logManager.getLog(new TopicPartition(topic, part)).isDefined,
@@ -162,11 +154,7 @@ class LogOffsetTest extends ZooKeeperTestHarness {
     val topic = topicPartition.split("-").head
 
     // setup brokers in ZooKeeper as owners of partitions for this test
-<<<<<<< HEAD
-    createTopic(zkUtils, topic, numPartitions = 1, replicationFactor = 1, servers = Seq(server))
-=======
     createTopic(zkClient, topic, numPartitions = 1, replicationFactor = 1, servers = Seq(server))
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     var offsetChanged = false
     for (_ <- 1 to 14) {
@@ -190,11 +178,7 @@ class LogOffsetTest extends ZooKeeperTestHarness {
     val part = Integer.valueOf(topicPartition.split("-").last).intValue
 
     // setup brokers in ZooKeeper as owners of partitions for this test
-<<<<<<< HEAD
-    AdminUtils.createTopic(zkUtils, topic, 3, 1)
-=======
     adminZkClient.createTopic(topic, 3, 1)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     val logManager = server.getLogManager
     val log = logManager.getOrCreateLog(new TopicPartition(topic, part), logManager.defaultConfig)
@@ -223,11 +207,7 @@ class LogOffsetTest extends ZooKeeperTestHarness {
     val part = Integer.valueOf(topicPartition.split("-").last).intValue
 
     // setup brokers in ZooKeeper as owners of partitions for this test
-<<<<<<< HEAD
-    AdminUtils.createTopic(zkUtils, topic, 3, 1)
-=======
     adminZkClient.createTopic(topic, 3, 1)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     val logManager = server.getLogManager
     val log = logManager.getOrCreateLog(new TopicPartition(topic, part), logManager.defaultConfig)

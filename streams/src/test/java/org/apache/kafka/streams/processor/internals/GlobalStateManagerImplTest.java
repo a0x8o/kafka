@@ -34,14 +34,8 @@ import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.processor.StateRestoreCallback;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.internals.OffsetCheckpoint;
-<<<<<<< HEAD
-import org.apache.kafka.test.MockProcessorNode;
-import org.apache.kafka.test.MockStateRestoreListener;
-import org.apache.kafka.test.NoOpProcessorContext;
-=======
 import org.apache.kafka.test.MockProcessorContext;
 import org.apache.kafka.test.MockStateRestoreListener;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.test.NoOpReadOnlyStore;
 import org.apache.kafka.test.TestUtils;
 import org.junit.After;
@@ -77,13 +71,10 @@ public class GlobalStateManagerImplTest {
     private final MockTime time = new MockTime();
     private final TheStateRestoreCallback stateRestoreCallback = new TheStateRestoreCallback();
     private final MockStateRestoreListener stateRestoreListener = new MockStateRestoreListener();
-<<<<<<< HEAD
-=======
     private final String storeName1 = "t1-store";
     private final String storeName2 = "t2-store";
     private final String storeName3 = "t3-store";
     private final String storeName4 = "t4-store";
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private final TopicPartition t1 = new TopicPartition("t1", 1);
     private final TopicPartition t2 = new TopicPartition("t2", 1);
     private final TopicPartition t3 = new TopicPartition("t3", 1);
@@ -100,28 +91,6 @@ public class GlobalStateManagerImplTest {
     @Before
     public void before() throws IOException {
         final Map<String, String> storeToTopic = new HashMap<>();
-<<<<<<< HEAD
-        storeToTopic.put("t1-store", "t1");
-        storeToTopic.put("t2-store", "t2");
-
-        final Map<StateStore, ProcessorNode> storeToProcessorNode = new HashMap<>();
-        store1 = new NoOpReadOnlyStore<>("t1-store");
-        storeToProcessorNode.put(store1, new MockProcessorNode(-1));
-        store2 = new NoOpReadOnlyStore("t2-store");
-        storeToProcessorNode.put(store2, new MockProcessorNode(-1));
-        topology = new ProcessorTopology(Collections.<ProcessorNode>emptyList(),
-                                         Collections.<String, SourceNode>emptyMap(),
-                                         Collections.<String, SinkNode>emptyMap(),
-                                         Collections.<StateStore>emptyList(),
-                                         storeToTopic,
-                                         Arrays.<StateStore>asList(store1, store2));
-
-        context = new NoOpProcessorContext();
-        stateDirPath = TestUtils.tempDirectory().getPath();
-        stateDirectory = new StateDirectory("appId", stateDirPath, time);
-        consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        stateManager = new GlobalStateManagerImpl(topology, consumer, stateDirectory, stateRestoreListener);
-=======
 
         storeToTopic.put(storeName1, t1.topic());
         storeToTopic.put(storeName2, t2.topic());
@@ -153,7 +122,6 @@ public class GlobalStateManagerImplTest {
             streamsConfig);
         mockProcessorContext = new MockProcessorContext(stateDirectory.globalStateDir(), streamsConfig);
         stateManager.setGlobalProcessorContext(mockProcessorContext);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         checkpointFile = new File(stateManager.baseDir(), ProcessorStateManager.CHECKPOINT_FILE_NAME);
     }
 
@@ -219,11 +187,7 @@ public class GlobalStateManagerImplTest {
         stateManager.initialize();
 
         try {
-<<<<<<< HEAD
-            stateManager.register(new NoOpReadOnlyStore<>("not-in-topology"), new TheStateRestoreCallback());
-=======
             stateManager.register(new NoOpReadOnlyStore<>("not-in-topology"), stateRestoreCallback);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             fail("should have raised an illegal argument exception as store is not in the topology");
         } catch (final IllegalArgumentException e) {
             // pass
@@ -234,15 +198,9 @@ public class GlobalStateManagerImplTest {
     public void shouldThrowIllegalArgumentExceptionIfAttemptingToRegisterStoreTwice() {
         stateManager.initialize();
         initializeConsumer(2, 1, t1);
-<<<<<<< HEAD
-        stateManager.register(store1, new TheStateRestoreCallback());
-        try {
-            stateManager.register(store1, new TheStateRestoreCallback());
-=======
         stateManager.register(store1, stateRestoreCallback);
         try {
             stateManager.register(store1, stateRestoreCallback);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             fail("should have raised an illegal argument exception as store has already been registered");
         } catch (final IllegalArgumentException e) {
             // pass
@@ -253,11 +211,7 @@ public class GlobalStateManagerImplTest {
     public void shouldThrowStreamsExceptionIfNoPartitionsFoundForStore() {
         stateManager.initialize();
         try {
-<<<<<<< HEAD
-            stateManager.register(store1, new TheStateRestoreCallback());
-=======
             stateManager.register(store1, stateRestoreCallback);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             fail("Should have raised a StreamsException as there are no partition for the store");
         } catch (final StreamsException e) {
             // pass
@@ -285,10 +239,6 @@ public class GlobalStateManagerImplTest {
 
         stateManager.initialize();
 
-<<<<<<< HEAD
-        final TheStateRestoreCallback stateRestoreCallback = new TheStateRestoreCallback();
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         stateManager.register(store1, stateRestoreCallback);
         assertEquals(2, stateRestoreCallback.restored.size());
     }
@@ -296,14 +246,8 @@ public class GlobalStateManagerImplTest {
     @Test
     public void shouldListenForRestoreEvents() {
         initializeConsumer(5, 1, t1);
-<<<<<<< HEAD
-        stateManager.initialize(context);
-
-        final TheStateRestoreCallback stateRestoreCallback = new TheStateRestoreCallback();
-=======
         stateManager.initialize();
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         stateManager.register(store1, stateRestoreCallback);
 
         assertThat(stateRestoreListener.restoreStartOffset, equalTo(1L));
@@ -324,12 +268,7 @@ public class GlobalStateManagerImplTest {
                                                                                 ProcessorStateManager.CHECKPOINT_FILE_NAME));
         offsetCheckpoint.write(Collections.singletonMap(t1, 6L));
 
-<<<<<<< HEAD
-        stateManager.initialize(context);
-        final TheStateRestoreCallback stateRestoreCallback = new TheStateRestoreCallback();
-=======
         stateManager.initialize();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         stateManager.register(store1,  stateRestoreCallback);
         assertEquals(5, stateRestoreCallback.restored.size());
     }
@@ -531,12 +470,7 @@ public class GlobalStateManagerImplTest {
         final byte[] expectedValue = "value".getBytes();
         consumer.addRecord(new ConsumerRecord<>(t1.topic(), t1.partition(), 2, expectedKey, expectedValue));
 
-<<<<<<< HEAD
-        stateManager.initialize(context);
-        final TheStateRestoreCallback stateRestoreCallback = new TheStateRestoreCallback();
-=======
         stateManager.initialize();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         stateManager.register(store1, stateRestoreCallback);
         final KeyValue<byte[], byte[]> restoredKv = stateRestoreCallback.restored.get(0);
         assertThat(stateRestoreCallback.restored, equalTo(Collections.singletonList(KeyValue.pair(restoredKv.key, restoredKv.value))));
@@ -567,11 +501,7 @@ public class GlobalStateManagerImplTest {
             public boolean lockGlobalState() throws IOException {
                 throw new IOException("KABOOM!");
             }
-<<<<<<< HEAD
-        }, stateRestoreListener);
-=======
         }, stateRestoreListener, streamsConfig);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         try {
             stateManager.initialize();

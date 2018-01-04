@@ -45,12 +45,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-<<<<<<< HEAD
-import java.util.List;
-=======
 import java.util.HashMap;
 import java.util.Map;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import java.util.Properties;
 
 import static org.easymock.EasyMock.expect;

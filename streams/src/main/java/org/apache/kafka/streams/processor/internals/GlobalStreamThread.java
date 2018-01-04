@@ -235,16 +235,6 @@ public class GlobalStreamThread extends Thread {
         }
 
         void pollAndUpdate() {
-<<<<<<< HEAD
-            final ConsumerRecords<byte[], byte[]> received = globalConsumer.poll(pollMs);
-            for (ConsumerRecord<byte[], byte[]> record : received) {
-                stateMaintainer.update(record);
-            }
-            final long now = time.milliseconds();
-            if (flushInterval >= 0 && now >= lastFlush + flushInterval) {
-                stateMaintainer.flushState();
-                lastFlush = now;
-=======
             try {
                 final ConsumerRecords<byte[], byte[]> received = globalConsumer.poll(pollMs);
                 for (ConsumerRecord<byte[], byte[]> record : received) {
@@ -259,7 +249,6 @@ public class GlobalStreamThread extends Thread {
                 log.error("Updating global state failed. You can restart KafkaStreams to recover from this error.", recoverableException);
                 throw new StreamsException("Updating global state failed. " +
                     "You can restart KafkaStreams to recover from this error.", recoverableException);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             }
         }
 
@@ -320,12 +309,6 @@ public class GlobalStreamThread extends Thread {
 
     private StateConsumer initialize() {
         try {
-<<<<<<< HEAD
-            final GlobalStateManager stateMgr = new GlobalStateManagerImpl(topology,
-                                                                           globalConsumer,
-                                                                           stateDirectory,
-                                                                           stateRestoreListener);
-=======
             final GlobalStateManager stateMgr = new GlobalStateManagerImpl(logContext,
                                                                            topology,
                                                                            globalConsumer,
@@ -340,7 +323,6 @@ public class GlobalStreamThread extends Thread {
                 cache);
             stateMgr.setGlobalProcessorContext(globalProcessorContext);
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             final StateConsumer stateConsumer
                     = new StateConsumer(this.logContext,
                                         globalConsumer,
@@ -355,12 +337,6 @@ public class GlobalStreamThread extends Thread {
             stateConsumer.initialize();
 
             return stateConsumer;
-<<<<<<< HEAD
-        } catch (final StreamsException e) {
-            startupException = e;
-        } catch (final Exception e) {
-            startupException = new StreamsException("Exception caught during initialization of GlobalStreamThread", e);
-=======
         } catch (final LockException fatalException) {
             final String errorMsg = "Could not lock global state directory. This could happen if multiple KafkaStreams " +
                 "instances are running on the same host using the same state directory.";
@@ -370,7 +346,6 @@ public class GlobalStreamThread extends Thread {
             startupException = fatalException;
         } catch (final Exception fatalException) {
             startupException = new StreamsException("Exception caught during initialization of GlobalStreamThread", fatalException);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         }
         return null;
     }

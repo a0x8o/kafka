@@ -56,21 +56,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
     private final Consumer<byte[], byte[]> globalConsumer;
     private final StateDirectory stateDirectory;
     private final Set<String> globalStoreNames = new HashSet<>();
-<<<<<<< HEAD
-    private final Map<TopicPartition, Long> checkpointableOffsets = new HashMap<>();
-    private final StateRestoreListener stateRestoreListener;
-
-    public GlobalStateManagerImpl(final ProcessorTopology topology,
-                                  final Consumer<byte[], byte[]> globalConsumer,
-                                  final StateDirectory stateDirectory,
-                                  final StateRestoreListener stateRestoreListener) {
-        this.topology = topology;
-        this.globalConsumer = globalConsumer;
-        this.stateDirectory = stateDirectory;
-        this.baseDir = stateDirectory.globalStateDir();
-        this.checkpoint = new OffsetCheckpoint(new File(this.baseDir, CHECKPOINT_FILE_NAME));
-        this.stateRestoreListener = stateRestoreListener;
-=======
     private final StateRestoreListener stateRestoreListener;
     private InternalProcessorContext processorContext;
     private final int retries;
@@ -96,7 +81,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
     @Override
     public void setGlobalProcessorContext(final InternalProcessorContext processorContext) {
         this.processorContext = processorContext;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     @Override
@@ -173,12 +157,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
 
         log.info("Restoring state for global store {}", store.name());
         final List<TopicPartition> topicPartitions = topicPartitionsForStore(store);
-<<<<<<< HEAD
-        final Map<TopicPartition, Long> highWatermarks = globalConsumer.endOffsets(topicPartitions);
-        try {
-            restoreState(stateRestoreCallback, topicPartitions, highWatermarks, store.name());
-            stores.put(store.name(), store);
-=======
         Map<TopicPartition, Long> highWatermarks = null;
 
         int attempts = 0;
@@ -208,7 +186,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
         try {
             restoreState(stateRestoreCallback, topicPartitions, highWatermarks, store.name());
             globalStores.put(store.name(), store);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         } finally {
             globalConsumer.unsubscribe();
         }
@@ -217,9 +194,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
 
     private List<TopicPartition> topicPartitionsForStore(final StateStore store) {
         final String sourceTopic = topology.storeToChangelogTopic().get(store.name());
-<<<<<<< HEAD
-        final List<PartitionInfo> partitionInfos = globalConsumer.partitionsFor(sourceTopic);
-=======
         List<PartitionInfo> partitionInfos;
         int attempts = 0;
         while (true) {
@@ -250,7 +224,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
             }
         }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         if (partitionInfos == null || partitionInfos.isEmpty()) {
             throw new StreamsException(String.format("There are no partitions available for topic %s when initializing global store %s", sourceTopic, store.name()));
         }
@@ -288,14 +261,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
             long restoreCount = 0L;
 
             while (offset < highWatermark) {
-<<<<<<< HEAD
-                final ConsumerRecords<byte[], byte[]> records = globalConsumer.poll(100);
-                final List<KeyValue<byte[], byte[]>> restoreRecords = new ArrayList<>();
-                for (ConsumerRecord<byte[], byte[]> record : records) {
-                    offset = record.offset() + 1;
-                    if (record.key() != null) {
-                        restoreRecords.add(KeyValue.pair(record.key(), record.value()));
-=======
                 try {
                     final ConsumerRecords<byte[], byte[]> records = globalConsumer.poll(100);
                     final List<KeyValue<byte[], byte[]>> restoreRecords = new ArrayList<>();
@@ -304,7 +269,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
                             restoreRecords.add(KeyValue.pair(record.key(), record.value()));
                         }
                         offset = globalConsumer.position(topicPartition);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                     }
                     stateRestoreAdapter.restoreAll(restoreRecords);
                     stateRestoreListener.onBatchRestored(topicPartition, storeName, offset, restoreRecords.size());
@@ -318,12 +282,6 @@ public class GlobalStateManagerImpl extends AbstractStateManager implements Glob
                     stateRestoreListener.onRestoreStart(topicPartition, storeName, offset, highWatermark);
                     restoreCount = 0L;
                 }
-<<<<<<< HEAD
-                stateRestoreAdapter.restoreAll(restoreRecords);
-                stateRestoreListener.onBatchRestored(topicPartition, storeName, offset, restoreRecords.size());
-                restoreCount += restoreRecords.size();
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             }
             stateRestoreListener.onRestoreEnd(topicPartition, storeName, restoreCount);
             checkpointableOffsets.put(topicPartition, offset);

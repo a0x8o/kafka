@@ -151,15 +151,9 @@
   This tool also works with ZooKeeper-based consumers:
   <pre class="brush: bash;">
   &gt; bin/kafka-consumer-groups.sh --zookeeper localhost:2181 --describe --group my-group
-<<<<<<< HEAD
 
   Note: This will only show information about consumers that use ZooKeeper (not those using the Java consumer API).
 
-=======
-
-  Note: This will only show information about consumers that use ZooKeeper (not those using the Java consumer API).
-
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   TOPIC                          PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG        CONSUMER-ID
   my-topic                       0          2               4               2          my-group_consumer-1
   my-topic                       1          2               3               1          my-group_consumer-1

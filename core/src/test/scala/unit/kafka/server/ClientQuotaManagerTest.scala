@@ -271,11 +271,7 @@ class ClientQuotaManagerTest {
   @Test
   def testRequestPercentageQuotaViolation() {
     val metrics = newMetrics
-<<<<<<< HEAD
-    val quotaManager = new ClientRequestQuotaManager(config, metrics, time)
-=======
     val quotaManager = new ClientRequestQuotaManager(config, metrics, time, "")
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     quotaManager.updateQuota(Some("ANONYMOUS"), Some("test-client"), Some("test-client"), Some(Quota.upperBound(1)))
     val queueSizeMetric = metrics.metrics().get(metrics.metricName("queue-size", "Request", ""))
     def millisToPercent(millis: Double) = millis * 1000 * 1000 * ClientQuotaManagerConfig.NanosToPercentagePerSecond

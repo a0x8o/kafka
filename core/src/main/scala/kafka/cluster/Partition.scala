@@ -55,11 +55,7 @@ class Partition(val topic: String,
   // Do not use replicaManager if this partition is ReplicaManager.OfflinePartition
   private val localBrokerId = if (!isOffline) replicaManager.config.brokerId else -1
   private val logManager = if (!isOffline) replicaManager.logManager else null
-<<<<<<< HEAD
-  private val zkUtils = if (!isOffline) replicaManager.zkUtils else null
-=======
   private val zkClient = if (!isOffline) replicaManager.zkClient else null
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   // allReplicasMap includes both assigned replicas and the future replica if there is ongoing replica movement
   private val allReplicasMap = new Pool[Int, Replica]
   // The read lock is only required when multiple reads are executed and needs to be in a consistent manner
@@ -178,11 +174,7 @@ class Partition(val topic: String,
         val adminZkClient = new AdminZkClient(zkClient)
         val prop = adminZkClient.fetchEntityConfig(ConfigType.Topic, topic)
         val config = LogConfig.fromProps(logManager.defaultConfig.originals,
-<<<<<<< HEAD
-                                         AdminUtils.fetchEntityConfig(zkUtils, ConfigType.Topic, topic))
-=======
                                          prop)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         val log = logManager.getOrCreateLog(topicPartition, config, isNew, replicaId == Request.FutureLocalReplicaId)
         val checkpoint = replicaManager.highWatermarkCheckpoints(log.dir.getParent)
         val offsetMap = checkpoint.read()

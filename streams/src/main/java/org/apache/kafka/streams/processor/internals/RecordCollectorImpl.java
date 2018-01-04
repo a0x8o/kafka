@@ -29,20 +29,14 @@ import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.OffsetMetadataTooLarge;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.errors.RetriableException;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.LogContext;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.streams.errors.ProductionExceptionHandler;
 import org.apache.kafka.streams.errors.ProductionExceptionHandler.ProductionExceptionHandlerResponse;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.processor.StreamPartitioner;
 import org.slf4j.Logger;
@@ -56,20 +50,14 @@ public class RecordCollectorImpl implements RecordCollector {
     private final Producer<byte[], byte[]> producer;
     private final Map<TopicPartition, Long> offsets;
     private final String logPrefix;
-<<<<<<< HEAD
-=======
     private final ProductionExceptionHandler productionExceptionHandler;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     private final static String LOG_MESSAGE = "Error sending record (key {} value {} timestamp {}) to topic {} due to {}; " +
         "No more records will be sent and no more offsets will be recorded for this task.";
     private final static String EXCEPTION_MESSAGE = "%sAbort sending since %s with a previous record (key %s value %s timestamp %d) to topic %s due to %s";
     private final static String PARAMETER_HINT = "\nYou can increase producer parameter `retries` and `retry.backoff.ms` to avoid this error.";
-<<<<<<< HEAD
-=======
     private final static String HANDLER_CONTINUED_MESSAGE = "Error sending records (key {} value {} timestamp {}) to topic {} due to {}; " +
         "The exception handler chose to CONTINUE processing in spite of this error.";
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private volatile KafkaException sendException;
 
     public RecordCollectorImpl(final Producer<byte[], byte[]> producer,
@@ -175,11 +163,7 @@ public class RecordCollectorImpl implements RecordCollector {
                     } else {
                         if (sendException == null) {
                             if (exception instanceof ProducerFencedException) {
-<<<<<<< HEAD
-                                log.warn(LOG_MESSAGE, key, value, timestamp, topic, exception);
-=======
                                 log.warn(LOG_MESSAGE, key, value, timestamp, topic, exception.getMessage());
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                                 sendException = new ProducerFencedException(
                                     String.format(EXCEPTION_MESSAGE,
                                                   logPrefix,
@@ -190,32 +174,13 @@ public class RecordCollectorImpl implements RecordCollector {
                                                   topic,
                                                   exception.getMessage()));
                             } else {
-<<<<<<< HEAD
-                                String errorLogMessage = LOG_MESSAGE;
-                                String errorMessage = EXCEPTION_MESSAGE;
-                                if (exception instanceof RetriableException) {
-                                    errorLogMessage += PARAMETER_HINT;
-                                    errorMessage += PARAMETER_HINT;
-=======
                                 if (productionExceptionIsFatal(exception)) {
                                     recordSendError(key, value, timestamp, topic, exception);
                                 } else if (productionExceptionHandler.handle(serializedRecord, exception) == ProductionExceptionHandlerResponse.FAIL) {
                                     recordSendError(key, value, timestamp, topic, exception);
                                 } else {
                                     log.debug(HANDLER_CONTINUED_MESSAGE, key, value, timestamp, topic, exception);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                                 }
-                                log.error(errorLogMessage, key, value, timestamp, topic, exception);
-                                sendException = new StreamsException(
-                                    String.format(errorMessage,
-                                                  logPrefix,
-                                                  "an error caught",
-                                                  key,
-                                                  value,
-                                                  timestamp,
-                                                  topic,
-                                                  exception.getMessage()),
-                                    exception);
                             }
                         }
                     }
@@ -227,11 +192,7 @@ public class RecordCollectorImpl implements RecordCollector {
                 "its internal buffer fills up. " +
                 "You can increase producer parameter `max.block.ms` to increase this timeout.", topic);
             throw new StreamsException(String.format("%sFailed to send record to topic %s due to timeout.", logPrefix, topic));
-<<<<<<< HEAD
-        } catch (final Exception fatalException) {
-=======
         } catch (final Exception uncaughtException) {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             throw new StreamsException(
                 String.format(EXCEPTION_MESSAGE,
                               logPrefix,
@@ -240,13 +201,8 @@ public class RecordCollectorImpl implements RecordCollector {
                               value,
                               timestamp,
                               topic,
-<<<<<<< HEAD
-                              fatalException.getMessage()),
-                fatalException);
-=======
                               uncaughtException.getMessage()),
                 uncaughtException);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         }
     }
 

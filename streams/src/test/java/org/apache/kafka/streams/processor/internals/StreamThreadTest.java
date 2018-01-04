@@ -35,10 +35,7 @@ import org.apache.kafka.common.utils.MockTime;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.errors.TaskMigratedException;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.streams.kstream.Materialized;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.streams.kstream.internals.ConsumedInternal;
 import org.apache.kafka.streams.kstream.internals.InternalStreamsBuilder;
 import org.apache.kafka.streams.kstream.internals.InternalStreamsBuilderTest;
@@ -46,13 +43,7 @@ import org.apache.kafka.streams.processor.LogAndSkipOnInvalidTimestamp;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.TaskMetadata;
 import org.apache.kafka.streams.processor.ThreadMetadata;
-<<<<<<< HEAD
-import org.apache.kafka.streams.processor.internals.assignment.AssignmentInfo;
-import org.apache.kafka.streams.state.HostInfo;
-import org.apache.kafka.streams.state.Stores;
-=======
 import org.apache.kafka.streams.state.KeyValueStore;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.test.MockClientSupplier;
 import org.apache.kafka.test.MockStateRestoreListener;
 import org.apache.kafka.test.MockTimestampExtractor;
@@ -540,11 +531,7 @@ public class StreamThreadTest {
 
         producer.fenceProducer();
         mockTime.sleep(config.getLong(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG) + 1L);
-<<<<<<< HEAD
-        consumer.addRecord(new ConsumerRecord<>(TOPIC, 0, 0, new byte[0], new byte[0]));
-=======
         consumer.addRecord(new ConsumerRecord<>(topic1, 1, 0, new byte[0], new byte[0]));
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         try {
             thread.runOnce(-1);
             fail("Should have thrown TaskMigratedException");
@@ -587,11 +574,7 @@ public class StreamThreadTest {
 
         thread.rebalanceListener.onPartitionsRevoked(null);
         clientSupplier.producers.get(0).fenceProducer();
-<<<<<<< HEAD
-        thread.rebalanceListener.onPartitionsAssigned(task0Assignment);
-=======
         thread.rebalanceListener.onPartitionsAssigned(assignedPartitions);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         try {
             thread.runOnce(-1);
             fail("Should have thrown TaskMigratedException");

@@ -17,10 +17,6 @@ package kafka.api
 import java.io.File
 import java.util.Properties
 
-<<<<<<< HEAD
-import kafka.admin.AdminUtils
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import kafka.server._
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.utils.Sanitizer

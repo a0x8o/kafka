@@ -74,10 +74,7 @@ public class BrokerCompatibilityTest {
         streamsProperties.put(StreamsConfig.REQUEST_TIMEOUT_MS_CONFIG, timeout + 1);
         //TODO remove this config or set to smaller value when KIP-91 is merged
         streamsProperties.put(StreamsConfig.producerPrefix(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG), 60000);
-<<<<<<< HEAD
-=======
         Serde<String> stringSerde = Serdes.String();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 
         final StreamsBuilder builder = new StreamsBuilder();

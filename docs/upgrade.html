@@ -19,8 +19,6 @@
 
 <script id="upgrade-template" type="text/x-handlebars-template">
 
-<<<<<<< HEAD
-=======
 <h4><a id="upgrade_1_1_0" href="#upgrade_1_1_0">Upgrading from 0.8.x, 0.9.x, 0.10.0.x, 0.10.1.x, 0.10.2.x, 0.11.0.x or 1.0.x to 1.1.x</a></h4>
 <p>Kafka 1.1.0 introduces wire protocol changes. By following the recommended rolling upgrade plan below,
     you guarantee no downtime during the upgrade. However, please review the <a href="#upgrade_110_notable">notable changes in 1.1.0</a> before upgrading.
@@ -80,7 +78,6 @@
     <li> See <a href="/{{version}}/documentation/streams/upgrade-guide#streams_api_changes_110">Streams API changes in 1.1.0</a> for more details. </li>
 </ul>
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 <h4><a id="upgrade_1_0_0" href="#upgrade_1_0_0">Upgrading from 0.8.x, 0.9.x, 0.10.0.x, 0.10.1.x, 0.10.2.x or 0.11.0.x to 1.0.0</a></h4>
 <p>Kafka 1.0.0 introduces wire protocol changes. By following the recommended rolling upgrade plan below,
     you guarantee no downtime during the upgrade. However, please review the <a href="#upgrade_100_notable">notable changes in 1.0.0</a> before upgrading.
@@ -150,12 +147,6 @@
         A stub implementation has been retained for binary compatibility.</li>
     <li>The Java clients and tools now accept any string as a client-id.</li>
     <li>The deprecated tool <code>kafka-consumer-offset-checker.sh</code> has been removed. Use <code>kafka-consumer-groups.sh</code> to get consumer group details.</li>
-<<<<<<< HEAD
-<<<<<<< HEAD
-    <li>In SimpleAclAuthorizer class, access denials are logged at INFO level and access approvals are logged at DEBUG level.</li>
-=======
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     <li>SimpleAclAuthorizer now logs access denials to the authorizer log by default.</li>
     <li>Authentication failures are now reported to clients as one of the subclasses of <code>AuthenticationException</code>.
         No retries will be performed if a client connection fails authentication.</li>
@@ -180,10 +171,6 @@
         If the user have required permissions and the topic doesn't exists, then the UNKNOWN_TOPIC_OR_PARTITION
         error code will be returned. </li>
     <li>config/consumer.properties file updated to use new consumer config properties.</li>
-<<<<<<< HEAD
->>>>>>> ee1aaa091fc68587635604de5006b7acdb160361
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 </ul>
 
 <h5><a id="upgrade_100_new_protocols" href="#upgrade_100_new_protocols">New Protocol Versions</a></h5>

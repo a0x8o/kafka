@@ -18,12 +18,10 @@ package org.apache.kafka.streams.integration;
 
 import kafka.server.KafkaConfig$;
 import org.apache.kafka.streams.integration.utils.EmbeddedKafkaCluster;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.clients.consumer.ConsumerConfig;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.test.IntegrationTest;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -31,13 +29,10 @@ import org.junit.experimental.categories.Category;
 import kafka.tools.StreamsResetter;
 
 import java.util.Properties;
-<<<<<<< HEAD
-=======
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
 /**
  * Tests local state store and global application cleanup.
@@ -70,15 +65,12 @@ public class ResetIntegrationTest extends AbstractResetIntegrationTest {
     @Before
     public void before() throws Exception {
         beforePrepareTest();
-<<<<<<< HEAD
-=======
     }
 
 
     @Test
     public void testReprocessingFromScratchAfterResetWithoutIntermediateUserTopic() throws Exception {
         super.testReprocessingFromScratchAfterResetWithoutIntermediateUserTopic();
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     @Test
@@ -87,11 +79,6 @@ public class ResetIntegrationTest extends AbstractResetIntegrationTest {
     }
 
     @Test
-<<<<<<< HEAD
-    public void testReprocessingFromScratchAfterResetWithoutIntermediateUserTopic() throws Exception {
-        super.testReprocessingFromScratchAfterResetWithoutIntermediateUserTopic();
-    }
-=======
     public void testReprocessingFromFileAfterResetWithoutIntermediateUserTopic() throws Exception {
         super.testReprocessingFromFileAfterResetWithoutIntermediateUserTopic();
     }
@@ -145,5 +132,4 @@ public class ResetIntegrationTest extends AbstractResetIntegrationTest {
         Assert.assertEquals(1, exitCode);
     }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 }

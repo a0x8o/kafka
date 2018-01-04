@@ -108,11 +108,7 @@ public class SmokeTestClient extends SmokeTestUtil {
         props.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         //TODO remove this config or set to smaller value when KIP-91 is merged
-<<<<<<< HEAD
-        props.put(StreamsConfig.producerPrefix(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG), 60000);
-=======
         props.put(StreamsConfig.producerPrefix(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG), 80000);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         StreamsBuilder builder = new StreamsBuilder();
         Consumed<String, Integer> stringIntConsumed = Consumed.with(stringSerde, intSerde);

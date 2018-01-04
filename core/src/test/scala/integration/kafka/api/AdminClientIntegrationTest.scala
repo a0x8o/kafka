@@ -31,11 +31,8 @@ import org.apache.kafka.clients.admin._
 import kafka.utils.{Logging, TestUtils}
 import kafka.utils.Implicits._
 import org.apache.kafka.clients.admin.NewTopic
-<<<<<<< HEAD
-=======
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.{KafkaFuture, TopicPartition, TopicPartitionReplica}
 import org.apache.kafka.common.acl._
@@ -49,13 +46,10 @@ import org.junit.Assert._
 
 import scala.util.Random
 import scala.collection.JavaConverters._
-<<<<<<< HEAD
-=======
 import java.lang.{Long => JLong}
 
 import kafka.zk.KafkaZkClient
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
@@ -96,24 +90,6 @@ class AdminClientIntegrationTest extends IntegrationTestHarness with Logging {
 
   override def generateConfigs = {
     val cfgs = TestUtils.createBrokerConfigs(serverCount, zkConnect, interBrokerSecurityProtocol = Some(securityProtocol),
-      trustStoreFile = trustStoreFile, saslProperties = serverSaslProperties, logDirCount = 2)
-    cfgs.foreach { config =>
-      config.setProperty(KafkaConfig.ListenersProp, s"${listenerName.value}://localhost:${TestUtils.RandomPort}")
-      config.remove(KafkaConfig.InterBrokerSecurityProtocolProp)
-      config.setProperty(KafkaConfig.InterBrokerListenerNameProp, listenerName.value)
-      config.setProperty(KafkaConfig.ListenerSecurityProtocolMapProp, s"${listenerName.value}:${securityProtocol.name}")
-      config.setProperty(KafkaConfig.DeleteTopicEnableProp, "true")
-      // We set this in order to test that we don't expose sensitive data via describe configs. This will already be
-      // set for subclasses with security enabled and we don't want to overwrite it.
-      if (!config.containsKey(KafkaConfig.SslTruststorePasswordProp))
-        config.setProperty(KafkaConfig.SslTruststorePasswordProp, "some.invalid.pass")
-    }
-    cfgs.foreach(_ ++= serverConfig)
-    cfgs.map(KafkaConfig.fromProps)
-  }
-
-  override def generateConfigs = {
-    val cfgs = TestUtils.createBrokerConfigs(brokerCount, zkConnect, interBrokerSecurityProtocol = Some(securityProtocol),
       trustStoreFile = trustStoreFile, saslProperties = serverSaslProperties, logDirCount = 2)
     cfgs.foreach { config =>
       config.setProperty(KafkaConfig.ListenersProp, s"${listenerName.value}://localhost:${TestUtils.RandomPort}")
@@ -343,11 +319,7 @@ class AdminClientIntegrationTest extends IntegrationTestHarness with Logging {
       assertTrue(exception.getCause.isInstanceOf[ReplicaNotAvailableException])
     }
 
-<<<<<<< HEAD
-    TestUtils.createTopic(zkUtils, topic, 1, brokerCount, servers, new Properties)
-=======
     createTopic(topic, numPartitions = 1, replicationFactor = serverCount)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     servers.foreach { server =>
       val logDir = server.logManager.getLog(tp).get.dir.getParent
       assertEquals(firstReplicaAssignment(new TopicPartitionReplica(topic, 0, server.config.brokerId)), logDir)
@@ -359,11 +331,7 @@ class AdminClientIntegrationTest extends IntegrationTestHarness with Logging {
       TestUtils.waitUntilTrue(() => {
         val logDir = server.logManager.getLog(tp).get.dir.getParent
         secondReplicaAssignment(new TopicPartitionReplica(topic, 0, server.config.brokerId)) == logDir
-<<<<<<< HEAD
-      }, "timed out waiting for replica movement", 6000L)
-=======
       }, "timed out waiting for replica movement")
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     // Verify that replica can be moved to the specified log directory while the producer is sending messages
@@ -390,27 +358,18 @@ class AdminClientIntegrationTest extends IntegrationTestHarness with Logging {
     }
 
     try {
-<<<<<<< HEAD
-      TestUtils.waitUntilTrue(() => numMessages.get > 100, "timed out waiting for message produce", 6000L)
-=======
       TestUtils.waitUntilTrue(() => numMessages.get > 10, s"only $numMessages messages are produced before timeout. Producer future ${producerFuture.value}")
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       client.alterReplicaLogDirs(firstReplicaAssignment.asJava, new AlterReplicaLogDirsOptions).all.get
       servers.foreach { server =>
         TestUtils.waitUntilTrue(() => {
           val logDir = server.logManager.getLog(tp).get.dir.getParent
           firstReplicaAssignment(new TopicPartitionReplica(topic, 0, server.config.brokerId)) == logDir
-<<<<<<< HEAD
-        }, "timed out waiting for replica movement", 6000L)
-      }
-=======
         }, s"timed out waiting for replica movement. Producer future ${producerFuture.value}")
       }
 
       val currentMessagesNum = numMessages.get
       TestUtils.waitUntilTrue(() => numMessages.get - currentMessagesNum > 10,
         s"only ${numMessages.get - currentMessagesNum} messages are produced within timeout after replica movement. Producer future ${producerFuture.value}")
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     } finally running.set(false)
 
     val finalNumMessages = Await.result(producerFuture, Duration(20, TimeUnit.SECONDS))
@@ -753,8 +712,6 @@ class AdminClientIntegrationTest extends IntegrationTestHarness with Logging {
         assertTrue(e.getCause.isInstanceOf[InvalidTopicException])
         assertEquals("The topic is queued for deletion.", e.getCause.getMessage)
     }
-<<<<<<< HEAD
-=======
   }
 
   @Test
@@ -883,7 +840,6 @@ class AdminClientIntegrationTest extends IntegrationTestHarness with Logging {
     })
 
     futures.foreach(_.get)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 
   @Test

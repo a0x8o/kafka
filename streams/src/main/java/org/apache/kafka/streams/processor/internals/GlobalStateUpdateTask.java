@@ -56,10 +56,7 @@ public class GlobalStateUpdateTask implements GlobalStateMaintainer {
      * @throws IllegalStateException If store gets registered after initialized is already finished
      * @throws StreamsException if the store's change log does not contain the partition
      */
-<<<<<<< HEAD
-=======
     @Override
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     public Map<TopicPartition, Long> initialize() {
         final Set<String> storeNames = stateMgr.initialize();
         final Map<String, String> storeNameToTopic = topology.storeToChangelogTopic();

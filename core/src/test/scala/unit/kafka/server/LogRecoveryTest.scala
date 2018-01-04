@@ -138,11 +138,7 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
     // Update producer with new server settings
     updateProducer()
 
-<<<<<<< HEAD
-    leader = waitUntilLeaderIsElectedOrChanged(zkUtils, topic, partitionId)
-=======
     leader = waitUntilLeaderIsElectedOrChanged(zkClient, topic, partitionId)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertTrue("Leader must remain on broker 1, in case of ZooKeeper session expiration it can move to broker 0",
       leader == 0 || leader == 1)
 
@@ -153,11 +149,7 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
 
     server2.startup()
     updateProducer()
-<<<<<<< HEAD
-    leader = waitUntilLeaderIsElectedOrChanged(zkUtils, topic, partitionId, oldLeaderOpt = Some(leader))
-=======
     leader = waitUntilLeaderIsElectedOrChanged(zkClient, topic, partitionId, oldLeaderOpt = Some(leader))
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     assertTrue("Leader must remain on broker 0, in case of ZooKeeper session expiration it can move to broker 1",
       leader == 0 || leader == 1)
 

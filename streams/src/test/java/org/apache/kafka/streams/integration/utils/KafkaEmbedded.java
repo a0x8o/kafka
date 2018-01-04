@@ -26,10 +26,7 @@ import kafka.utils.TestUtils;
 import kafka.zk.AdminZkClient;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.common.network.ListenerName;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.common.utils.Time;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

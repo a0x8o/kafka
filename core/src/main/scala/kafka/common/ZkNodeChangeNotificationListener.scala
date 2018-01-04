@@ -84,18 +84,10 @@ class ZkNodeChangeNotificationListener(private val zkClient: KafkaZkClient,
           val changeId = changeNumber(notification)
           if (changeId > lastExecutedChange) {
             val changeZnode = seqNodeRoot + "/" + notification
-<<<<<<< HEAD
-            val data = zkClient.getDataAndStat(changeZnode)._1.orNull
-            if (data != null) {
-              notificationHandler.processNotification(data)
-            } else {
-              logger.warn(s"read null data from $changeZnode when processing notification $notification")
-=======
             val (data, _) = zkClient.getDataAndStat(changeZnode)
             data match {
               case Some(d) => notificationHandler.processNotification(d)
               case None => warn(s"read null data from $changeZnode when processing notification $notification")
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             }
             lastExecutedChange = changeId
           }
@@ -151,10 +143,6 @@ class ZkNodeChangeNotificationListener(private val zkClient: KafkaZkClient,
   object ZkStateChangeHandler extends  StateChangeHandler {
     override val name: String = StateChangeHandlers.zkNodeChangeListenerHandler(seqNodeRoot)
     override def afterInitializingSession(): Unit = addChangeNotification
-<<<<<<< HEAD
-    override def onReconnectionTimeout(): Unit = error("Reconnection timeout.")
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 }
 

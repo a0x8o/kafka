@@ -27,13 +27,8 @@ buildscript {
     classpath "org.ajoberstar:grgit:1.9.3"
     classpath 'com.github.ben-manes:gradle-versions-plugin:0.17.0'
     classpath 'org.scoverage:gradle-scoverage:2.1.0'
-<<<<<<< HEAD
-    classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
-    classpath 'org.owasp:dependency-check-gradle:3.0.1'
-=======
     classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
     classpath 'org.owasp:dependency-check-gradle:3.0.2'
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   }
 }
 
@@ -84,11 +79,7 @@ allprojects {
 }
 
 ext {
-<<<<<<< HEAD
-  gradleVersion = "4.2.1"
-=======
   gradleVersion = "4.4.1"
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
   buildVersionFileName = "kafka-version.properties"
 
   maxPermSizeArgs = []

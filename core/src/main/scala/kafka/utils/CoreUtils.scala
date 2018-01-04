@@ -342,13 +342,10 @@ object CoreUtils extends Logging {
    * keys often exist in the map, avoiding the need to create a new value. `createValue`
    * may be invoked more than once if multiple threads attempt to insert a key at the same
    * time, but the same inserted value will be returned to all threads.
-<<<<<<< HEAD
-=======
    *
    * In Scala 2.12, `ConcurrentMap.getOrElse` has the same behaviour as this method, but that
    * is not the case in Scala 2.11. We can remove this method once we drop support for Scala
    * 2.11.
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
    */
   def atomicGetOrUpdate[K, V](map: concurrent.Map[K, V], key: K, createValue: => V): V = {
     map.get(key) match {

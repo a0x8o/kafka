@@ -334,14 +334,6 @@ object DumpLogSegments {
         }
       }.mkString("{", ",", "}")
 
-<<<<<<< HEAD
-      val keyString = Json.encode(Map("metadata" -> groupId))
-      val valueString = Json.encode(Map(
-          "protocolType" -> protocolType,
-          "protocol" -> group.protocol,
-          "generationId" -> group.generationId,
-          "assignment" -> assignment))
-=======
       val keyString = Json.encodeAsString(Map("metadata" -> groupId).asJava)
 
       val valueString = Json.encodeAsString(Map(
@@ -350,7 +342,6 @@ object DumpLogSegments {
         "generationId" -> group.generationId,
         "assignment" -> assignment
       ).asJava)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
       (Some(keyString), Some(valueString))
     }

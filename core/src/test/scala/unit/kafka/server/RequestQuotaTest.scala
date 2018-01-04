@@ -82,11 +82,7 @@ class RequestQuotaTest extends BaseRequestTest {
     quotaProps.put(DynamicConfig.Client.RequestPercentageOverrideProp, "0.01")
     adminZkClient.changeClientIdConfig("<default>", quotaProps)
     quotaProps.put(DynamicConfig.Client.RequestPercentageOverrideProp, "2000")
-<<<<<<< HEAD
-    AdminUtils.changeClientIdConfig(zkUtils, Sanitizer.sanitize(unthrottledClientId), quotaProps)
-=======
     adminZkClient.changeClientIdConfig(Sanitizer.sanitize(unthrottledClientId), quotaProps)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     TestUtils.retry(10000) {
       val quotaManager = servers.head.apis.quotas.request

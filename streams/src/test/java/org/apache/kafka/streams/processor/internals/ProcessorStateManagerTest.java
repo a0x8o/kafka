@@ -30,12 +30,8 @@ import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.state.internals.OffsetCheckpoint;
 import org.apache.kafka.test.MockBatchingStateRestoreListener;
-<<<<<<< HEAD
-import org.apache.kafka.test.MockStateStoreSupplier;
-=======
 import org.apache.kafka.test.MockStateStore;
 import org.apache.kafka.test.NoOpProcessorContext;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.test.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -346,11 +342,7 @@ public class ProcessorStateManagerTest {
             Collections.<String, String>emptyMap(),
             changelogReader,
             false,
-<<<<<<< HEAD
-                logContext);
-=======
             logContext);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         stateMgr.register(nonPersistentStore, nonPersistentStore.stateRestoreCallback);
         assertNotNull(stateMgr.getStore(nonPersistentStoreName));
     }
@@ -369,11 +361,7 @@ public class ProcessorStateManagerTest {
             Collections.<String, String>emptyMap(),
             changelogReader,
             false,
-<<<<<<< HEAD
-                logContext);
-=======
             logContext);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         stateMgr.register(persistentStore, persistentStore.stateRestoreCallback);
         stateMgr.close(null);
         final Map<TopicPartition, Long> read = checkpoint.read();
@@ -390,11 +378,7 @@ public class ProcessorStateManagerTest {
             Collections.singletonMap(persistentStore.name(), persistentStoreTopicName),
             changelogReader,
             false,
-<<<<<<< HEAD
-                logContext);
-=======
             logContext);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         stateMgr.register(persistentStore, persistentStore.stateRestoreCallback);
 
         stateMgr.checkpoint(Collections.singletonMap(persistentStorePartition, 10L));
@@ -486,11 +470,7 @@ public class ProcessorStateManagerTest {
             logContext);
 
         try {
-<<<<<<< HEAD
-            stateManager.register(new MockStateStoreSupplier.MockStateStore(ProcessorStateManager.CHECKPOINT_FILE_NAME, true), null);
-=======
             stateManager.register(new MockStateStore(ProcessorStateManager.CHECKPOINT_FILE_NAME, true), null);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
             fail("should have thrown illegal argument exception when store name same as checkpoint file");
         } catch (final IllegalArgumentException e) {
             //pass

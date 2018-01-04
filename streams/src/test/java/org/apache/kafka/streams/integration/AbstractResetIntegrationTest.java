@@ -50,13 +50,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-<<<<<<< HEAD
-=======
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -76,10 +73,7 @@ abstract class AbstractResetIntegrationTest {
     private static final String OUTPUT_TOPIC_2 = "outputTopic2";
     private static final String OUTPUT_TOPIC_2_RERUN = "outputTopic2_rerun";
     private static final String INTERMEDIATE_USER_TOPIC = "userTopic";
-<<<<<<< HEAD
-=======
     private static final String NON_EXISTING_TOPIC = "nonExistingTopic2";
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
     private static final long STREAMS_CONSUMER_TIMEOUT = 2000L;
     private static final long CLEANUP_CONSUMER_TIMEOUT = 2000L;
@@ -187,11 +181,7 @@ abstract class AbstractResetIntegrationTest {
         // RESET
         streams = new KafkaStreams(setupTopologyWithoutIntermediateUserTopic(), streamsConfiguration);
         streams.cleanUp();
-<<<<<<< HEAD
-        cleanGlobal(null, sslConfig);
-=======
         cleanGlobal(sslConfig, false, null, null);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         TestUtils.waitForCondition(consumerGroupInactive, TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT,
             "Reset Tool consumer group did not time out after " + (TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT) + " ms.");
 
@@ -209,11 +199,7 @@ abstract class AbstractResetIntegrationTest {
 
         TestUtils.waitForCondition(consumerGroupInactive, TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT,
             "Reset Tool consumer group did not time out after " + (TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT) + " ms.");
-<<<<<<< HEAD
-        cleanGlobal(null, sslConfig);
-=======
         cleanGlobal(sslConfig, false, null, null);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     void testReprocessingFromScratchAfterResetWithIntermediateUserTopic() throws Exception {
@@ -267,11 +253,7 @@ abstract class AbstractResetIntegrationTest {
         // RESET
         streams = new KafkaStreams(setupTopologyWithIntermediateUserTopic(OUTPUT_TOPIC_2_RERUN), streamsConfiguration);
         streams.cleanUp();
-<<<<<<< HEAD
-        cleanGlobal(INTERMEDIATE_USER_TOPIC, sslConfig);
-=======
         cleanGlobal(sslConfig, true, null, null);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         TestUtils.waitForCondition(consumerGroupInactive, TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT,
             "Reset Tool consumer group did not time out after " + (TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT) + " ms.");
 
@@ -286,12 +268,7 @@ abstract class AbstractResetIntegrationTest {
         final List<KeyValue<Long, Long>> resultRerun2 = IntegrationTestUtils.waitUntilMinKeyValueRecordsReceived(
             resultTopicConsumerConfig,
             OUTPUT_TOPIC_2_RERUN,
-<<<<<<< HEAD
-            40
-        );
-=======
             40);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         streams.close();
 
         assertThat(resultRerun, equalTo(result));
@@ -299,17 +276,11 @@ abstract class AbstractResetIntegrationTest {
 
         TestUtils.waitForCondition(consumerGroupInactive, TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT,
             "Reset Tool consumer group did not time out after " + (TIMEOUT_MULTIPLIER * CLEANUP_CONSUMER_TIMEOUT) + " ms.");
-<<<<<<< HEAD
-        cleanGlobal(INTERMEDIATE_USER_TOPIC, sslConfig);
-=======
         cleanGlobal(sslConfig, true, null, null);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         cluster.deleteTopicAndWait(INTERMEDIATE_USER_TOPIC);
     }
 
-<<<<<<< HEAD
-=======
     void testReprocessingFromFileAfterResetWithoutIntermediateUserTopic() throws Exception {
         final Properties sslConfig = getClientSslConfig();
         final Properties streamsConfiguration = prepareTest();
@@ -493,7 +464,6 @@ abstract class AbstractResetIntegrationTest {
         cleanGlobal(sslConfig, false, null, null);
     }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private Properties prepareTest() throws IOException {
         Properties streamsConfiguration = getClientSslConfig();
         if (streamsConfiguration == null) {
@@ -519,13 +489,10 @@ abstract class AbstractResetIntegrationTest {
     private void prepareInputData() throws Exception {
         cluster.deleteAndRecreateTopics(INPUT_TOPIC, OUTPUT_TOPIC, OUTPUT_TOPIC_2, OUTPUT_TOPIC_2_RERUN);
 
-<<<<<<< HEAD
-=======
         add10InputElements();
     }
 
     private void add10InputElements() throws java.util.concurrent.ExecutionException, InterruptedException {
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         Properties producerConfig = getClientSslConfig();
         if (producerConfig == null) {
             producerConfig = new Properties();
@@ -603,42 +570,6 @@ abstract class AbstractResetIntegrationTest {
         return builder.build();
     }
 
-<<<<<<< HEAD
-    private void cleanGlobal(final String intermediateUserTopic, final Properties sslConfig) throws Exception {
-        // leaving --zookeeper arg here to ensure tool works if users add it
-        final String[] parameters;
-        if (intermediateUserTopic != null) {
-            parameters = new String[]{
-                "--application-id", APP_ID + testNo,
-                "--bootstrap-servers", bootstrapServers,
-                "--input-topics", INPUT_TOPIC,
-                "--intermediate-topics", INTERMEDIATE_USER_TOPIC,
-                "--zookeeper", "localhost:2181"
-            };
-        } else {
-            if (sslConfig != null) {
-                final File configFile = TestUtils.tempFile();
-                final BufferedWriter writer = new BufferedWriter(new FileWriter(configFile));
-                writer.write(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=SSL\n");
-                writer.write(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG + "=" + sslConfig.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG) + "\n");
-                writer.write(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG + "=" + sslConfig.get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG) + "\n");
-                writer.close();
-
-                parameters = new String[]{
-                    "--application-id", APP_ID + testNo,
-                    "--bootstrap-servers", bootstrapServers,
-                    "--input-topics", INPUT_TOPIC,
-                    "--config-file", configFile.getAbsolutePath()
-                };
-            } else {
-                parameters = new String[]{
-                    "--application-id", APP_ID + testNo,
-                    "--bootstrap-servers", bootstrapServers,
-                    "--input-topics", INPUT_TOPIC
-                };
-            }
-        }
-=======
     private void cleanGlobal(final Properties sslConfig,
                              final boolean withIntermediateTopics,
                              final String resetScenario,
@@ -672,7 +603,6 @@ abstract class AbstractResetIntegrationTest {
 
         final String[] parameters = parameterList.toArray(new String[parameterList.size()]);
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         final Properties cleanUpConfig = new Properties();
         cleanUpConfig.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 100);
         cleanUpConfig.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "" + CLEANUP_CONSUMER_TIMEOUT);
@@ -683,8 +613,6 @@ abstract class AbstractResetIntegrationTest {
         Assert.assertEquals(0, exitCode);
     }
 
-<<<<<<< HEAD
-=======
     void shouldNotAllowToResetWhileStreamsIsRunning() throws Exception {
 
         final Properties streamsConfiguration = prepareTest();
@@ -709,7 +637,6 @@ abstract class AbstractResetIntegrationTest {
 
     }
 
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     private void assertInternalTopicsGotDeleted(final String intermediateUserTopic) throws Exception {
         // do not use list topics request, but read from the embedded cluster's zookeeper path directly to confirm
         if (intermediateUserTopic != null) {

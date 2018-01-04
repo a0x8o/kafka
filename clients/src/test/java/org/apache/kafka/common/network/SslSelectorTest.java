@@ -22,10 +22,7 @@ import org.apache.kafka.common.memory.MemoryPool;
 import org.apache.kafka.common.memory.SimpleMemoryPool;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-<<<<<<< HEAD
-=======
 import org.apache.kafka.common.security.ssl.SslFactory;
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.MockTime;
 import org.apache.kafka.test.TestCondition;
@@ -85,12 +82,6 @@ public class SslSelectorTest extends SelectorTest {
         return SecurityProtocol.PLAINTEXT;
     }
 
-<<<<<<< HEAD
-    /**
-     * Renegotiation is not supported since it is potentially unsafe and it has been removed in TLS 1.3
-     */
-    @Test
-=======
     @Test
     public void testDisconnectWithIntermediateBufferedBytes() throws Exception {
         int requestSize = 100 * 1024;
@@ -125,7 +116,6 @@ public class SslSelectorTest extends SelectorTest {
      * Renegotiation is not supported since it is potentially unsafe and it has been removed in TLS 1.3
      */
     @Test
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     public void testRenegotiationFails() throws Exception {
         String node = "0";
         // create connections

@@ -176,11 +176,7 @@ public class DistributedHerderTest {
         time = new MockTime();
         metrics = new MockConnectMetrics(time);
         worker = PowerMock.createMock(Worker.class);
-<<<<<<< HEAD
-        EasyMock.expect(worker.isSinkConnector(CONN1)).andStubReturn(Boolean.FALSE);
-=======
         EasyMock.expect(worker.isSinkConnector(CONN1)).andStubReturn(Boolean.TRUE);
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 
         herder = PowerMock.createPartialMock(DistributedHerder.class, new String[]{"backoff", "connectorTypeForClass", "updateDeletedConnectorStatus"},
                 new DistributedConfig(HERDER_CONFIG), worker, WORKER_ID, statusBackingStore, configBackingStore, member, MEMBER_URL, metrics, time);

@@ -20,10 +20,6 @@ package kafka.server
 import java.util
 
 import AbstractFetcherThread.ResultWithPartitions
-<<<<<<< HEAD
-import kafka.admin.AdminUtils
-=======
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
 import kafka.api.{FetchRequest => _, _}
 import kafka.cluster.{BrokerEndPoint, Replica}
 import kafka.log.LogConfig
@@ -103,11 +99,7 @@ class ReplicaFetcherThread(name: String,
       throw new IllegalStateException("Offset mismatch for partition %s: fetched offset = %d, log end offset = %d.".format(
         topicPartition, fetchOffset, replica.logEndOffset.messageOffset))
 
-<<<<<<< HEAD
-    if (logger.isTraceEnabled)
-=======
     if (isTraceEnabled)
->>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
       trace("Follower has replica log end offset %d for partition %s. Received %d messages and leader hw %d"
         .format(replica.logEndOffset.messageOffset, topicPartition, records.sizeInBytes, partitionData.highWatermark))
 
