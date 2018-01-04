@@ -37,11 +37,8 @@ import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.network.ChannelBuilder;
 import org.apache.kafka.common.network.Selector;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.ApiError;
-import org.apache.kafka.common.requests.ApiVersionsRequest;
-import org.apache.kafka.common.requests.ApiVersionsResponse;
 import org.apache.kafka.common.requests.CreateTopicsRequest;
 import org.apache.kafka.common.requests.CreateTopicsResponse;
 import org.apache.kafka.common.requests.MetadataRequest;
@@ -64,9 +61,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.kafka.streams.StreamsConfig.EXACTLY_ONCE;
-import static org.apache.kafka.streams.StreamsConfig.PROCESSING_GUARANTEE_CONFIG;
-
 public class StreamsKafkaClient {
 
     private static final ConfigDef CONFIG = StreamsConfig.configDef()
@@ -75,8 +69,8 @@ public class StreamsKafkaClient {
 
     public static class Config extends AbstractConfig {
 
-        static Config fromStreamsConfig(StreamsConfig streamsConfig) {
-            return new Config(streamsConfig.originals());
+        static Config fromStreamsConfig(Map<String, ?> props) {
+            return new Config(props);
         }
 
         Config(Map<?, ?> originals) {
@@ -166,8 +160,8 @@ public class StreamsKafkaClient {
         return new LogContext("[StreamsKafkaClient clientId=" + clientId + "] ");
     }
 
-    public static StreamsKafkaClient create(final StreamsConfig streamsConfig) {
-        return create(Config.fromStreamsConfig(streamsConfig));
+    public static StreamsKafkaClient create(final Map<String, ?> props) {
+        return create(Config.fromStreamsConfig(props));
     }
 
     public void close() {
@@ -357,6 +351,7 @@ public class StreamsKafkaClient {
             throw new StreamsException("Inconsistent response type for internal topic metadata request. " +
                 "Expected MetadataResponse but received " + clientResponse.responseBody().getClass().getName());
         }
+<<<<<<< HEAD
         final MetadataResponse metadataResponse = (MetadataResponse) clientResponse.responseBody();
         return metadataResponse;
     }
@@ -406,6 +401,9 @@ public class StreamsKafkaClient {
             && apiVersionsResponse.apiVersion(ApiKeys.END_TXN.id) != null
             && apiVersionsResponse.apiVersion(ApiKeys.WRITE_TXN_MARKERS.id) != null
             && apiVersionsResponse.apiVersion(ApiKeys.TXN_OFFSET_COMMIT.id) != null;
+=======
+        return (MetadataResponse) clientResponse.responseBody();
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
 }

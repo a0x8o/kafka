@@ -16,9 +16,11 @@
  */
 package kafka.security.auth
 
+import java.nio.charset.StandardCharsets
 import java.util
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
+import com.typesafe.scalalogging.Logger
 import kafka.common.{NotificationHandler, ZkNodeChangeNotificationListener}
 import kafka.network.RequestChannel.Session
 import kafka.security.auth.SimpleAclAuthorizer.VersionedAcls
@@ -26,10 +28,8 @@ import kafka.server.KafkaConfig
 import kafka.utils.CoreUtils.{inReadLock, inWriteLock}
 import kafka.utils._
 import kafka.zk.{AclChangeNotificationSequenceZNode, AclChangeNotificationZNode, KafkaZkClient}
-import kafka.zookeeper.ZooKeeperClient
 import org.apache.kafka.common.security.auth.KafkaPrincipal
-import org.apache.kafka.common.utils.SecurityUtils
-import org.apache.log4j.Logger
+import org.apache.kafka.common.utils.{SecurityUtils, Time}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -51,7 +51,7 @@ object SimpleAclAuthorizer {
 }
 
 class SimpleAclAuthorizer extends Authorizer with Logging {
-  private val authorizerLogger = Logger.getLogger("kafka.authorizer.logger")
+  private val authorizerLogger = Logger("kafka.authorizer.logger")
   private var superUsers = Set.empty[KafkaPrincipal]
   private var shouldAllowEveryoneIfNoAclIsFound = false
   private var zkClient: KafkaZkClient = null
@@ -90,9 +90,9 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
     val zkSessionTimeOutMs = configs.get(SimpleAclAuthorizer.ZkSessionTimeOutProp).map(_.toString.toInt).getOrElse(kafkaConfig.zkSessionTimeoutMs)
     val zkMaxInFlightRequests = configs.get(SimpleAclAuthorizer.ZkMaxInFlightRequests).map(_.toString.toInt).getOrElse(kafkaConfig.zkMaxInFlightRequests)
 
-    val zooKeeperClient = new ZooKeeperClient(zkUrl, zkSessionTimeOutMs, zkConnectionTimeoutMs, zkMaxInFlightRequests)
-
-    zkClient = new KafkaZkClient(zooKeeperClient, kafkaConfig.zkEnableSecureAcls)
+    val time = Time.SYSTEM
+    zkClient = KafkaZkClient(zkUrl, kafkaConfig.zkEnableSecureAcls, zkSessionTimeOutMs, zkConnectionTimeoutMs,
+      zkMaxInFlightRequests, time, "kafka.security", "SimpleAclAuthorizer")
     zkClient.createAclPaths()
 
     loadCache()
@@ -313,8 +313,8 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
   }
 
   object AclChangedNotificationHandler extends NotificationHandler {
-    override def processNotification(notificationMessage: String) {
-      val resource: Resource = Resource.fromString(notificationMessage)
+    override def processNotification(notificationMessage: Array[Byte]) {
+      val resource: Resource = Resource.fromString(new String(notificationMessage, StandardCharsets.UTF_8))
       inWriteLock(lock) {
         val versionedAcls = getAclsFromZk(resource)
         updateCache(resource, versionedAcls)
