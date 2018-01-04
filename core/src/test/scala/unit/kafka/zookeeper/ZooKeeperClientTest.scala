@@ -59,33 +59,21 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
 
   @Test(expected = classOf[IllegalArgumentException])
   def testUnresolvableConnectString(): Unit = {
-<<<<<<< HEAD
-    new ZooKeeperClient("some.invalid.hostname.foo.bar.local", -1, -1, Int.MaxValue)
-=======
     new ZooKeeperClient("some.invalid.hostname.foo.bar.local", -1, -1, Int.MaxValue, time, "testMetricGroup",
       "testMetricType").close()
->>>>>>> axbaretto
   }
 
   @Test(expected = classOf[ZooKeeperClientTimeoutException])
   def testConnectionTimeout(): Unit = {
     zookeeper.shutdown()
-<<<<<<< HEAD
-    new ZooKeeperClient(zkConnect, zkSessionTimeout, connectionTimeoutMs = 100, Int.MaxValue)
-=======
     new ZooKeeperClient(zkConnect, zkSessionTimeout, connectionTimeoutMs = 100, Int.MaxValue, time, "testMetricGroup",
       "testMetricType").close()
->>>>>>> axbaretto
   }
 
   @Test
   def testConnection(): Unit = {
-<<<<<<< HEAD
-    new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue)
-=======
     new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time, "testMetricGroup",
       "testMetricType").close()
->>>>>>> axbaretto
   }
 
   @Test
@@ -99,13 +87,8 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
 
   @Test
   def testDeleteExistingZNode(): Unit = {
-<<<<<<< HEAD
-    import scala.collection.JavaConverters._
-    val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte], ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
-=======
     val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte],
       ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
->>>>>>> axbaretto
     assertEquals("Response code for create should be OK", Code.OK, createResponse.resultCode)
     val deleteResponse = zooKeeperClient.handleRequest(DeleteRequest(mockPath, -1))
     assertEquals("Response code for delete should be OK", Code.OK, deleteResponse.resultCode)
@@ -120,12 +103,8 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
   @Test
   def testExistsExistingZNode(): Unit = {
     import scala.collection.JavaConverters._
-<<<<<<< HEAD
-    val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte], ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
-=======
     val createResponse = zooKeeperClient.handleRequest(CreateRequest(mockPath, Array.empty[Byte],
       ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala, CreateMode.PERSISTENT))
->>>>>>> axbaretto
     assertEquals("Response code for create should be OK", Code.OK, createResponse.resultCode)
     val existsResponse = zooKeeperClient.handleRequest(ExistsRequest(mockPath))
     assertEquals("Response code for exists should be OK", Code.OK, existsResponse.resultCode)
@@ -366,23 +345,15 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
       zooKeeperClient.registerStateChangeHandler(stateChangeHandler)
       zooKeeperClient.reinitialize()
 
-<<<<<<< HEAD
-    assertTrue("Failed to receive auth failed notification", stateChangeHandlerCountDownLatch.await(5, TimeUnit.SECONDS))
-=======
       assertTrue("Failed to receive auth failed notification", stateChangeHandlerCountDownLatch.await(5, TimeUnit.SECONDS))
     } finally zooKeeperClient.close()
->>>>>>> axbaretto
   }
 
   @Test
   def testConnectionLossRequestTermination(): Unit = {
     val batchSize = 10
-<<<<<<< HEAD
-    val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, 2)
-=======
     val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, 2, time,
       "testGroupType", "testGroupName")
->>>>>>> axbaretto
     zookeeper.shutdown()
     try {
       val requests = (1 to batchSize).map(i => GetDataRequest(s"/$i"))

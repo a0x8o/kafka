@@ -25,10 +25,7 @@ import kafka.common.KafkaException
 import kafka.controller.{IsrChangeNotificationHandler, LeaderIsrAndControllerEpoch}
 import kafka.security.auth.{Acl, Resource}
 import kafka.security.auth.SimpleAclAuthorizer.VersionedAcls
-<<<<<<< HEAD
-=======
 import kafka.server.ConfigType
->>>>>>> axbaretto
 import kafka.utils.Json
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.network.ListenerName
@@ -418,13 +415,10 @@ object ConsumerOffset {
 object ZkVersion {
   val NoVersion = -1
 }
-<<<<<<< HEAD
-=======
 
 object ZkStat {
   val NoStat = new Stat()
 }
->>>>>>> axbaretto
 
 object StateChangeHandlers {
   val ControllerHandler = "controller-state-change-handler"
@@ -468,9 +462,6 @@ object AclChangeNotificationSequenceZNode {
   def deletePath(sequenceNode: String) = s"${AclChangeNotificationZNode.path}/${sequenceNode}"
   def encode(resourceName : String): Array[Byte] = resourceName.getBytes(UTF_8)
   def decode(bytes: Array[Byte]): String = new String(bytes, UTF_8)
-<<<<<<< HEAD
-}
-=======
 }
 
 object ClusterZNode {
@@ -543,4 +534,3 @@ object ZkData {
     } else ZooDefs.Ids.OPEN_ACL_UNSAFE.asScala
   }
 }
->>>>>>> axbaretto

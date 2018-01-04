@@ -36,12 +36,7 @@ import kafka.network.SocketServer
 import kafka.security.CredentialProvider
 import kafka.security.auth.Authorizer
 import kafka.utils._
-<<<<<<< HEAD
-import kafka.zk.KafkaZkClient
-import kafka.zookeeper.ZooKeeperClient
-=======
 import kafka.zk.{BrokerInfo, KafkaZkClient}
->>>>>>> axbaretto
 import org.apache.kafka.clients.{ApiVersions, ManualMetadataUpdater, NetworkClient, NetworkClientUtils}
 import org.apache.kafka.common.internals.ClusterResourceListeners
 import org.apache.kafka.common.metrics.{JmxReporter, Metrics, _}
@@ -228,12 +223,6 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
-<<<<<<< HEAD
-        val zooKeeperClient = new ZooKeeperClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs, config.zkMaxInFlightRequests)
-        zkClient = new KafkaZkClient(zooKeeperClient, zkUtils.isSecure)
-
-=======
->>>>>>> axbaretto
         /* start log manager */
         logManager = LogManager(config, initialOfflineDirs, zkClient, brokerState, kafkaScheduler, time, brokerTopicStats, logDirFailureChannel)
         logManager.startup()
@@ -543,20 +532,11 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         CoreUtils.swallow(controlledShutdown(), this)
         brokerState.newState(BrokerShuttingDown)
 
-<<<<<<< HEAD
-        if (kafkaHealthcheck != null)
-          CoreUtils.swallow(kafkaHealthcheck.shutdown())
-
-=======
->>>>>>> axbaretto
         if (dynamicConfigManager != null)
           CoreUtils.swallow(dynamicConfigManager.shutdown(), this)
 
-<<<<<<< HEAD
-=======
         // Stop socket server to stop accepting any more connections and requests.
         // Socket server will be shutdown towards the end of the sequence.
->>>>>>> axbaretto
         if (socketServer != null)
           CoreUtils.swallow(socketServer.stopProcessingRequests(), this)
         if (requestHandlerPool != null)

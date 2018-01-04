@@ -147,12 +147,6 @@
         A stub implementation has been retained for binary compatibility.</li>
     <li>The Java clients and tools now accept any string as a client-id.</li>
     <li>The deprecated tool <code>kafka-consumer-offset-checker.sh</code> has been removed. Use <code>kafka-consumer-groups.sh</code> to get consumer group details.</li>
-<<<<<<< HEAD
-<<<<<<< HEAD
-    <li>In SimpleAclAuthorizer class, access denials are logged at INFO level and access approvals are logged at DEBUG level.</li>
-=======
-=======
->>>>>>> axbaretto
     <li>SimpleAclAuthorizer now logs access denials to the authorizer log by default.</li>
     <li>Authentication failures are now reported to clients as one of the subclasses of <code>AuthenticationException</code>.
         No retries will be performed if a client connection fails authentication.</li>
@@ -177,10 +171,6 @@
         If the user have required permissions and the topic doesn't exists, then the UNKNOWN_TOPIC_OR_PARTITION
         error code will be returned. </li>
     <li>config/consumer.properties file updated to use new consumer config properties.</li>
-<<<<<<< HEAD
->>>>>>> ee1aaa091fc68587635604de5006b7acdb160361
-=======
->>>>>>> axbaretto
 </ul>
 
 <h5><a id="upgrade_100_new_protocols" href="#upgrade_100_new_protocols">New Protocol Versions</a></h5>

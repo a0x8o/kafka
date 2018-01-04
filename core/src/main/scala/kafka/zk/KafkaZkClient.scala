@@ -24,10 +24,7 @@ import kafka.cluster.Broker
 import kafka.common.KafkaException
 import kafka.controller.LeaderIsrAndControllerEpoch
 import kafka.log.LogConfig
-<<<<<<< HEAD
-=======
 import kafka.metrics.KafkaMetricsGroup
->>>>>>> axbaretto
 import kafka.security.auth.SimpleAclAuthorizer.VersionedAcls
 import kafka.security.auth.{Acl, Resource, ResourceType}
 import kafka.server.ConfigType
@@ -1266,30 +1263,6 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
    */
   private[zk] def deleteRecursive(path: String): Boolean = {
     val getChildrenResponse = retryRequestUntilConnected(GetChildrenRequest(path))
-<<<<<<< HEAD
-    if (getChildrenResponse.resultCode == Code.OK) {
-      getChildrenResponse.children.foreach(child => deleteRecursive(s"$path/$child"))
-      val deleteResponse = retryRequestUntilConnected(DeleteRequest(path, ZkVersion.NoVersion))
-      if (deleteResponse.resultCode != Code.OK && deleteResponse.resultCode != Code.NONODE) {
-        throw deleteResponse.resultException.get
-      }
-      true
-    } else if (getChildrenResponse.resultCode == Code.NONODE) {
-      false
-    } else
-      throw getChildrenResponse.resultException.get
-  }
-
-  private[zk] def pathExists(path: String): Boolean = {
-    val getDataRequest = GetDataRequest(path)
-    val getDataResponse = retryRequestUntilConnected(getDataRequest)
-    if (getDataResponse.resultCode == Code.OK) {
-      true
-    } else if (getDataResponse.resultCode == Code.NONODE) {
-      false
-    } else
-      throw getDataResponse.resultException.get
-=======
     getChildrenResponse.resultCode match {
       case Code.OK =>
         getChildrenResponse.children.foreach(child => deleteRecursive(s"$path/$child"))
@@ -1311,7 +1284,6 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
       case Code.NONODE => false
       case _ => throw existsResponse.resultException.get
     }
->>>>>>> axbaretto
   }
 
   private[zk] def createRecursive(path: String, data: Array[Byte] = null, throwIfPathExists: Boolean = true) = {

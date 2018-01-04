@@ -16,12 +16,8 @@
 */
 package kafka.zk
 
-<<<<<<< HEAD
-import java.util.UUID
-=======
 import java.util.{Properties, UUID}
 import java.nio.charset.StandardCharsets.UTF_8
->>>>>>> axbaretto
 
 import kafka.api.ApiVersion
 import kafka.cluster.{Broker, EndPoint}
@@ -430,8 +426,6 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     zkClient.registerBrokerInZk(brokerInfo)
     assertEquals(Some(brokerInfo.broker), zkClient.getBroker(1))
   }
-<<<<<<< HEAD
-=======
 
   @Test
   def testClusterIdMethods() {
@@ -478,5 +472,4 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     data.map(new String(_, UTF_8))
   }
 
->>>>>>> axbaretto
 }

@@ -47,14 +47,10 @@ import scala.collection.mutable.Set
 class ZooKeeperClient(connectString: String,
                       sessionTimeoutMs: Int,
                       connectionTimeoutMs: Int,
-<<<<<<< HEAD
-                      maxInFlightRequests: Int) extends Logging {
-=======
                       maxInFlightRequests: Int,
                       time: Time,
                       metricGroup: String,
                       metricType: String) extends Logging with KafkaMetricsGroup {
->>>>>>> axbaretto
   this.logIdent = "[ZooKeeperClient] "
   private val initializationLock = new ReentrantReadWriteLock()
   private val isConnectedOrExpiredLock = new ReentrantLock()
@@ -63,8 +59,6 @@ class ZooKeeperClient(connectString: String,
   private val zNodeChildChangeHandlers = new ConcurrentHashMap[String, ZNodeChildChangeHandler]().asScala
   private val inFlightRequests = new Semaphore(maxInFlightRequests)
   private val stateChangeHandlers = new ConcurrentHashMap[String, StateChangeHandler]().asScala
-<<<<<<< HEAD
-=======
 
   private val metricNames = Set[String]()
 
@@ -85,7 +79,6 @@ class ZooKeeperClient(connectString: String,
       state -> newMeter(name, eventType.toLowerCase(Locale.ROOT), TimeUnit.SECONDS)
     }
   }
->>>>>>> axbaretto
 
   info(s"Initializing a new session to $connectString.")
   // Fail-fast if there's an error during construction (so don't call initialize, which retries forever)
@@ -333,11 +326,6 @@ class ZooKeeperClient(connectString: String,
             Thread.sleep(1000)
         }
       }
-<<<<<<< HEAD
-      info(s"Timed out waiting for connection during session initialization while in state: ${zooKeeper.getState}")
-      stateChangeHandlers.foreach {case (name, handler) => handler.onReconnectionTimeout()}
-=======
->>>>>>> axbaretto
     }
   }
 
@@ -349,12 +337,8 @@ class ZooKeeperClient(connectString: String,
     initialize()
   }
 
-<<<<<<< HEAD
-  private object ZooKeeperClientWatcher extends Watcher {
-=======
   // package level visibility for testing only
   private[zookeeper] object ZooKeeperClientWatcher extends Watcher {
->>>>>>> axbaretto
     override def process(event: WatchedEvent): Unit = {
       debug(s"Received event: $event")
       Option(event.getPath) match {
@@ -364,11 +348,7 @@ class ZooKeeperClient(connectString: String,
           inLock(isConnectedOrExpiredLock) {
             isConnectedOrExpiredCondition.signalAll()
           }
-<<<<<<< HEAD
-          if (event.getState == KeeperState.AuthFailed) {
-=======
           if (state == KeeperState.AuthFailed) {
->>>>>>> axbaretto
             error("Auth failed.")
             stateChangeHandlers.values.foreach(_.onAuthFailure())
           } else if (state == KeeperState.Expired) {
@@ -376,11 +356,7 @@ class ZooKeeperClient(connectString: String,
               info("Session expired.")
               stateChangeHandlers.values.foreach(_.beforeInitializingSession())
               initialize()
-<<<<<<< HEAD
-              stateChangeHandlers.foreach {case (name, handler) => handler.afterInitializingSession()}
-=======
               stateChangeHandlers.values.foreach(_.afterInitializingSession())
->>>>>>> axbaretto
             }
           }
         case Some(path) =>
