@@ -351,7 +351,59 @@ public class StreamsKafkaClient {
             throw new StreamsException("Inconsistent response type for internal topic metadata request. " +
                 "Expected MetadataResponse but received " + clientResponse.responseBody().getClass().getName());
         }
+<<<<<<< HEAD
+        final MetadataResponse metadataResponse = (MetadataResponse) clientResponse.responseBody();
+        return metadataResponse;
+    }
+
+    /**
+     * Check if the used brokers have version 0.10.1.x or higher.
+     * <p>
+     * Note, for <em>pre</em> 0.10.x brokers the broker version cannot be checked and the client will hang and retry
+     * until it {@link StreamsConfig#REQUEST_TIMEOUT_MS_CONFIG times out}.
+     *
+     * @throws BrokerNotFoundException if connecting failed within {@code request.timeout.ms}
+     * @throws TimeoutException if there was no response within {@code request.timeout.ms}
+     * @throws StreamsException if brokers have version 0.10.0.x
+     * @throws StreamsException for any other fatal error
+     */
+    public void checkBrokerCompatibility(final boolean eosEnabled) throws StreamsException {
+        final ClientRequest clientRequest = kafkaClient.newClientRequest(
+            getAnyReadyBrokerId(),
+            new ApiVersionsRequest.Builder(),
+            Time.SYSTEM.milliseconds(),
+            true);
+
+        final ClientResponse clientResponse = sendRequestSync(clientRequest);
+        if (!clientResponse.hasResponse()) {
+            throw new StreamsException("Empty response for client request.");
+        }
+        if (!(clientResponse.responseBody() instanceof ApiVersionsResponse)) {
+            throw new StreamsException("Inconsistent response type for API versions request. " +
+                "Expected ApiVersionsResponse but received " + clientResponse.responseBody().getClass().getName());
+        }
+
+        final ApiVersionsResponse apiVersionsResponse =  (ApiVersionsResponse) clientResponse.responseBody();
+
+        if (apiVersionsResponse.apiVersion(ApiKeys.CREATE_TOPICS.id) == null) {
+            throw new StreamsException("Kafka Streams requires broker version 0.10.1.x or higher.");
+        }
+
+        if (eosEnabled && !brokerSupportsTransactions(apiVersionsResponse)) {
+            throw new StreamsException("Setting " + PROCESSING_GUARANTEE_CONFIG + "=" + EXACTLY_ONCE + " requires broker version 0.11.0.x or higher.");
+        }
+    }
+
+    private boolean brokerSupportsTransactions(final ApiVersionsResponse apiVersionsResponse) {
+        return apiVersionsResponse.apiVersion(ApiKeys.INIT_PRODUCER_ID.id) != null
+            && apiVersionsResponse.apiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN.id) != null
+            && apiVersionsResponse.apiVersion(ApiKeys.ADD_OFFSETS_TO_TXN.id) != null
+            && apiVersionsResponse.apiVersion(ApiKeys.END_TXN.id) != null
+            && apiVersionsResponse.apiVersion(ApiKeys.WRITE_TXN_MARKERS.id) != null
+            && apiVersionsResponse.apiVersion(ApiKeys.TXN_OFFSET_COMMIT.id) != null;
+=======
         return (MetadataResponse) clientResponse.responseBody();
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
 }
