@@ -134,11 +134,46 @@ public class StreamsKafkaClientTest {
     public void metricsShouldBeTaggedWithClientId() {
         config.put(StreamsConfig.CLIENT_ID_CONFIG, "some_client_id");
         config.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, TestMetricsReporter.class.getName());
+<<<<<<< HEAD
+        StreamsKafkaClient.create(new StreamsConfig(config));
+=======
         StreamsKafkaClient.create(config);
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
         assertFalse(TestMetricsReporter.METRICS.isEmpty());
         for (KafkaMetric kafkaMetric : TestMetricsReporter.METRICS.values()) {
             assertEquals("some_client_id", kafkaMetric.metricName().tags().get("client-id"));
         }
+<<<<<<< HEAD
+    }
+
+    @Test(expected = StreamsException.class)
+    public void shouldThrowStreamsExceptionOnEmptyBrokerCompatibilityResponse() {
+        kafkaClient.prepareResponse(null);
+        final StreamsKafkaClient streamsKafkaClient = createStreamsKafkaClient();
+        streamsKafkaClient.checkBrokerCompatibility(false);
+    }
+
+    @Test(expected = StreamsException.class)
+    public void shouldThrowStreamsExceptionWhenBrokerCompatibilityResponseInconsistent() {
+        kafkaClient.prepareResponse(new ProduceResponse(Collections.<TopicPartition, ProduceResponse.PartitionResponse>emptyMap()));
+        final StreamsKafkaClient streamsKafkaClient = createStreamsKafkaClient();
+        streamsKafkaClient.checkBrokerCompatibility(false);
+    }
+
+    @Test(expected = StreamsException.class)
+    public void shouldRequireBrokerVersion0101OrHigherWhenEosDisabled() {
+        kafkaClient.prepareResponse(new ApiVersionsResponse(Errors.NONE, Collections.singletonList(new ApiVersionsResponse.ApiVersion(ApiKeys.PRODUCE))));
+        final StreamsKafkaClient streamsKafkaClient = createStreamsKafkaClient();
+        streamsKafkaClient.checkBrokerCompatibility(false);
+    }
+
+    @Test(expected = StreamsException.class)
+    public void shouldRequireBrokerVersions0110OrHigherWhenEosEnabled() {
+        kafkaClient.prepareResponse(new ApiVersionsResponse(Errors.NONE, Collections.singletonList(new ApiVersionsResponse.ApiVersion(ApiKeys.CREATE_TOPICS))));
+        final StreamsKafkaClient streamsKafkaClient = createStreamsKafkaClient();
+        streamsKafkaClient.checkBrokerCompatibility(true);
+=======
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
     }
 
     @Test(expected = StreamsException.class)
@@ -181,7 +216,12 @@ public class StreamsKafkaClientTest {
     }
 
     private StreamsKafkaClient createStreamsKafkaClient() {
+<<<<<<< HEAD
+        final StreamsConfig streamsConfig = new StreamsConfig(config);
+        return new StreamsKafkaClient(StreamsKafkaClient.Config.fromStreamsConfig(streamsConfig),
+=======
         return new StreamsKafkaClient(StreamsKafkaClient.Config.fromStreamsConfig(config),
+>>>>>>> cf2e714f3f44ee03c678823e8def8fa8d7dc218f
                                       kafkaClient,
                                       reporters,
                                       new LogContext());
