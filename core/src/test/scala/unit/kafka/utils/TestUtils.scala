@@ -718,7 +718,7 @@ object TestUtils extends Logging {
 
   def deleteBrokersInZk(zkClient: KafkaZkClient, ids: Seq[Int]): Seq[Broker] = {
     val brokers = ids.map(createBroker(_, "localhost", 6667, SecurityProtocol.PLAINTEXT))
-    brokers.foreach(b => zkClient.deletePath(BrokerIdsZNode.path + "/" + b))
+    ids.foreach(b => zkClient.deletePath(BrokerIdsZNode.path + "/" + b))
     brokers
   }
 
@@ -1024,7 +1024,7 @@ object TestUtils extends Logging {
                    topicConfigs = Map(),
                    initialDefaultConfig = defaultConfig,
                    cleanerConfig = cleanerConfig,
-                   ioThreads = 4,
+                   recoveryThreadsPerDataDir = 4,
                    flushCheckMs = 1000L,
                    flushRecoveryOffsetCheckpointMs = 10000L,
                    flushStartOffsetCheckpointMs = 10000L,
