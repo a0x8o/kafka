@@ -14,18 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.common.security.scram;
+package org.apache.kafka.common.security.token.delegation;
 
-import javax.security.auth.callback.Callback;
+import org.apache.kafka.common.security.scram.ScramCredentialCallback;
 
-public class ScramCredentialCallback implements Callback {
-    private ScramCredential scramCredential;
+public class DelegationTokenCredentialCallback extends ScramCredentialCallback {
+    private String tokenOwner;
 
-    public ScramCredential scramCredential() {
-        return scramCredential;
+    public void tokenOwner(String tokenOwner) {
+        this.tokenOwner = tokenOwner;
     }
 
-    public void scramCredential(ScramCredential scramCredential) {
-        this.scramCredential = scramCredential;
+    public String tokenOwner() {
+        return tokenOwner;
     }
 }
