@@ -796,6 +796,19 @@ public class RocksDBWindowStoreTest {
     }
 
     @Test
+    public void shouldNoNullPointerWhenSerdeDoesntHandleNull() {
+        windowStore = new RocksDBWindowStore<>(
+                new RocksDBSegmentedBytesStore(windowName, retentionPeriod, numSegments, new WindowKeySchema()),
+                Serdes.Integer(),
+                new SerdeThatDoesntHandleNull(),
+                false,
+                windowSize);
+        windowStore.init(context, windowStore);
+
+        assertNull(windowStore.fetch(1, 0));
+    }
+
+    @Test
     public void shouldFetchAndIterateOverExactBinaryKeys() {
         final WindowStore<Bytes, String> windowStore = Stores.windowStoreBuilder(
                 Stores.persistentWindowStore(windowName,
@@ -875,9 +888,10 @@ public class RocksDBWindowStoreTest {
         HashMap<Integer, Set<String>> entriesByKey = new HashMap<>();
 
         for (KeyValue<byte[], byte[]> entry : changeLog) {
-            long timestamp = WindowStoreUtils.timestampFromBinaryKey(entry.key);
-            Integer key = WindowStoreUtils.keyFromBinaryKey(entry.key, serdes);
-            String value = entry.value == null ? null : serdes.valueFrom(entry.value);
+            final long timestamp = WindowKeySchema.extractStoreTimestamp(entry.key);
+
+            final Integer key = WindowKeySchema.extractStoreKey(entry.key, serdes);
+            final String value = entry.value == null ? null : serdes.valueFrom(entry.value);
 
             Set<String> entries = entriesByKey.get(key);
             if (entries == null) {
@@ -894,7 +908,7 @@ public class RocksDBWindowStoreTest {
         return windowedPair(key, value, timestamp, windowSize);
     }
 
-    private <K, V> KeyValue<Windowed<K>, V> windowedPair(K key, V value, long timestamp, long windowSize) {
-        return KeyValue.pair(new Windowed<>(key, WindowStoreUtils.timeWindowForSize(timestamp, windowSize)), value);
+    private static <K, V> KeyValue<Windowed<K>, V> windowedPair(K key, V value, long timestamp, long windowSize) {
+        return KeyValue.pair(new Windowed<>(key, WindowKeySchema.timeWindowForSize(timestamp, windowSize)), value);
     }
 }
