@@ -19,23 +19,20 @@ package org.apache.kafka.trogdor.rest;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.TextNode;
-import org.apache.kafka.trogdor.task.TaskSpec;
 
 /**
- * When we're in the process of sending a TaskSpec to the Agent, the Worker is regarded
- * as being in WorkerReceiving state.
+ * A request to the Trogdor coordinator to delete all memory of a task.
  */
-public final class WorkerReceiving extends WorkerState {
+public class DestroyTaskRequest extends Message {
+    private final String id;
+
     @JsonCreator
-    public WorkerReceiving(@JsonProperty("taskId") String taskId,
-            @JsonProperty("spec") TaskSpec spec) {
-        super(taskId, spec);
+    public DestroyTaskRequest(@JsonProperty("id") String id) {
+        this.id = id;
     }
 
-    @Override
-    public JsonNode status() {
-        return new TextNode("receiving");
+    @JsonProperty
+    public String id() {
+        return id;
     }
 }

@@ -17,25 +17,17 @@
 
 package org.apache.kafka.trogdor.rest;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.TextNode;
-import org.apache.kafka.trogdor.task.TaskSpec;
-
 /**
- * When we're in the process of sending a TaskSpec to the Agent, the Worker is regarded
- * as being in WorkerReceiving state.
+ * Indicates that a given request got an HTTP error 409: CONFLICT.
  */
-public final class WorkerReceiving extends WorkerState {
-    @JsonCreator
-    public WorkerReceiving(@JsonProperty("taskId") String taskId,
-            @JsonProperty("spec") TaskSpec spec) {
-        super(taskId, spec);
+public class RequestConflictException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
+    public RequestConflictException(String message) {
+        super(message);
     }
 
-    @Override
-    public JsonNode status() {
-        return new TextNode("receiving");
+    public RequestConflictException() {
+        super();
     }
 }
