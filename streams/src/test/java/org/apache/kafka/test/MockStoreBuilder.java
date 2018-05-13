@@ -1,7 +1,4 @@
 /*
- * Copyright (C) 2018 Lightbend Inc. <https://www.lightbend.com>
- * Copyright (C) 2017-2018 Alexis Seigneurin.
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,13 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.streams
+package org.apache.kafka.test;
 
-import org.apache.kafka.streams.state.{KeyValueStore, SessionStore, WindowStore}
-import org.apache.kafka.common.utils.Bytes
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.utils.MockTime;
+import org.apache.kafka.streams.processor.StateStore;
+import org.apache.kafka.streams.state.internals.AbstractStoreBuilder;
 
-package object scala {
-  type ByteArrayKeyValueStore = KeyValueStore[Bytes, Array[Byte]]
-  type ByteArraySessionStore = SessionStore[Bytes, Array[Byte]]
-  type ByteArrayWindowStore = WindowStore[Bytes, Array[Byte]]
+public class MockStoreBuilder extends AbstractStoreBuilder<Integer, byte[], StateStore> {
+
+    private final boolean persistent;
+
+    public MockStoreBuilder(final String storeName, final boolean persistent) {
+        super(storeName, Serdes.Integer(), Serdes.ByteArray(), new MockTime());
+
+        this.persistent = persistent;
+    }
+
+    @Override
+    public StateStore build() {
+        return new MockStateStore(name, persistent);
+    }
 }
+
