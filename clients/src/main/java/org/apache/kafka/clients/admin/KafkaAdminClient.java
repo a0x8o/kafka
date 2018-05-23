@@ -31,6 +31,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerProtocol;
 import org.apache.kafka.clients.consumer.internals.PartitionAssignor;
 import org.apache.kafka.common.Cluster;
+import org.apache.kafka.common.ConsumerGroupState;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
@@ -120,11 +121,9 @@ import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.common.utils.KafkaThread;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Time;
-import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -326,7 +325,7 @@ public class KafkaAdminClient extends AdminClient {
         try {
             // Since we only request node information, it's safe to pass true for allowAutoTopicCreation (and it
             // simplifies communication with older brokers)
-            AdminMetadataManager metadataManager = new AdminMetadataManager(logContext, time,
+            AdminMetadataManager metadataManager = new AdminMetadataManager(logContext,
                 config.getLong(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG),
                 config.getLong(AdminClientConfig.METADATA_MAX_AGE_CONFIG));
             List<MetricsReporter> reporters = config.getConfiguredInstances(AdminClientConfig.METRIC_REPORTER_CLASSES_CONFIG,
@@ -374,7 +373,7 @@ public class KafkaAdminClient extends AdminClient {
         try {
             metrics = new Metrics(new MetricConfig(), new LinkedList<MetricsReporter>(), time);
             LogContext logContext = createLogContext(clientId);
-            AdminMetadataManager metadataManager = new AdminMetadataManager(logContext, time,
+            AdminMetadataManager metadataManager = new AdminMetadataManager(logContext,
                 config.getLong(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG),
                 config.getLong(AdminClientConfig.METADATA_MAX_AGE_CONFIG));
             return new KafkaAdminClient(config, clientId, time, metadataManager, metrics,
@@ -399,7 +398,7 @@ public class KafkaAdminClient extends AdminClient {
         this.metadataManager = metadataManager;
         List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(
             config.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG));
-        metadataManager.update(Cluster.bootstrap(addresses), time.milliseconds(), null);
+        metadataManager.update(Cluster.bootstrap(addresses), time.milliseconds());
         this.metrics = metrics;
         this.client = client;
         this.runnable = new AdminClientRunnable();
@@ -578,7 +577,7 @@ public class KafkaAdminClient extends AdminClient {
             // this RPC. That is why 'tries' is not incremented.
             if ((throwable instanceof UnsupportedVersionException) &&
                      handleUnsupportedVersionException((UnsupportedVersionException) throwable)) {
-                log.trace("{} attempting protocol downgrade.", this);
+                log.debug("{} attempting protocol downgrade and then retry.", this);
                 runnable.enqueue(this, now);
                 return;
             }
@@ -814,6 +813,7 @@ public class KafkaAdminClient extends AdminClient {
          * @param pendingIter   An iterator yielding pending calls.
          */
         private void chooseNodesForPendingCalls(long now, Iterator<Call> pendingIter) {
+            log.trace("Trying to choose nodes for {} at {}", pendingIter, now);
             while (pendingIter.hasNext()) {
                 Call call = pendingIter.next();
                 Node node = null;
@@ -844,8 +844,7 @@ public class KafkaAdminClient extends AdminClient {
          */
         private long sendEligibleCalls(long now) {
             long pollTimeout = Long.MAX_VALUE;
-            for (Iterator<Map.Entry<Node, List<Call>>> iter = callsToSend.entrySet().iterator();
-                     iter.hasNext(); ) {
+            for (Iterator<Map.Entry<Node, List<Call>>> iter = callsToSend.entrySet().iterator(); iter.hasNext(); ) {
                 Map.Entry<Node, List<Call>> entry = iter.next();
                 List<Call> calls = entry.getValue();
                 if (calls.isEmpty()) {
@@ -1140,19 +1139,12 @@ public class KafkaAdminClient extends AdminClient {
                 @Override
                 public void handleResponse(AbstractResponse abstractResponse) {
                     MetadataResponse response = (MetadataResponse) abstractResponse;
-                    metadataManager.update(response.cluster(), time.milliseconds(), null);
+                    metadataManager.update(response.cluster(), time.milliseconds());
                 }
 
                 @Override
                 public void handleFailure(Throwable e) {
-                    if (e instanceof AuthenticationException) {
-                        log.info("Unable to fetch cluster metadata from node {} because of " +
-                            "authentication error", curNode(), e);
-                        metadataManager.update(Cluster.empty(), time.milliseconds(), (AuthenticationException) e);
-                    } else {
-                        log.info("Unable to fetch cluster metadata from node {}",
-                            curNode(), e);
-                    }
+                    metadataManager.updateFailed(e);
                 }
             };
         }
@@ -2347,14 +2339,21 @@ public class KafkaAdminClient extends AdminClient {
 
                 @Override
                 void handleResponse(AbstractResponse abstractResponse) {
-                    final FindCoordinatorResponse response = (FindCoordinatorResponse) abstractResponse;
+                    final FindCoordinatorResponse fcResponse = (FindCoordinatorResponse) abstractResponse;
+                    Errors error = fcResponse.error();
+                    if (error == Errors.COORDINATOR_NOT_AVAILABLE) {
+                        // Retry COORDINATOR_NOT_AVAILABLE, in case the error is temporary.
+                        throw error.exception();
+                    } else if (error != Errors.NONE) {
+                        // All other errors are immediate failures.
+                        KafkaFutureImpl<ConsumerGroupDescription> future = futures.get(groupId);
+                        future.completeExceptionally(error.exception());
+                        return;
+                    }
 
                     final long nowDescribeConsumerGroups = time.milliseconds();
-
-                    final int nodeId = response.node().id();
-
+                    final int nodeId = fcResponse.node().id();
                     runnable.call(new Call("describeConsumerGroups", deadline, new ConstantNodeIdProvider(nodeId)) {
-
                         @Override
                         AbstractRequest.Builder createRequest(int timeoutMs) {
                             return new DescribeGroupsRequest.Builder(Collections.singletonList(groupId));
@@ -2375,24 +2374,29 @@ public class KafkaAdminClient extends AdminClient {
                                 final String protocolType = groupMetadata.protocolType();
                                 if (protocolType.equals(ConsumerProtocol.PROTOCOL_TYPE) || protocolType.isEmpty()) {
                                     final List<DescribeGroupsResponse.GroupMember> members = groupMetadata.members();
-                                    final List<MemberDescription> consumers = new ArrayList<>(members.size());
+                                    final List<MemberDescription> memberDescriptions = new ArrayList<>(members.size());
 
                                     for (DescribeGroupsResponse.GroupMember groupMember : members) {
-                                        final PartitionAssignor.Assignment assignment =
-                                                ConsumerProtocol.deserializeAssignment(
-                                                        ByteBuffer.wrap(Utils.readBytes(groupMember.memberAssignment())));
-
+                                        Set<TopicPartition> partitions = Collections.emptySet();
+                                        if (groupMember.memberAssignment().remaining() > 0) {
+                                            final PartitionAssignor.Assignment assignment = ConsumerProtocol.
+                                                deserializeAssignment(groupMember.memberAssignment().duplicate());
+                                            partitions = new HashSet<>(assignment.partitions());
+                                        }
                                         final MemberDescription memberDescription =
-                                                new MemberDescription(
-                                                        groupMember.memberId(),
-                                                        groupMember.clientId(),
-                                                        groupMember.clientHost(),
-                                                        new MemberAssignment(assignment.partitions()));
-                                        consumers.add(memberDescription);
+                                            new MemberDescription(groupMember.memberId(),
+                                                groupMember.clientId(),
+                                                groupMember.clientHost(),
+                                                new MemberAssignment(partitions));
+                                        memberDescriptions.add(memberDescription);
                                     }
-                                    final String protocol = groupMetadata.protocol();
                                     final ConsumerGroupDescription consumerGroupDescription =
-                                            new ConsumerGroupDescription(groupId, protocolType.isEmpty(), consumers, protocol);
+                                            new ConsumerGroupDescription(groupId,
+                                                protocolType.isEmpty(),
+                                                memberDescriptions,
+                                                groupMetadata.protocol(),
+                                                ConsumerGroupState.parse(groupMetadata.state()),
+                                                fcResponse.node());
                                     future.complete(consumerGroupDescription);
                                 }
                             }
