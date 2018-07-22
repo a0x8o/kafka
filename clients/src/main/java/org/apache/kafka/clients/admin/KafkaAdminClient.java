@@ -35,6 +35,8 @@ import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.ConsumerGroupState;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -112,8 +114,6 @@ import org.apache.kafka.common.requests.OffsetFetchRequest;
 import org.apache.kafka.common.requests.OffsetFetchResponse;
 import org.apache.kafka.common.requests.RenewDelegationTokenRequest;
 import org.apache.kafka.common.requests.RenewDelegationTokenResponse;
-import org.apache.kafka.common.requests.Resource;
-import org.apache.kafka.common.requests.ResourceType;
 import org.apache.kafka.common.security.token.delegation.DelegationToken;
 import org.apache.kafka.common.security.token.delegation.TokenInformation;
 import org.apache.kafka.common.utils.AppInfoParser;
@@ -138,6 +138,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 
 import static org.apache.kafka.common.utils.Utils.closeQuietly;
 
@@ -164,6 +165,11 @@ public class KafkaAdminClient extends AdminClient {
      * An invalid shutdown time which indicates that a shutdown has not yet been performed.
      */
     private static final long INVALID_SHUTDOWN_TIME = -1;
+
+    /**
+     * Thread name prefix for admin client network thread
+     */
+    static final String NETWORK_THREAD_PREFIX = "kafka-admin-client-thread";
 
     private final Logger log;
 
@@ -408,7 +414,7 @@ public class KafkaAdminClient extends AdminClient {
         this.metrics = metrics;
         this.client = client;
         this.runnable = new AdminClientRunnable();
-        String threadName = "kafka-admin-client-thread | " + clientId;
+        String threadName = NETWORK_THREAD_PREFIX + " | " + clientId;
         this.thread = new KafkaThread(threadName, runnable, true);
         this.timeoutProcessorFactory = (timeoutProcessorFactory == null) ?
             new TimeoutProcessorFactory() : timeoutProcessorFactory;
@@ -820,39 +826,50 @@ public class KafkaAdminClient extends AdminClient {
          * Choose nodes for the calls in the pendingCalls list.
          *
          * @param now           The current time in milliseconds.
-         * @param pendingIter   An iterator yielding pending calls.
+         * @return              The minimum time until a call is ready to be retried if any of the pending
+         *                      calls are backing off after a failure
          */
-        private long chooseNodesForPendingCalls(long now, Iterator<Call> pendingIter) {
+        private long maybeDrainPendingCalls(long now) {
             long pollTimeout = Long.MAX_VALUE;
-            log.trace("Trying to choose nodes for {} at {}", pendingIter, now);
+            log.trace("Trying to choose nodes for {} at {}", pendingCalls, now);
+
+            Iterator<Call> pendingIter = pendingCalls.iterator();
             while (pendingIter.hasNext()) {
                 Call call = pendingIter.next();
 
                 // If the call is being retried, await the proper backoff before finding the node
                 if (now < call.nextAllowedTryMs) {
                     pollTimeout = Math.min(pollTimeout, call.nextAllowedTryMs - now);
-                    continue;
-                }
-
-                Node node = null;
-                try {
-                    node = call.nodeProvider.provide();
-                } catch (Throwable t) {
-                    // Handle authentication errors while choosing nodes.
-                    log.debug("Unable to choose node for {}", call, t);
+                } else if (maybeDrainPendingCall(call, now)) {
                     pendingIter.remove();
-                    call.fail(now, t);
-                }
-                if (node != null) {
-                    log.trace("Assigned {} to node {}", call, node);
-                    pendingIter.remove();
-                    call.curNode = node;
-                    getOrCreateListValue(callsToSend, node).add(call);
-                } else {
-                    log.trace("Unable to assign {} to a node.", call);
                 }
             }
             return pollTimeout;
+        }
+
+        /**
+         * Check whether a pending call can be assigned a node. Return true if the pending call was either
+         * transferred to the callsToSend collection or if the call was failed. Return false if it
+         * should remain pending.
+         */
+        private boolean maybeDrainPendingCall(Call call, long now) {
+            try {
+                Node node = call.nodeProvider.provide();
+                if (node != null) {
+                    log.trace("Assigned {} to node {}", call, node);
+                    call.curNode = node;
+                    getOrCreateListValue(callsToSend, node).add(call);
+                    return true;
+                } else {
+                    log.trace("Unable to assign {} to a node.", call);
+                    return false;
+                }
+            } catch (Throwable t) {
+                // Handle authentication errors while choosing nodes.
+                log.debug("Unable to choose node for {}", call, t);
+                call.fail(now, t);
+                return true;
+            }
         }
 
         /**
@@ -872,7 +889,7 @@ public class KafkaAdminClient extends AdminClient {
                 }
                 Node node = entry.getKey();
                 if (!client.ready(node, now)) {
-                    long nodeTimeout = client.connectionDelay(node, now);
+                    long nodeTimeout = client.pollDelayMs(node, now);
                     pollTimeout = Math.min(pollTimeout, nodeTimeout);
                     log.trace("Client is not ready to send to {}. Must delay {} ms", node, nodeTimeout);
                     continue;
@@ -991,6 +1008,28 @@ public class KafkaAdminClient extends AdminClient {
             }
         }
 
+        /**
+         * Unassign calls that have not yet been sent based on some predicate. For example, this
+         * is used to reassign the calls that have been assigned to a disconnected node.
+         *
+         * @param shouldUnassign Condition for reassignment. If the predicate is true, then the calls will
+         *                       be put back in the pendingCalls collection and they will be reassigned
+         */
+        private void unassignUnsentCalls(Predicate<Node> shouldUnassign) {
+            for (Iterator<Map.Entry<Node, List<Call>>> iter = callsToSend.entrySet().iterator(); iter.hasNext(); ) {
+                Map.Entry<Node, List<Call>> entry = iter.next();
+                Node node = entry.getKey();
+                List<Call> awaitingCalls = entry.getValue();
+
+                if (awaitingCalls.isEmpty()) {
+                    iter.remove();
+                } else if (shouldUnassign.test(node)) {
+                    pendingCalls.addAll(awaitingCalls);
+                    iter.remove();
+                }
+            }
+        }
+
         private boolean hasActiveExternalCalls(Collection<Call> calls) {
             for (Call call : calls) {
                 if (!call.isInternal()) {
@@ -1053,25 +1092,34 @@ public class KafkaAdminClient extends AdminClient {
                 }
 
                 // Choose nodes for our pending calls.
-                pollTimeout = Math.min(pollTimeout, chooseNodesForPendingCalls(now, pendingCalls.iterator()));
+                pollTimeout = Math.min(pollTimeout, maybeDrainPendingCalls(now));
                 long metadataFetchDelayMs = metadataManager.metadataFetchDelayMs(now);
                 if (metadataFetchDelayMs == 0) {
                     metadataManager.transitionToUpdatePending(now);
                     Call metadataCall = makeMetadataCall(now);
                     // Create a new metadata fetch call and add it to the end of pendingCalls.
                     // Assign a node for just the new call (we handled the other pending nodes above).
-                    pendingCalls.add(metadataCall);
-                    chooseNodesForPendingCalls(now, pendingCalls.listIterator(pendingCalls.size() - 1));
+
+                    if (!maybeDrainPendingCall(metadataCall, now))
+                        pendingCalls.add(metadataCall);
                 }
                 pollTimeout = Math.min(pollTimeout, sendEligibleCalls(now));
+
                 if (metadataFetchDelayMs > 0) {
                     pollTimeout = Math.min(pollTimeout, metadataFetchDelayMs);
                 }
+
+                // Ensure that we use a small poll timeout if there are pending calls which need to be sent
+                if (!pendingCalls.isEmpty())
+                    pollTimeout = Math.min(pollTimeout, retryBackoffMs);
 
                 // Wait for network responses.
                 log.trace("Entering KafkaClient#poll(timeout={})", pollTimeout);
                 List<ClientResponse> responses = client.poll(pollTimeout, now);
                 log.trace("KafkaClient#poll retrieved {} response(s)", responses.size());
+
+                // unassign calls to disconnected nodes
+                unassignUnsentCalls(client::connectionFailed);
 
                 // Update the current time and handle the latest responses.
                 now = time.milliseconds();
@@ -1158,7 +1206,12 @@ public class KafkaAdminClient extends AdminClient {
                 @Override
                 public void handleResponse(AbstractResponse abstractResponse) {
                     MetadataResponse response = (MetadataResponse) abstractResponse;
-                    metadataManager.update(response.cluster(), time.milliseconds());
+                    long now = time.milliseconds();
+                    metadataManager.update(response.cluster(), now);
+
+                    // Unassign all unsent requests after a metadata refresh to allow for a new
+                    // destination to be selected from the new metadata
+                    unassignUnsentCalls(node -> true);
                 }
 
                 @Override
@@ -1635,19 +1688,19 @@ public class KafkaAdminClient extends AdminClient {
 
         // The BROKER resources which we want to describe.  We must make a separate DescribeConfigs
         // request for every BROKER resource we want to describe.
-        final Collection<Resource> brokerResources = new ArrayList<>();
+        final Collection<ConfigResource> brokerResources = new ArrayList<>();
 
         // The non-BROKER resources which we want to describe.  These resources can be described by a
         // single, unified DescribeConfigs request.
-        final Collection<Resource> unifiedRequestResources = new ArrayList<>(configResources.size());
+        final Collection<ConfigResource> unifiedRequestResources = new ArrayList<>(configResources.size());
 
         for (ConfigResource resource : configResources) {
             if (resource.type() == ConfigResource.Type.BROKER && !resource.isDefault()) {
-                brokerFutures.put(resource, new KafkaFutureImpl<Config>());
-                brokerResources.add(configResourceToResource(resource));
+                brokerFutures.put(resource, new KafkaFutureImpl<>());
+                brokerResources.add(resource);
             } else {
-                unifiedRequestFutures.put(resource, new KafkaFutureImpl<Config>());
-                unifiedRequestResources.add(configResourceToResource(resource));
+                unifiedRequestFutures.put(resource, new KafkaFutureImpl<>());
+                unifiedRequestResources.add(resource);
             }
         }
 
@@ -1668,7 +1721,7 @@ public class KafkaAdminClient extends AdminClient {
                     for (Map.Entry<ConfigResource, KafkaFutureImpl<Config>> entry : unifiedRequestFutures.entrySet()) {
                         ConfigResource configResource = entry.getKey();
                         KafkaFutureImpl<Config> future = entry.getValue();
-                        DescribeConfigsResponse.Config config = response.config(configResourceToResource(configResource));
+                        DescribeConfigsResponse.Config config = response.config(configResource);
                         if (config == null) {
                             future.completeExceptionally(new UnknownServerException(
                                 "Malformed broker response: missing config for " + configResource));
@@ -1698,7 +1751,7 @@ public class KafkaAdminClient extends AdminClient {
 
         for (Map.Entry<ConfigResource, KafkaFutureImpl<Config>> entry : brokerFutures.entrySet()) {
             final KafkaFutureImpl<Config> brokerFuture = entry.getValue();
-            final Resource resource = configResourceToResource(entry.getKey());
+            final ConfigResource resource = entry.getKey();
             final int nodeId = Integer.parseInt(resource.name());
             runnable.call(new Call("describeBrokerConfigs", calcDeadlineMs(now, options.timeoutMs()),
                     new ConstantNodeIdProvider(nodeId)) {
@@ -1742,21 +1795,6 @@ public class KafkaAdminClient extends AdminClient {
         allFutures.putAll(brokerFutures);
         allFutures.putAll(unifiedRequestFutures);
         return new DescribeConfigsResult(allFutures);
-    }
-
-    private Resource configResourceToResource(ConfigResource configResource) {
-        ResourceType resourceType;
-        switch (configResource.type()) {
-            case TOPIC:
-                resourceType = ResourceType.TOPIC;
-                break;
-            case BROKER:
-                resourceType = ResourceType.BROKER;
-                break;
-            default:
-                throw new IllegalArgumentException("Unexpected resource type " + configResource.type());
-        }
-        return new Resource(resourceType, configResource.name());
     }
 
     private List<ConfigEntry.ConfigSynonym> configSynonyms(DescribeConfigsResponse.ConfigEntry configEntry) {
@@ -1808,7 +1846,7 @@ public class KafkaAdminClient extends AdminClient {
         }
         if (!unifiedRequestResources.isEmpty())
           allFutures.putAll(alterConfigs(configs, options, unifiedRequestResources, new LeastLoadedNodeProvider()));
-        return new AlterConfigsResult(new HashMap<ConfigResource, KafkaFuture<Void>>(allFutures));
+        return new AlterConfigsResult(new HashMap<>(allFutures));
     }
 
     private Map<ConfigResource, KafkaFutureImpl<Void>> alterConfigs(Map<ConfigResource, Config> configs,
@@ -1816,13 +1854,13 @@ public class KafkaAdminClient extends AdminClient {
                                                                     Collection<ConfigResource> resources,
                                                                     NodeProvider nodeProvider) {
         final Map<ConfigResource, KafkaFutureImpl<Void>> futures = new HashMap<>();
-        final Map<Resource, AlterConfigsRequest.Config> requestMap = new HashMap<>(resources.size());
+        final Map<ConfigResource, AlterConfigsRequest.Config> requestMap = new HashMap<>(resources.size());
         for (ConfigResource resource : resources) {
             List<AlterConfigsRequest.ConfigEntry> configEntries = new ArrayList<>();
             for (ConfigEntry configEntry: configs.get(resource).entries())
                 configEntries.add(new AlterConfigsRequest.ConfigEntry(configEntry.name(), configEntry.value()));
-            requestMap.put(configResourceToResource(resource), new AlterConfigsRequest.Config(configEntries));
-            futures.put(resource, new KafkaFutureImpl<Void>());
+            requestMap.put(resource, new AlterConfigsRequest.Config(configEntries));
+            futures.put(resource, new KafkaFutureImpl<>());
         }
 
         final long now = time.milliseconds();
@@ -1838,7 +1876,7 @@ public class KafkaAdminClient extends AdminClient {
                 AlterConfigsResponse response = (AlterConfigsResponse) abstractResponse;
                 for (Map.Entry<ConfigResource, KafkaFutureImpl<Void>> entry : futures.entrySet()) {
                     KafkaFutureImpl<Void> future = entry.getValue();
-                    ApiException exception = response.errors().get(configResourceToResource(entry.getKey())).exception();
+                    ApiException exception = response.errors().get(entry.getKey()).exception();
                     if (exception != null) {
                         future.completeExceptionally(exception);
                     } else {
@@ -2359,16 +2397,9 @@ public class KafkaAdminClient extends AdminClient {
                 @Override
                 void handleResponse(AbstractResponse abstractResponse) {
                     final FindCoordinatorResponse fcResponse = (FindCoordinatorResponse) abstractResponse;
-                    Errors error = fcResponse.error();
-                    if (error == Errors.COORDINATOR_NOT_AVAILABLE) {
-                        // Retry COORDINATOR_NOT_AVAILABLE, in case the error is temporary.
-                        throw error.exception();
-                    } else if (error != Errors.NONE) {
-                        // All other errors are immediate failures.
-                        KafkaFutureImpl<ConsumerGroupDescription> future = futures.get(groupId);
-                        future.completeExceptionally(error.exception());
+
+                    if (handleFindCoordinatorError(fcResponse, futures.get(groupId)))
                         return;
-                    }
 
                     final long nowDescribeConsumerGroups = time.milliseconds();
                     final int nodeId = fcResponse.node().id();
@@ -2438,6 +2469,17 @@ public class KafkaAdminClient extends AdminClient {
         }
 
         return new DescribeConsumerGroupsResult(new HashMap<String, KafkaFuture<ConsumerGroupDescription>>(futures));
+    }
+
+    private boolean handleFindCoordinatorError(FindCoordinatorResponse response, KafkaFutureImpl<?> future) {
+        Errors error = response.error();
+        if (error.exception() instanceof RetriableException) {
+            throw error.exception();
+        } else if (response.hasError()) {
+            future.completeExceptionally(error.exception());
+            return true;
+        }
+        return false;
     }
 
     private final static class ListConsumerGroupsResults {
@@ -2574,6 +2616,9 @@ public class KafkaAdminClient extends AdminClient {
             void handleResponse(AbstractResponse abstractResponse) {
                 final FindCoordinatorResponse response = (FindCoordinatorResponse) abstractResponse;
 
+                if (handleFindCoordinatorError(response, groupOffsetListingFuture))
+                    return;
+
                 final long nowListConsumerGroupOffsets = time.milliseconds();
 
                 final int nodeId = response.node().id();
@@ -2660,6 +2705,9 @@ public class KafkaAdminClient extends AdminClient {
                 void handleResponse(AbstractResponse abstractResponse) {
                     final FindCoordinatorResponse response = (FindCoordinatorResponse) abstractResponse;
 
+                    if (handleFindCoordinatorError(response, futures.get(groupId)))
+                        return;
+
                     final long nowDeleteConsumerGroups = time.milliseconds();
 
                     final int nodeId = response.node().id();
@@ -2702,5 +2750,10 @@ public class KafkaAdminClient extends AdminClient {
         }
 
         return new DeleteConsumerGroupsResult(new HashMap<String, KafkaFuture<Void>>(futures));
+    }
+
+    @Override
+    public Map<MetricName, ? extends Metric> metrics() {
+        return Collections.unmodifiableMap(this.metrics.metrics());
     }
 }

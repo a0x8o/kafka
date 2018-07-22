@@ -19,6 +19,7 @@ package org.apache.kafka.clients.producer.internals;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.common.Cluster;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -81,7 +82,7 @@ public final class RecordAccumulator {
     private final ConcurrentMap<TopicPartition, Deque<ProducerBatch>> batches;
     private final IncompleteBatches incomplete;
     // The following variables are only accessed by the sender thread, so we don't need to protect them.
-    private final Set<TopicPartition> muted;
+    private final Map<TopicPartition, Long> muted;
     private int drainIndex;
     private final TransactionManager transactionManager;
 
@@ -126,7 +127,7 @@ public final class RecordAccumulator {
         String metricGrpName = "producer-metrics";
         this.free = new BufferPool(totalSize, batchSize, metrics, time, metricGrpName);
         this.incomplete = new IncompleteBatches();
-        this.muted = new HashSet<>();
+        this.muted = new HashMap<>();
         this.time = time;
         this.apiVersions = apiVersions;
         this.transactionManager = transactionManager;
@@ -195,7 +196,7 @@ public final class RecordAccumulator {
             Deque<ProducerBatch> dq = getOrCreateDeque(tp);
             synchronized (dq) {
                 if (closed)
-                    throw new IllegalStateException("Cannot send after the producer is closed.");
+                    throw new KafkaException("Producer closed while send in progress");
                 RecordAppendResult appendResult = tryAppend(timestamp, key, value, headers, callback, dq);
                 if (appendResult != null)
                     return appendResult;
@@ -209,7 +210,7 @@ public final class RecordAccumulator {
             synchronized (dq) {
                 // Need to check if producer is closed again after grabbing the dequeue lock.
                 if (closed)
-                    throw new IllegalStateException("Cannot send after the producer is closed.");
+                    throw new KafkaException("Producer closed while send in progress");
 
                 RecordAppendResult appendResult = tryAppend(timestamp, key, value, headers, callback, dq);
                 if (appendResult != null) {
@@ -265,6 +266,13 @@ public final class RecordAccumulator {
         return null;
     }
 
+    private boolean isMuted(TopicPartition tp, long now) {
+        boolean result = muted.containsKey(tp) && muted.get(tp) > now;
+        if (!result)
+            muted.remove(tp);
+        return result;
+    }
+
     /**
      * Get a list of batches which have been sitting in the accumulator too long and need to be expired.
      */
@@ -277,7 +285,7 @@ public final class RecordAccumulator {
             // This is to prevent later batches from being expired while an earlier batch is still in progress.
             // Note that `muted` is only ever populated if `max.in.flight.request.per.connection=1` so this protection
             // is only active in this case. Otherwise the expiration order is not guaranteed.
-            if (!muted.contains(tp)) {
+            if (!isMuted(tp, now)) {
                 synchronized (dq) {
                     // iterate over the batches and expire them if they have been in the accumulator for more than requestTimeOut
                     ProducerBatch lastBatch = dq.peekLast();
@@ -436,7 +444,7 @@ public final class RecordAccumulator {
                     // This is a partition for which leader is not known, but messages are available to send.
                     // Note that entries are currently not removed from batches when deque is empty.
                     unknownLeaderTopics.add(part.topic());
-                } else if (!readyNodes.contains(leader) && !muted.contains(part)) {
+                } else if (!readyNodes.contains(leader) && !isMuted(part, nowMs)) {
                     ProducerBatch batch = deque.peekFirst();
                     if (batch != null) {
                         long waitedTimeMs = batch.waitedTimeMs(nowMs);
@@ -504,7 +512,7 @@ public final class RecordAccumulator {
                 PartitionInfo part = parts.get(drainIndex);
                 TopicPartition tp = new TopicPartition(part.topic(), part.partition());
                 // Only proceed if the partition has no in-flight batches.
-                if (!muted.contains(tp)) {
+                if (!isMuted(tp, now)) {
                     Deque<ProducerBatch> deque = getDeque(tp);
                     if (deque != null) {
                         synchronized (deque) {
@@ -693,7 +701,7 @@ public final class RecordAccumulator {
      * Go through incomplete batches and abort them.
      */
     private void abortBatches() {
-        abortBatches(new IllegalStateException("Producer is closed forcefully."));
+        abortBatches(new KafkaException("Producer is closed forcefully."));
     }
 
     /**
@@ -733,11 +741,11 @@ public final class RecordAccumulator {
     }
 
     public void mutePartition(TopicPartition tp) {
-        muted.add(tp);
+        muted.put(tp, Long.MAX_VALUE);
     }
 
-    public void unmutePartition(TopicPartition tp) {
-        muted.remove(tp);
+    public void unmutePartition(TopicPartition tp, long throttleUntilTimeMs) {
+        muted.put(tp, throttleUntilTimeMs);
     }
 
     /**

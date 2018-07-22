@@ -103,7 +103,7 @@ public class AbstractStreamTest {
         KStream<K, V> randomFilter() {
             String name = builder.newProcessorName("RANDOM-FILTER-");
             builder.internalTopologyBuilder.addProcessor(name, new ExtendedKStreamDummy(), this.name);
-            return new KStreamImpl<>(builder, name, sourceNodes, false);
+            return new KStreamImpl<>(builder, name, sourceNodes, false, null);
         }
     }
 
