@@ -70,6 +70,8 @@ class StandbyContextImpl extends AbstractProcessorContext implements RecordColle
         }
     };
 
+    private long streamTime = RecordQueue.NOT_KNOWN;
+
     StandbyContextImpl(final TaskId id,
                        final StreamsConfig config,
                        final ProcessorStateManager stateMgr,
@@ -191,7 +193,7 @@ class StandbyContextImpl extends AbstractProcessorContext implements RecordColle
      * @throws UnsupportedOperationException on every invocation
      */
     @Override
-    public RecordContext recordContext() {
+    public ProcessorRecordContext recordContext() {
         throw new UnsupportedOperationException("this should not happen: recordContext not supported in standby tasks.");
     }
 
@@ -199,7 +201,7 @@ class StandbyContextImpl extends AbstractProcessorContext implements RecordColle
      * @throws UnsupportedOperationException on every invocation
      */
     @Override
-    public void setRecordContext(final RecordContext recordContext) {
+    public void setRecordContext(final ProcessorRecordContext recordContext) {
         throw new UnsupportedOperationException("this should not happen: setRecordContext not supported in standby tasks.");
     }
 
@@ -214,6 +216,15 @@ class StandbyContextImpl extends AbstractProcessorContext implements RecordColle
     @Override
     public ProcessorNode currentNode() {
         throw new UnsupportedOperationException("this should not happen: currentNode not supported in standby tasks.");
+    }
+
+    void updateStreamTime(final long streamTime) {
+        this.streamTime = Math.max(this.streamTime, streamTime);
+    }
+
+    @Override
+    public long streamTime() {
+        return streamTime;
     }
 
 }

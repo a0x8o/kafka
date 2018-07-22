@@ -70,8 +70,12 @@ object ApiVersion {
     // Introduced DeleteGroupsRequest V0 via KIP-229, plus KIP-227 incremental fetch requests,
     // and KafkaStorageException for fetch requests.
     KAFKA_1_1_IV0,
-    // Introduced OffsetsForLeaderEpochRequest V1 via KIP-279
-    KAFKA_2_0_IV0
+    // Introduced OffsetsForLeaderEpochRequest V1 via KIP-279 (Fix log divergence between leader and follower after fast leader fail over)
+    KAFKA_2_0_IV0,
+    // Several request versions were bumped due to KIP-219 (Improve quota communication)
+    KAFKA_2_0_IV1,
+    // Introduced new schemas for group offset (v2) and group metadata (v2) (KIP-211)
+    KAFKA_2_1_IV0
   )
 
   // Map keys are the union of the short and full versions
@@ -239,4 +243,18 @@ case object KAFKA_2_0_IV0 extends DefaultApiVersion {
   val subVersion = "IV0"
   val recordVersion = RecordVersion.V2
   val id: Int = 15
+}
+
+case object KAFKA_2_0_IV1 extends DefaultApiVersion {
+  val shortVersion: String = "2.0"
+  val subVersion = "IV1"
+  val recordVersion = RecordVersion.V2
+  val id: Int = 16
+}
+
+case object KAFKA_2_1_IV0 extends DefaultApiVersion {
+  val shortVersion: String = "2.1"
+  val subVersion = "IV0"
+  val recordVersion = RecordVersion.V2
+  val id: Int = 18
 }

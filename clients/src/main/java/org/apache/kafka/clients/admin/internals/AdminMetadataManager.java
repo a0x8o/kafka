@@ -116,7 +116,11 @@ public class AdminMetadataManager {
 
         @Override
         public void requestUpdate() {
-            // Do nothing
+            AdminMetadataManager.this.requestUpdate();
+        }
+
+        @Override
+        public void close() {
         }
     }
 
