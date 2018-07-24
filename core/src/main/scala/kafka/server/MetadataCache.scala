@@ -24,7 +24,6 @@ import scala.collection.{Seq, Set, mutable}
 import scala.collection.JavaConverters._
 import kafka.cluster.{Broker, EndPoint}
 import kafka.api._
-import kafka.common.TopicAndPartition
 import kafka.controller.StateChangeLogger
 import kafka.utils.CoreUtils._
 import kafka.utils.Logging
@@ -71,7 +70,11 @@ class MetadataCache(brokerId: Int) extends Logging {
                                    errorUnavailableListeners: Boolean): Option[Iterable[MetadataResponse.PartitionMetadata]] = {
     cache.get(topic).map { partitions =>
       partitions.map { case (partitionId, partitionState) =>
+<<<<<<< HEAD
         val topicPartition = TopicAndPartition(topic, partitionId)
+=======
+        val topicPartition = new TopicPartition(topic, partitionId)
+>>>>>>> axbaretto
         val leaderBrokerId = partitionState.basePartitionState.leader
         val maybeLeader = getAliveEndpoint(leaderBrokerId, listenerName)
         val replicas = partitionState.basePartitionState.replicas.asScala.map(_.toInt)
