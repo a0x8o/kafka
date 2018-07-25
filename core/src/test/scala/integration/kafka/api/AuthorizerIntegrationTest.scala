@@ -20,10 +20,6 @@ import java.util.{ArrayList, Collections, Properties}
 import java.time.Duration
 
 import kafka.admin.ConsumerGroupCommand.{ConsumerGroupCommandOptions, ConsumerGroupService}
-<<<<<<< HEAD
-import kafka.common.TopicAndPartition
-=======
->>>>>>> axbaretto
 import kafka.log.LogConfig
 import kafka.network.SocketServer
 import kafka.security.auth._

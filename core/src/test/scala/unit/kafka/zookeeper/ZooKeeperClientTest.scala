@@ -57,12 +57,6 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
     System.clearProperty(JaasUtils.JAVA_LOGIN_CONFIG_PARAM)
   }
 
-<<<<<<< HEAD
-  @Test(expected = classOf[ZooKeeperClientTimeoutException])
-  def testUnresolvableConnectString(): Unit = {
-    new ZooKeeperClient("some.invalid.hostname.foo.bar.local", zkSessionTimeout, connectionTimeoutMs = 10,
-      Int.MaxValue, time, "testMetricGroup", "testMetricType").close()
-=======
   @Test
   def testUnresolvableConnectString(): Unit = {
     try {
@@ -72,7 +66,6 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
       case e: ZooKeeperClientTimeoutException =>
         assertEquals("ZooKeeper client threads still running", Set.empty,  runningZkSendThreads)
     }
->>>>>>> axbaretto
   }
 
   private def runningZkSendThreads: collection.Set[String] = Thread.getAllStackTraces.keySet.asScala

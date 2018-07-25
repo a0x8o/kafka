@@ -273,10 +273,6 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         // if there are any metadata changes affecting any of the consumed partitions (whether or not this
         // instance is subscribed to the topics).
         this.metadata.setTopics(subscriptions.groupSubscription());
-<<<<<<< HEAD
-        if (!client.ensureFreshMetadata(Long.MAX_VALUE)) throw new TimeoutException();
-=======
->>>>>>> axbaretto
 
         // give the assignor a chance to update internal state based on the received assignment
         assignor.onAssignment(assignment);
