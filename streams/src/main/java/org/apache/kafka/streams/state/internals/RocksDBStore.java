@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * A persistent key-value store based on RocksDB.
@@ -65,6 +66,8 @@ import java.util.Set;
  * i.e. use {@code RocksDBStore<Bytes, ...>} rather than {@code RocksDBStore<byte[], ...>}.
  */
 public class RocksDBStore implements KeyValueStore<Bytes, byte[]> {
+
+    private static final Pattern SST_FILE_EXTENSION = Pattern.compile(".*\\.sst");
 
     private static final int TTL_NOT_USED = -1;
 
@@ -238,7 +241,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]> {
             final String[] sstFileNames = dbDir.list(new FilenameFilter() {
                 @Override
                 public boolean accept(final File dir, final String name) {
-                    return name.matches(".*\\.sst");
+                    return SST_FILE_EXTENSION.matcher(name).matches();
                 }
             });
 
@@ -280,7 +283,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]> {
         try (final WriteBatch batch = new WriteBatch()) {
             for (final KeyValue<byte[], byte[]> record : records) {
                 if (record.value == null) {
-                    batch.remove(record.key);
+                    batch.delete(record.key);
                 } else {
                     batch.put(record.key, record.value);
                 }
@@ -320,7 +323,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]> {
             for (final KeyValue<Bytes, byte[]> entry : entries) {
                 Objects.requireNonNull(entry.key, "key cannot be null");
                 if (entry.value == null) {
-                    batch.remove(entry.key.get());
+                    batch.delete(entry.key.get());
                 } else {
                     batch.put(entry.key.get(), entry.value);
                 }

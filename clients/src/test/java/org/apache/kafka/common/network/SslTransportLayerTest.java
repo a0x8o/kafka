@@ -543,7 +543,9 @@ public class SslTransportLayerTest {
     @Test
     public void testUnsupportedCiphers() throws Exception {
         String node = "0";
-        String[] cipherSuites = SSLContext.getDefault().getDefaultSSLParameters().getCipherSuites();
+        SSLContext context = SSLContext.getInstance("TLSv1.2");
+        context.init(null, null, null);
+        String[] cipherSuites = context.getDefaultSSLParameters().getCipherSuites();
         sslServerConfigs.put(SslConfigs.SSL_CIPHER_SUITES_CONFIG, Arrays.asList(cipherSuites[0]));
         server = createEchoServer(SecurityProtocol.SSL);
 
@@ -554,6 +556,27 @@ public class SslTransportLayerTest {
 
         NetworkTestUtils.waitForChannelClose(selector, node, ChannelState.State.AUTHENTICATION_FAILED);
         server.verifyAuthenticationMetrics(0, 1);
+    }
+
+    @Test
+    public void testServerRequestMetrics() throws Exception {
+        String node = "0";
+        server = createEchoServer(SecurityProtocol.SSL);
+        createSelector(sslClientConfigs, 16384, 16384, 16384);
+        InetSocketAddress addr = new InetSocketAddress("localhost", server.port());
+        selector.connect(node, addr, 102400, 102400);
+        NetworkTestUtils.waitForChannelReady(selector, node);
+        int messageSize = 1024 * 1024;
+        String message = TestUtils.randomString(messageSize);
+        selector.send(new NetworkSend(node, ByteBuffer.wrap(message.getBytes())));
+        while (selector.completedReceives().isEmpty()) {
+            selector.poll(100L);
+        }
+        int totalBytes = messageSize + 4; // including 4-byte size
+        server.waitForMetric("incoming-byte", totalBytes);
+        server.waitForMetric("outgoing-byte", totalBytes);
+        server.waitForMetric("request", 1);
+        server.waitForMetric("response", 1);
     }
 
     /**
