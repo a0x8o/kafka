@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.record.{CompressionType, MemoryRecords, SimpleRecord}
-import org.apache.kafka.common.requests.IsolationLevel
 import org.easymock.EasyMock
 import org.junit.Assert._
 
@@ -89,7 +88,7 @@ class SimpleFetchTest {
       maxLength = fetchSize,
       maxOffset = Some(partitionHW),
       minOneMessage = true,
-      isolationLevel = IsolationLevel.READ_UNCOMMITTED))
+      includeAbortedTxns = false))
       .andReturn(FetchDataInfo(
         new LogOffsetMetadata(0L, 0L, 0),
         MemoryRecords.withRecords(CompressionType.NONE, recordToHW)
@@ -99,7 +98,7 @@ class SimpleFetchTest {
       maxLength = fetchSize,
       maxOffset = None,
       minOneMessage = true,
-      isolationLevel = IsolationLevel.READ_UNCOMMITTED))
+      includeAbortedTxns = false))
       .andReturn(FetchDataInfo(
         new LogOffsetMetadata(0L, 0L, 0),
         MemoryRecords.withRecords(CompressionType.NONE, recordToLEO)
@@ -174,12 +173,11 @@ class SimpleFetchTest {
     val readCommittedRecords = replicaManager.readFromLocalLog(
       replicaId = Request.OrdinaryConsumerId,
       fetchOnlyFromLeader = true,
-      readOnlyCommitted = true,
+      fetchIsolation = FetchHighWatermark,
       fetchMaxBytes = Int.MaxValue,
       hardMaxBytesLimit = false,
       readPartitionInfo = fetchInfo,
-      quota = UnboundedQuota,
-      isolationLevel = IsolationLevel.READ_UNCOMMITTED).find(_._1 == topicPartition)
+      quota = UnboundedQuota).find(_._1 == topicPartition)
     val firstReadRecord = readCommittedRecords.get._2.info.records.records.iterator.next()
     assertEquals("Reading committed data should return messages only up to high watermark", recordToHW,
       new SimpleRecord(firstReadRecord))
@@ -187,12 +185,11 @@ class SimpleFetchTest {
     val readAllRecords = replicaManager.readFromLocalLog(
       replicaId = Request.OrdinaryConsumerId,
       fetchOnlyFromLeader = true,
-      readOnlyCommitted = false,
+      fetchIsolation = FetchLogEnd,
       fetchMaxBytes = Int.MaxValue,
       hardMaxBytesLimit = false,
       readPartitionInfo = fetchInfo,
-      quota = UnboundedQuota,
-      isolationLevel = IsolationLevel.READ_UNCOMMITTED).find(_._1 == topicPartition)
+      quota = UnboundedQuota).find(_._1 == topicPartition)
 
     val firstRecord = readAllRecords.get._2.info.records.records.iterator.next()
     assertEquals("Reading any data can return messages up to the end of the log", recordToLEO,

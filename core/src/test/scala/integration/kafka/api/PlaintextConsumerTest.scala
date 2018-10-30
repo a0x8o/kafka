@@ -14,7 +14,7 @@ package kafka.api
 
 import java.util
 import java.util.regex.Pattern
-import java.util.{Collections, Locale, Properties}
+import java.util.{Collections, Locale, Optional, Properties}
 
 import kafka.log.LogConfig
 import kafka.server.KafkaConfig
@@ -66,38 +66,38 @@ class PlaintextConsumerTest extends BaseConsumerTest {
     }
   }
 
-  trait SerializerImpl {
+  trait SerializerImpl extends Serializer[Array[Byte]]{
     var serializer = new ByteArraySerializer()
 
-    def serialize(topic: String, headers: Headers, data: Array[Byte]): Array[Byte] = {
+    override def serialize(topic: String, headers: Headers, data: Array[Byte]): Array[Byte] = {
       headers.add("content-type", "application/octet-stream".getBytes)
       serializer.serialize(topic, data)
     }
 
-    def configure(configs: util.Map[String, _], isKey: Boolean): Unit = serializer.configure(configs, isKey)
+    override def configure(configs: util.Map[String, _], isKey: Boolean): Unit = serializer.configure(configs, isKey)
 
-    def close(): Unit = serializer.close()
+    override def close(): Unit = serializer.close()
 
-    def serialize(topic: String, data: Array[Byte]): Array[Byte] = {
+    override def serialize(topic: String, data: Array[Byte]): Array[Byte] = {
       fail("method should not be invoked")
       null
     }
   }
 
-  trait DeserializerImpl {
+  trait DeserializerImpl extends Deserializer[Array[Byte]]{
     var deserializer = new ByteArrayDeserializer()
 
-    def deserialize(topic: String, headers: Headers, data: Array[Byte]): Array[Byte] = {
+    override def deserialize(topic: String, headers: Headers, data: Array[Byte]): Array[Byte] = {
       val header = headers.lastHeader("content-type")
       assertEquals("application/octet-stream", if (header == null) null else new String(header.value()))
       deserializer.deserialize(topic, data)
     }
 
-    def configure(configs: util.Map[String, _], isKey: Boolean): Unit = deserializer.configure(configs, isKey)
+    override def configure(configs: util.Map[String, _], isKey: Boolean): Unit = deserializer.configure(configs, isKey)
 
-    def close(): Unit = deserializer.close()
+    override def close(): Unit = deserializer.close()
 
-    def deserialize(topic: String, data: Array[Byte]): Array[Byte] = {
+    override def deserialize(topic: String, data: Array[Byte]): Array[Byte] = {
       fail("method should not be invoked")
       null
     }
@@ -128,6 +128,7 @@ class PlaintextConsumerTest extends BaseConsumerTest {
   @Test
   def testHeadersExtendedSerializerDeserializer(): Unit = {
     val extendedSerializer = new ExtendedSerializer[Array[Byte]] with SerializerImpl
+
     val extendedDeserializer = new ExtendedDeserializer[Array[Byte]] with DeserializerImpl
 
     testHeadersSerializeDeserialize(extendedSerializer, extendedDeserializer)
@@ -136,6 +137,7 @@ class PlaintextConsumerTest extends BaseConsumerTest {
   @Test
   def testHeadersSerializerDeserializer(): Unit = {
     val extendedSerializer = new Serializer[Array[Byte]] with SerializerImpl
+
     val extendedDeserializer = new Deserializer[Array[Byte]] with DeserializerImpl
 
     testHeadersSerializeDeserialize(extendedSerializer, extendedDeserializer)
@@ -501,7 +503,7 @@ class PlaintextConsumerTest extends BaseConsumerTest {
     consumer.assign(List(tp).asJava)
 
     // sync commit
-    val syncMetadata = new OffsetAndMetadata(5, "foo")
+    val syncMetadata = new OffsetAndMetadata(5, Optional.of(15), "foo")
     consumer.commitSync(Map((tp, syncMetadata)).asJava)
     assertEquals(syncMetadata, consumer.committed(tp))
 
@@ -1582,6 +1584,33 @@ class PlaintextConsumerTest extends BaseConsumerTest {
     TestUtils.waitUntilTrue(() => !consumer.poll(100).isEmpty, "Consumer did not consume any message before timeout.")
     assertNull(consumer.metrics.get(new MetricName(tp + ".records-lag", "consumer-fetch-manager-metrics", "", tags)))
     assertNull(consumer.metrics.get(new MetricName("records-lag", "consumer-fetch-manager-metrics", "", tags)))
+  }
+
+  @Test
+  def testPerPartitionLagMetricsWhenReadCommitted() {
+    val numMessages = 1000
+    // send some messages.
+    val producer = createProducer()
+    sendRecords(producer, numMessages, tp)
+    sendRecords(producer, numMessages, tp2)
+
+    consumerConfig.setProperty(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed")
+    consumerConfig.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "testPerPartitionLagMetricsCleanUpWithAssign")
+    consumerConfig.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, "testPerPartitionLagMetricsCleanUpWithAssign")
+    val consumer = createConsumer()
+    consumer.assign(List(tp).asJava)
+    var records: ConsumerRecords[Array[Byte], Array[Byte]] = ConsumerRecords.empty()
+    TestUtils.waitUntilTrue(() => {
+      records = consumer.poll(100)
+      !records.records(tp).isEmpty
+    }, "Consumer did not consume any message before timeout.")
+    // Verify the metric exist.
+    val tags = new util.HashMap[String, String]()
+    tags.put("client-id", "testPerPartitionLagMetricsCleanUpWithAssign")
+    tags.put("topic", tp.topic())
+    tags.put("partition", String.valueOf(tp.partition()))
+    val fetchLag = consumer.metrics.get(new MetricName("records-lag", "consumer-fetch-manager-metrics", "", tags))
+    assertNotNull(fetchLag)
   }
 
   @Test

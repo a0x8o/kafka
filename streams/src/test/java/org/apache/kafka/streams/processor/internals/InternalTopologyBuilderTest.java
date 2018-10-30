@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static java.time.Duration.ofSeconds;
 import static org.apache.kafka.common.utils.Utils.mkList;
 import static org.apache.kafka.common.utils.Utils.mkSet;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
@@ -102,7 +103,7 @@ public class InternalTopologyBuilderTest {
     @Test
     public void shouldAddPatternSourceWithoutOffsetReset() {
         final Pattern expectedPattern = Pattern.compile("test-.*");
-        
+
         builder.addSource(null, "source", null, stringSerde.deserializer(), stringSerde.deserializer(), Pattern.compile("test-.*"));
 
         assertEquals(expectedPattern.pattern(), builder.sourceTopicPattern().pattern());
@@ -285,7 +286,7 @@ public class InternalTopologyBuilderTest {
 
     @Test(expected = TopologyException.class)
     public void testAddStateStoreWithNonExistingProcessor() {
-        builder.addStateStore(storeBuilder, "no-such-processsor");
+        builder.addStateStore(storeBuilder, "no-such-processor");
     }
 
     @Test
@@ -588,7 +589,7 @@ public class InternalTopologyBuilderTest {
         builder.addProcessor("processor", new MockProcessorSupplier(), "source");
         builder.addStateStore(
             Stores.windowStoreBuilder(
-                Stores.persistentWindowStore("store1", 30_000L, 10_000L, false),
+                Stores.persistentWindowStore("store1", ofSeconds(30L), ofSeconds(10L), false),
                 Serdes.String(),
                 Serdes.String()
             ),
@@ -596,7 +597,7 @@ public class InternalTopologyBuilderTest {
         );
         builder.addStateStore(
                 Stores.sessionStoreBuilder(
-                        Stores.persistentSessionStore("store2", 30000), Serdes.String(), Serdes.String()
+                        Stores.persistentSessionStore("store2", ofSeconds(30)), Serdes.String(), Serdes.String()
                 ),
                 "processor"
         );
