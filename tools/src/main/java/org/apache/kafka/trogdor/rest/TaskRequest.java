@@ -14,22 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package kafka.controller
 
-import org.easymock.{EasyMock, IAnswer}
+package org.apache.kafka.trogdor.rest;
 
-object ControllerTestUtils {
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-  /** Since ControllerEvent is sealed, return a subclass of ControllerEvent created with EasyMock */
-  def createMockControllerEvent(controllerState: ControllerState, process: () => Unit): ControllerEvent = {
-    val mockEvent: ControllerEvent = EasyMock.createNiceMock(classOf[ControllerEvent])
-    EasyMock.expect(mockEvent.state).andReturn(controllerState)
-    EasyMock.expect(mockEvent.process()).andAnswer(new IAnswer[Unit]() {
-      def answer(): Unit = {
-        process()
-      }
-    })
-    EasyMock.replay(mockEvent)
-    mockEvent
-  }
+/**
+ * The request to /coordinator/tasks/{taskId}
+ */
+public class TaskRequest {
+    private final String taskId;
+
+    @JsonCreator
+    public TaskRequest(@JsonProperty("taskId") String taskId) {
+        this.taskId = taskId == null ? "" : taskId;
+    }
+
+    @JsonProperty
+    public String taskId() {
+        return taskId;
+    }
 }
