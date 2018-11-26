@@ -1600,8 +1600,8 @@ public class FetcherTest {
         Map<MetricName, KafkaMetric> allMetrics = metrics.metrics();
         KafkaMetric recordsFetchLagMax = allMetrics.get(maxLagMetric);
 
-        // recordsFetchLagMax should be initialized to negative infinity
-        assertEquals(Double.NEGATIVE_INFINITY, (Double) recordsFetchLagMax.metricValue(), EPSILON);
+        // recordsFetchLagMax should be initialized to NaN
+        assertEquals(Double.NaN, (Double) recordsFetchLagMax.metricValue(), EPSILON);
 
         // recordsFetchLagMax should be hw - fetchOffset after receiving an empty FetchResponse
         fetchRecords(tp0, MemoryRecords.EMPTY, Errors.NONE, 100L, 0);
@@ -1638,8 +1638,8 @@ public class FetcherTest {
         Map<MetricName, KafkaMetric> allMetrics = metrics.metrics();
         KafkaMetric recordsFetchLeadMin = allMetrics.get(minLeadMetric);
 
-        // recordsFetchLeadMin should be initialized to MAX_VALUE
-        assertEquals(Double.MAX_VALUE, (Double) recordsFetchLeadMin.metricValue(), EPSILON);
+        // recordsFetchLeadMin should be initialized to NaN
+        assertEquals(Double.NaN, (Double) recordsFetchLeadMin.metricValue(), EPSILON);
 
         // recordsFetchLeadMin should be position - logStartOffset after receiving an empty FetchResponse
         fetchRecords(tp0, MemoryRecords.EMPTY, Errors.NONE, 100L, -1L, 0L, 0);
@@ -1682,8 +1682,8 @@ public class FetcherTest {
         Map<MetricName, KafkaMetric> allMetrics = metrics.metrics();
         KafkaMetric recordsFetchLagMax = allMetrics.get(maxLagMetric);
 
-        // recordsFetchLagMax should be initialized to negative infinity
-        assertEquals(Double.NEGATIVE_INFINITY, (Double) recordsFetchLagMax.metricValue(), EPSILON);
+        // recordsFetchLagMax should be initialized to NaN
+        assertEquals(Double.NaN, (Double) recordsFetchLagMax.metricValue(), EPSILON);
 
         // recordsFetchLagMax should be lso - fetchOffset after receiving an empty FetchResponse
         fetchRecords(tp0, MemoryRecords.EMPTY, Errors.NONE, 100L, 50L, 0);
@@ -2575,9 +2575,9 @@ public class FetcherTest {
                             try {
                                 Field field = FetchSessionHandler.class.getDeclaredField("sessionPartitions");
                                 field.setAccessible(true);
-                                LinkedHashMap<TopicPartition, FetchRequest.PartitionData> sessionPartitions =
-                                        (LinkedHashMap<TopicPartition, FetchRequest.PartitionData>) field.get(handler);
-                                for (Map.Entry<TopicPartition, FetchRequest.PartitionData> entry : sessionPartitions.entrySet()) {
+                                LinkedHashMap<?, ?> sessionPartitions =
+                                        (LinkedHashMap<?, ?>) field.get(handler);
+                                for (Map.Entry<?, ?> entry : sessionPartitions.entrySet()) {
                                     // If `sessionPartitions` are modified on another thread, Thread.yield will increase the
                                     // possibility of ConcurrentModificationException if appropriate synchronization is not used.
                                     Thread.yield();

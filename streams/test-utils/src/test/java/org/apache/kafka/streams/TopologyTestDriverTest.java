@@ -890,6 +890,23 @@ public class TopologyTestDriverTest {
     }
 
     @Test
+    public void shouldAllowPrePopulatingStatesStoresWithCachingEnabled() {
+        final Topology topology = new Topology();
+        topology.addSource("sourceProcessor", "input-topic");
+        topology.addProcessor("aggregator", new CustomMaxAggregatorSupplier(), "sourceProcessor");
+        topology.addStateStore(Stores.keyValueStoreBuilder(
+            Stores.inMemoryKeyValueStore("aggStore"),
+            Serdes.String(),
+            Serdes.Long()).withCachingEnabled(), // intentionally turn on caching to achieve better test coverage
+            "aggregator");
+
+        testDriver = new TopologyTestDriver(topology, config);
+
+        store = testDriver.getKeyValueStore("aggStore");
+        store.put("a", 21L);
+    }
+
+    @Test
     public void shouldCleanUpPersistentStateStoresOnClose() {
         final Topology topology = new Topology();
         topology.addSource("sourceProcessor", "input-topic");
@@ -901,9 +918,9 @@ public class TopologyTestDriverTest {
                     return new Processor<String, Long>() {
                         private KeyValueStore<String, Long> store;
 
+                        @SuppressWarnings("unchecked")
                         @Override
                         public void init(final ProcessorContext context) {
-                            //noinspection unchecked
                             this.store = (KeyValueStore<String, Long>) context.getStateStore("storeProcessorStore");
                         }
 
