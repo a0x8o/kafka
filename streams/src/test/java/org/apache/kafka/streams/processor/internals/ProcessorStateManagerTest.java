@@ -29,8 +29,8 @@ import org.apache.kafka.streams.processor.StateRestoreCallback;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.internals.testutil.LogCaptureAppender;
+import org.apache.kafka.streams.state.TimestampedBytesStore;
 import org.apache.kafka.streams.state.internals.OffsetCheckpoint;
-import org.apache.kafka.streams.state.RecordConverter;
 import org.apache.kafka.test.MockBatchingStateRestoreListener;
 import org.apache.kafka.test.MockKeyValueStore;
 import org.apache.kafka.test.NoOpProcessorContext;
@@ -53,9 +53,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Collections.singletonList;
-import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -153,15 +151,16 @@ public class ProcessorStateManagerTest {
             );
             assertThat(persistentStore.keys.size(), is(1));
             assertTrue(persistentStore.keys.contains(intKey));
+            assertEquals(9, persistentStore.values.get(0).length);
         } finally {
             stateMgr.close(Collections.emptyMap());
         }
     }
 
     @Test
-    public void shouldConvertDataOnRestoreIfStoreImplementsRecordConverter() throws Exception {
+    public void shouldConvertDataOnRestoreIfStoreImplementsTimestampedBytesStore() throws Exception {
         final TaskId taskId = new TaskId(0, 2);
-        final Integer intKey = 2;
+        final Integer intKey = 1;
 
         final MockKeyValueStore persistentStore = getConverterStore();
         final ProcessorStateManager stateMgr = getStandByStateManager(taskId);
@@ -175,6 +174,7 @@ public class ProcessorStateManagerTest {
             );
             assertThat(persistentStore.keys.size(), is(1));
             assertTrue(persistentStore.keys.contains(intKey));
+            assertEquals(17, persistentStore.values.get(0).length);
         } finally {
             stateMgr.close(Collections.emptyMap());
         }
@@ -617,14 +617,18 @@ public class ProcessorStateManagerTest {
         stateMgr.checkpoint(Collections.singletonMap(persistentStorePartition, 10L));
         LogCaptureAppender.unregister(appender);
 
-        final List<LogCaptureAppender.Event> messages = appender.getEvents();
+        boolean foundExpectedLogMessage = false;
+        for (final LogCaptureAppender.Event event : appender.getEvents()) {
+            if ("WARN".equals(event.getLevel())
+                && event.getMessage().startsWith("process-state-manager-test Failed to write offset checkpoint file to [")
+                && event.getMessage().endsWith(".checkpoint]")
+                && event.getThrowableInfo().get().startsWith("java.io.FileNotFoundException: ")) {
 
-        final LogCaptureAppender.Event lastEvent = messages.get(messages.size() - 1);
-
-        assertThat(lastEvent.getLevel(), is("WARN"));
-        assertThat(lastEvent.getMessage(), startsWith("process-state-manager-test Failed to write offset checkpoint file to ["));
-        assertThat(lastEvent.getMessage(), endsWith(".checkpoint]"));
-        assertThat(lastEvent.getThrowableInfo().get(), startsWith("java.io.FileNotFoundException: "));
+                foundExpectedLogMessage = true;
+                break;
+            }
+        }
+        assertTrue(foundExpectedLogMessage);
     }
 
     @Test
@@ -797,19 +801,10 @@ public class ProcessorStateManagerTest {
         return new ConverterStore("persistentStore", true);
     }
 
-
-
-    private class ConverterStore extends MockKeyValueStore implements RecordConverter {
-
+    private class ConverterStore extends MockKeyValueStore implements TimestampedBytesStore {
         ConverterStore(final String name,
                        final boolean persistent) {
             super(name, persistent);
         }
-
-        @Override
-        public ConsumerRecord<byte[], byte[]> convert(final ConsumerRecord<byte[], byte[]> record) {
-            return new ConsumerRecord<>("", 0, 0L, new byte[]{0x0, 0x0, 0x0, 0x2}, "".getBytes());
-        }
     }
-
 }

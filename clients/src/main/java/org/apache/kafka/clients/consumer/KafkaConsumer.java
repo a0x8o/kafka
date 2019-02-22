@@ -933,7 +933,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
 
                 throwIfNoAssignorsConfigured();
                 fetcher.clearBufferedDataForUnassignedTopics(topics);
-                log.debug("Subscribed to topic(s): {}", Utils.join(topics, ", "));
+                log.info("Subscribed to topic(s): {}", Utils.join(topics, ", "));
                 this.subscriptions.subscribe(new HashSet<>(topics), listener);
                 metadata.setTopics(subscriptions.groupSubscription());
             }
@@ -996,7 +996,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         acquireAndEnsureOpen();
         try {
             throwIfNoAssignorsConfigured();
-            log.debug("Subscribed to pattern: {}", pattern);
+            log.info("Subscribed to pattern: '{}'", pattern);
             this.subscriptions.subscribe(pattern, listener);
             this.metadata.needMetadataForAllTopics(true);
             this.coordinator.updatePatternSubscription(metadata.fetch());
@@ -1087,7 +1087,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                 if (coordinator != null)
                     this.coordinator.maybeAutoCommitOffsetsAsync(time.milliseconds());
 
-                log.debug("Subscribed to partition(s): {}", Utils.join(partitions, ", "));
+                log.info("Subscribed to partition(s): {}", Utils.join(partitions, ", "));
                 this.subscriptions.assignFromUser(new HashSet<>(partitions));
                 metadata.setTopics(topics);
             }
@@ -1459,12 +1459,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      */
     @Override
     public void commitAsync(OffsetCommitCallback callback) {
-        acquireAndEnsureOpen();
-        try {
-            commitAsync(subscriptions.allConsumed(), callback);
-        } finally {
-            release();
-        }
+        commitAsync(subscriptions.allConsumed(), callback);
     }
 
     /**
@@ -1532,10 +1527,10 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         acquireAndEnsureOpen();
         try {
             if (offsetAndMetadata.leaderEpoch().isPresent()) {
-                log.debug("Seeking to offset {} for partition {} with epoch {}",
+                log.info("Seeking to offset {} for partition {} with epoch {}",
                         offset, partition, offsetAndMetadata.leaderEpoch().get());
             } else {
-                log.debug("Seeking to offset {} for partition {}", offset, partition);
+                log.info("Seeking to offset {} for partition {}", offset, partition);
             }
             this.updateLastSeenEpochIfNewer(partition, offsetAndMetadata);
             this.subscriptions.seek(partition, offset);
@@ -1561,7 +1556,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         try {
             Collection<TopicPartition> parts = partitions.size() == 0 ? this.subscriptions.assignedPartitions() : partitions;
             for (TopicPartition tp : parts) {
-                log.debug("Seeking to beginning of partition {}", tp);
+                log.info("Seeking to beginning of partition {}", tp);
                 subscriptions.requestOffsetReset(tp, OffsetResetStrategy.EARLIEST);
             }
         } finally {
@@ -1589,7 +1584,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         try {
             Collection<TopicPartition> parts = partitions.size() == 0 ? this.subscriptions.assignedPartitions() : partitions;
             for (TopicPartition tp : parts) {
-                log.debug("Seeking to end of partition {}", tp);
+                log.info("Seeking to end of partition {}", tp);
                 subscriptions.requestOffsetReset(tp, OffsetResetStrategy.LATEST);
             }
         } finally {

@@ -20,7 +20,7 @@ import java.util.Optional
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import com.yammer.metrics.core.Gauge
-import kafka.api.{LeaderAndIsr, Request}
+import kafka.api.{ApiVersion, LeaderAndIsr, Request}
 import kafka.common.UnexpectedAppendOffsetException
 import kafka.controller.KafkaController
 import kafka.log._
@@ -49,6 +49,7 @@ object Partition {
     new Partition(topicPartition,
       isOffline = false,
       replicaLagTimeMaxMs = replicaManager.config.replicaLagTimeMaxMs,
+      interBrokerProtocolVersion = replicaManager.config.interBrokerProtocolVersion,
       localBrokerId = replicaManager.config.brokerId,
       time = time,
       replicaManager = replicaManager,
@@ -63,6 +64,7 @@ object Partition {
 class Partition(val topicPartition: TopicPartition,
                 val isOffline: Boolean,
                 private val replicaLagTimeMaxMs: Long,
+                private val interBrokerProtocolVersion: ApiVersion,
                 private val localBrokerId: Int,
                 private val time: Time,
                 private val replicaManager: ReplicaManager,
@@ -392,8 +394,8 @@ class Partition(val topicPartition: TopicPartition,
       // to ensure that these followers can truncate to the right offset, we must cache the new
       // leader epoch and the start offset since it should be larger than any epoch that a follower
       // would try to query.
-      leaderReplica.epochs.foreach { epochCache =>
-        epochCache.assign(leaderEpoch, leaderEpochStartOffset)
+      leaderReplica.log.foreach { log =>
+        log.maybeAssignEpochStartOffset(leaderEpoch, leaderEpochStartOffset)
       }
 
       val isNewLeader = !leaderReplicaIdOpt.contains(localBrokerId)
@@ -748,7 +750,9 @@ class Partition(val topicPartition: TopicPartition,
               s"is insufficient to satisfy the min.isr requirement of $minIsr for partition $topicPartition")
           }
 
-          val info = log.appendAsLeader(records, leaderEpoch = this.leaderEpoch, isFromClient)
+          val info = log.appendAsLeader(records, leaderEpoch = this.leaderEpoch, isFromClient,
+            interBrokerProtocolVersion)
+
           // we may need to increment high watermark since ISR could be down to 1
           (info, maybeIncrementLeaderHW(leaderReplica))
 
@@ -983,8 +987,10 @@ class Partition(val topicPartition: TopicPartition,
       val localReplicaOrError = getLocalReplica(localBrokerId, currentLeaderEpoch, fetchOnlyFromLeader)
       localReplicaOrError match {
         case Left(replica) =>
-          val (epoch, offset) = replica.epochs.get.endOffsetFor(leaderEpoch)
-          new EpochEndOffset(NONE, epoch, offset)
+          replica.endOffsetForEpoch(leaderEpoch) match {
+            case Some(epochAndOffset) => new EpochEndOffset(NONE, epochAndOffset.leaderEpoch, epochAndOffset.offset)
+            case None => new EpochEndOffset(NONE, UNDEFINED_EPOCH, UNDEFINED_EPOCH_OFFSET)
+          }
         case Right(error) =>
           new EpochEndOffset(error, UNDEFINED_EPOCH, UNDEFINED_EPOCH_OFFSET)
       }
