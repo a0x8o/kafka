@@ -20,12 +20,13 @@ import org.apache.kafka.streams.processor.AbstractProcessor;
 import org.apache.kafka.streams.processor.Cancellable;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.PunctuationType;
-import org.apache.kafka.streams.processor.Punctuator;
 
+import java.time.Duration;
 import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 
+@SuppressWarnings("WeakerAccess")
 public class MockProcessor<K, V> extends AbstractProcessor<K, V> {
 
     public final ArrayList<String> processed = new ArrayList<>();
@@ -40,7 +41,10 @@ public class MockProcessor<K, V> extends AbstractProcessor<K, V> {
     private final PunctuationType punctuationType;
     private final long scheduleInterval;
 
-    public MockProcessor(final PunctuationType punctuationType, final long scheduleInterval) {
+    private boolean commitRequested = false;
+
+    public MockProcessor(final PunctuationType punctuationType,
+                         final long scheduleInterval) {
         this.punctuationType = punctuationType;
         this.scheduleInterval = scheduleInterval;
     }
@@ -53,9 +57,10 @@ public class MockProcessor<K, V> extends AbstractProcessor<K, V> {
     public void init(final ProcessorContext context) {
         super.init(context);
         if (scheduleInterval > 0L) {
-            scheduleCancellable = context.schedule(scheduleInterval, punctuationType, new Punctuator() {
-                @Override
-                public void punctuate(final long timestamp) {
+            scheduleCancellable = context.schedule(
+                Duration.ofMillis(scheduleInterval),
+                punctuationType,
+                timestamp -> {
                     if (punctuationType == PunctuationType.STREAM_TIME) {
                         assertEquals(timestamp, context().timestamp());
                     }
@@ -64,8 +69,7 @@ public class MockProcessor<K, V> extends AbstractProcessor<K, V> {
 
                     (punctuationType == PunctuationType.STREAM_TIME ? punctuatedStreamTime : punctuatedSystemTime)
                             .add(timestamp);
-                }
-            });
+                });
         }
     }
 
@@ -76,6 +80,10 @@ public class MockProcessor<K, V> extends AbstractProcessor<K, V> {
         processed.add((key == null ? "null" : key) + ":" +
                 (value == null ? "null" : value));
 
+        if (commitRequested) {
+            context().commit();
+            commitRequested = false;
+        }
     }
 
     public void checkAndClearProcessResult(final String... expected) {
@@ -85,6 +93,10 @@ public class MockProcessor<K, V> extends AbstractProcessor<K, V> {
         }
 
         processed.clear();
+    }
+
+    public void requestCommit() {
+        commitRequested = true;
     }
 
     public void checkEmptyAndClearProcessResult() {

@@ -22,6 +22,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -38,7 +39,7 @@ public class ImplicitLinkedHashSetTest {
     @Rule
     final public Timeout globalTimeout = Timeout.millis(120000);
 
-    private final static class TestElement implements ImplicitLinkedHashSet.Element {
+    final static class TestElement implements ImplicitLinkedHashSet.Element {
         private int prev = ImplicitLinkedHashSet.INVALID_INDEX;
         private int next = ImplicitLinkedHashSet.INVALID_INDEX;
         private final int val;
@@ -87,7 +88,13 @@ public class ImplicitLinkedHashSetTest {
     }
 
     @Test
-    public void testInsertDelete() throws Exception {
+    public void testNullForbidden() {
+        ImplicitLinkedHashMultiSet<TestElement> multiSet = new ImplicitLinkedHashMultiSet<>();
+        assertFalse(multiSet.add(null));
+    }
+
+    @Test
+    public void testInsertDelete() {
         ImplicitLinkedHashSet<TestElement> set = new ImplicitLinkedHashSet<>(100);
         assertTrue(set.add(new TestElement(1)));
         TestElement second = new TestElement(2);
@@ -106,7 +113,7 @@ public class ImplicitLinkedHashSetTest {
         assertEquals(0, set.size());
     }
 
-    private static void expectTraversal(Iterator<TestElement> iterator, Integer... sequence) {
+    static void expectTraversal(Iterator<TestElement> iterator, Integer... sequence) {
         int i = 0;
         while (iterator.hasNext()) {
             TestElement element = iterator.next();
@@ -120,8 +127,7 @@ public class ImplicitLinkedHashSetTest {
             sequence.length + " were expected.", i == sequence.length);
     }
 
-    private static void expectTraversal(Iterator<TestElement> iter,
-                                        Iterator<Integer> expectedIter) {
+    static void expectTraversal(Iterator<TestElement> iter, Iterator<Integer> expectedIter) {
         int i = 0;
         while (iter.hasNext()) {
             TestElement element = iter.next();
@@ -137,8 +143,8 @@ public class ImplicitLinkedHashSetTest {
     }
 
     @Test
-    public void testTraversal() throws Exception {
-        ImplicitLinkedHashSet<TestElement> set = new ImplicitLinkedHashSet<>(100);
+    public void testTraversal() {
+        ImplicitLinkedHashSet<TestElement> set = new ImplicitLinkedHashSet<>();
         expectTraversal(set.iterator());
         assertTrue(set.add(new TestElement(2)));
         expectTraversal(set.iterator(), 2);
@@ -168,7 +174,7 @@ public class ImplicitLinkedHashSetTest {
     }
 
     @Test
-    public void testCollisions() throws Exception {
+    public void testCollisions() {
         ImplicitLinkedHashSet<TestElement> set = new ImplicitLinkedHashSet<>(5);
         assertEquals(11, set.numSlots());
         assertTrue(set.add(new TestElement(11)));
@@ -184,7 +190,7 @@ public class ImplicitLinkedHashSetTest {
     }
 
     @Test
-    public void testEnlargement() throws Exception {
+    public void testEnlargement() {
         ImplicitLinkedHashSet<TestElement> set = new ImplicitLinkedHashSet<>(5);
         assertEquals(11, set.numSlots());
         for (int i = 0; i < 6; i++) {
@@ -203,7 +209,7 @@ public class ImplicitLinkedHashSetTest {
     }
 
     @Test
-    public void testManyInsertsAndDeletes() throws Exception {
+    public void testManyInsertsAndDeletes() {
         Random random = new Random(123);
         LinkedHashSet<Integer> existing = new LinkedHashSet<>();
         ImplicitLinkedHashSet<TestElement> set = new ImplicitLinkedHashSet<>();
@@ -226,8 +232,8 @@ public class ImplicitLinkedHashSetTest {
         set.add(new TestElement(next));
     }
 
-    private void removeRandomElement(Random random, LinkedHashSet<Integer> existing,
-                                     ImplicitLinkedHashSet<TestElement> set) {
+    private void removeRandomElement(Random random, Collection<Integer> existing,
+                             ImplicitLinkedHashSet<TestElement> set) {
         int removeIdx = random.nextInt(existing.size());
         Iterator<Integer> iter = existing.iterator();
         Integer element = null;

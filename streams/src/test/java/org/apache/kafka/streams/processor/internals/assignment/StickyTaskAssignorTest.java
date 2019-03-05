@@ -33,8 +33,8 @@ import java.util.TreeSet;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsCollectionContaining.hasItem;
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
+import static org.hamcrest.core.IsIterableContaining.hasItem;
+import static org.hamcrest.core.IsIterableContaining.hasItems;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertTrue;
 
@@ -149,6 +149,25 @@ public class StickyTaskAssignorTest {
         taskAssignor.assign(0);
         assertThat(clients.get(p1).activeTasks().size(), equalTo(1));
         assertThat(clients.get(p2).activeTasks().size(), equalTo(2));
+    }
+
+    @Test
+    public void shouldAssignTasksEvenlyWithUnequalTopicGroupSizes() {
+
+        createClientWithPreviousActiveTasks(p1, 1, task00, task01, task02, task03,
+                                                            task04, task05, task10);
+
+        createClient(p2, 1);
+
+        final StickyTaskAssignor taskAssignor = createTaskAssignor(task10, task00, task01, task02, task03, task04, task05);
+
+        final Set<TaskId> expectedClientITasks = new HashSet<>(Arrays.asList(task00, task01, task10, task05));
+        final Set<TaskId> expectedClientIITasks = new HashSet<>(Arrays.asList(task02, task03, task04));
+
+        taskAssignor.assign(0);
+
+        assertThat(clients.get(p1).activeTasks(), equalTo(expectedClientITasks));
+        assertThat(clients.get(p2).activeTasks(), equalTo(expectedClientIITasks));
     }
 
     @Test

@@ -18,6 +18,7 @@ package org.apache.kafka.streams.processor.internals;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.metrics.Sensor;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -26,16 +27,37 @@ import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
- * A PartitionGroup is composed from a set of partitions. It also maintains the timestamp of this
- * group, hence the associated task as the min timestamp across all partitions in the group.
+ * PartitionGroup is used to buffer all co-partitioned records for processing.
+ *
+ * In other words, it represents the "same" partition over multiple co-partitioned topics, and it is used
+ * to buffer records from that partition in each of the contained topic-partitions.
+ * Each StreamTask has exactly one PartitionGroup.
+ *
+ * PartitionGroup implements the algorithm that determines in what order buffered records are selected for processing.
+ *
+ * Specifically, when polled, it returns the record from the topic-partition with the lowest stream-time.
+ * Stream-time for a topic-partition is defined as the highest timestamp
+ * yet observed at the head of that topic-partition.
+ *
+ * PartitionGroup also maintains a stream-time for the group as a whole.
+ * This is defined as the highest timestamp of any record yet polled from the PartitionGroup.
+ * The PartitionGroup's stream-time is also the stream-time of its task and is used as the
+ * stream-time for any computations that require it.
+ *
+ * The PartitionGroups's stream-time is initially UNKNOWN (-1), and it set to a known value upon first poll.
+ * As a consequence of the definition, the PartitionGroup's stream-time is non-decreasing
+ * (i.e., it increases or stays the same over time).
  */
 public class PartitionGroup {
 
     private final Map<TopicPartition, RecordQueue> partitionQueues;
-
+    private final Sensor recordLatenessSensor;
     private final PriorityQueue<RecordQueue> nonEmptyQueuesByTime;
+
     private long streamTime;
     private int totalBuffered;
+    private boolean allBuffered;
+
 
     public static class RecordInfo {
         RecordQueue queue;
@@ -53,12 +75,13 @@ public class PartitionGroup {
         }
     }
 
-
-    PartitionGroup(final Map<TopicPartition, RecordQueue> partitionQueues) {
+    PartitionGroup(final Map<TopicPartition, RecordQueue> partitionQueues, final Sensor recordLatenessSensor) {
         nonEmptyQueuesByTime = new PriorityQueue<>(partitionQueues.size(), Comparator.comparingLong(RecordQueue::timestamp));
         this.partitionQueues = partitionQueues;
+        this.recordLatenessSensor = recordLatenessSensor;
         totalBuffered = 0;
-        streamTime = RecordQueue.NOT_KNOWN;
+        allBuffered = false;
+        streamTime = RecordQueue.UNKNOWN;
     }
 
     /**
@@ -79,17 +102,21 @@ public class PartitionGroup {
             if (record != null) {
                 --totalBuffered;
 
-                if (!queue.isEmpty()) {
+                if (queue.isEmpty()) {
+                    // if a certain queue has been drained, reset the flag
+                    allBuffered = false;
+                } else {
                     nonEmptyQueuesByTime.offer(queue);
                 }
 
-                // Since this was previously a queue with min timestamp,
-                // streamTime could only advance if this queue's time did.
-                if (queue.timestamp() > streamTime) {
-                    computeStreamTime();
+                // always update the stream time to the record's timestamp yet to be processed if it is larger
+                if (record.timestamp > streamTime) {
+                    streamTime = record.timestamp;
+                    recordLatenessSensor.record(0);
+                } else {
+                    recordLatenessSensor.record(streamTime - record.timestamp);
                 }
             }
-
         }
 
         return record;
@@ -106,17 +133,18 @@ public class PartitionGroup {
         final RecordQueue recordQueue = partitionQueues.get(partition);
 
         final int oldSize = recordQueue.size();
-        final long oldTimestamp = recordQueue.timestamp();
         final int newSize = recordQueue.addRawRecords(rawRecords);
 
         // add this record queue to be considered for processing in the future if it was empty before
         if (oldSize == 0 && newSize > 0) {
             nonEmptyQueuesByTime.offer(recordQueue);
-        }
 
-        // Adding to this queue could only advance streamTime if it was previously the queue with min timestamp (= streamTime)
-        if (oldTimestamp <= streamTime && recordQueue.timestamp() > streamTime) {
-            computeStreamTime();
+            // if all partitions now are non-empty, set the flag
+            // we do not need to update the stream time here since this task will definitely be
+            // processed next, and hence the stream time will be updated when we retrieved records by then
+            if (nonEmptyQueuesByTime.size() == this.partitionQueues.size()) {
+                allBuffered = true;
+            }
         }
 
         totalBuffered += newSize - oldSize;
@@ -136,18 +164,6 @@ public class PartitionGroup {
         return streamTime;
     }
 
-    private void computeStreamTime() {
-        // we should always return the smallest timestamp of all partitions
-        // to avoid group partition time goes backward
-        long timestamp = Long.MAX_VALUE;
-        for (final RecordQueue queue : partitionQueues.values()) {
-            if (queue.timestamp() < timestamp) {
-                timestamp = queue.timestamp();
-            }
-        }
-        this.streamTime = timestamp;
-    }
-
     /**
      * @throws IllegalStateException if the record's partition does not belong to this partition group
      */
@@ -165,7 +181,12 @@ public class PartitionGroup {
         return totalBuffered;
     }
 
+    boolean allPartitionsBuffered() {
+        return allBuffered;
+    }
+
     public void close() {
+        clear();
         partitionQueues.clear();
     }
 

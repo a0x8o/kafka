@@ -606,6 +606,38 @@ public class StickyAssignorTest {
         }
     }
 
+    @Test
+    public void testAssignmentUpdatedForDeletedTopic() {
+        String consumerId = "consumer";
+
+        Map<String, Integer> partitionsPerTopic = new HashMap<>();
+        partitionsPerTopic.put("topic01", 1);
+        partitionsPerTopic.put("topic03", 100);
+        Map<String, Subscription> subscriptions =
+                Collections.singletonMap(consumerId, new Subscription(topics("topic01", "topic02", "topic03")));
+
+        Map<String, List<TopicPartition>> assignment = assignor.assign(partitionsPerTopic, subscriptions);
+        assertEquals(assignment.values().stream().mapToInt(topicPartitions -> topicPartitions.size()).sum(), 1 + 100);
+        assertEquals(Collections.singleton(consumerId), assignment.keySet());
+        assertTrue(isFullyBalanced(assignment));
+    }
+
+    @Test
+    public void testNoExceptionThrownWhenOnlySubscribedTopicDeleted() {
+        String topic = "topic01";
+        String consumer = "consumer01";
+        Map<String, Integer> partitionsPerTopic = new HashMap<>();
+        partitionsPerTopic.put(topic, 3);
+        Map<String, Subscription> subscriptions = new HashMap<>();
+        subscriptions.put(consumer, new Subscription(topics(topic)));
+        Map<String, List<TopicPartition>> assignment = assignor.assign(partitionsPerTopic, subscriptions);
+        subscriptions.put(consumer, new Subscription(topics(topic), StickyAssignor.serializeTopicPartitionAssignment(assignment.get(consumer))));
+
+        assignment = assignor.assign(Collections.emptyMap(), subscriptions);
+        assertEquals(assignment.size(), 1);
+        assertTrue(assignment.get(consumer).isEmpty());
+    }
+
     private String getTopicName(int i, int maxNum) {
         return getCanonicalName("t", i, maxNum);
     }
@@ -711,8 +743,8 @@ public class StickyAssignorTest {
                 if (Math.abs(len - otherLen) <= 1)
                     continue;
 
-                Map<String, List<Integer>> map = CollectionUtils.groupDataByTopic(partitions);
-                Map<String, List<Integer>> otherMap = CollectionUtils.groupDataByTopic(otherPartitions);
+                Map<String, List<Integer>> map = CollectionUtils.groupPartitionsByTopic(partitions);
+                Map<String, List<Integer>> otherMap = CollectionUtils.groupPartitionsByTopic(otherPartitions);
 
                 if (len > otherLen) {
                     for (String topic: map.keySet())

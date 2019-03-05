@@ -367,10 +367,10 @@ class NamedCache {
 
             // add parent
             final Map<String, String> allMetricTags = metrics.tagMap(
-                "record-cache-id", "all",
-                "task-id", taskName
+                 "task-id", taskName,
+                "record-cache-id", "all"
             );
-            final Sensor taskLevelHitRatioSensor = metrics.taskLevelSensor("hitRatio", taskName, Sensor.RecordingLevel.DEBUG);
+            final Sensor taskLevelHitRatioSensor = metrics.taskLevelSensor(taskName, "hitRatio", Sensor.RecordingLevel.DEBUG);
             taskLevelHitRatioSensor.add(
                 new MetricName("hitRatio-avg", group, "The average cache hit ratio.", allMetricTags),
                 new Avg()
@@ -386,8 +386,8 @@ class NamedCache {
 
             // add child
             final Map<String, String> metricTags = metrics.tagMap(
-                "record-cache-id", ThreadCache.underlyingStoreNamefromCacheName(cacheName),
-                "task-id", taskName
+                 "task-id", taskName,
+                "record-cache-id", ThreadCache.underlyingStoreNamefromCacheName(cacheName)
             );
 
             hitRatioSensor = metrics.cacheLevelSensor(

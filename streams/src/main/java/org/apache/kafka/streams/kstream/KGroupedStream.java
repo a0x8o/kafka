@@ -115,7 +115,6 @@ public interface KGroupedStream<K, V> {
      */
     KTable<K, Long> count(final Materialized<K, Long, KeyValueStore<Bytes, byte[]>> materialized);
 
-
     /**
      * Combine the values of records in this stream by the grouped key.
      * Records with {@code null} key or value are ignored.
@@ -126,7 +125,7 @@ public interface KGroupedStream<K, V> {
      * aggregate and the record's value.
      * If there is no current aggregate the {@link Reducer} is not applied and the new aggregate will be the record's
      * value as-is.
-     * Thus, {@code reduce(Reducer, String)} can be used to compute aggregate functions like sum, min, or max.
+     * Thus, {@code reduce(Reducer)} can be used to compute aggregate functions like sum, min, or max.
      * <p>
      * Not all updates might get sent downstream, as an internal cache is used to deduplicate consecutive updates to
      * the same key.
@@ -147,7 +146,9 @@ public interface KGroupedStream<K, V> {
      *
      * @param reducer   a {@link Reducer} that computes a new aggregate result. Cannot be {@code null}.
      * @return a {@link KTable} that contains "update" records with unmodified keys, and values that represent the
-     * latest (rolling) aggregate for each key
+     * latest (rolling) aggregate for each key. If the reduce function returns {@code null}, it is then interpreted as
+     * deletion for the key, and future messages of the same key coming from upstream operators
+     * will be handled as newly initialized value.
      */
     KTable<K, V> reduce(final Reducer<V> reducer);
 
@@ -189,7 +190,7 @@ public interface KGroupedStream<K, V> {
      * <pre>{@code
      * KafkaStreams streams = ... // compute sum
      * String queryableStoreName = "storeName" // the store name should be the name of the store as defined by the Materialized instance
-     * ReadOnlyKeyValueStore<String,Long> localStore = streams.store(queryableStoreName, QueryableStoreTypes.<String, Long>keyValueStore());
+     * ReadOnlyKeyValueStore<String, Long> localStore = streams.store(queryableStoreName, QueryableStoreTypes.<String, Long>keyValueStore());
      * String key = "some-key";
      * Long sumForKey = localStore.get(key); // key must be local (application state is shared over all running Kafka Streams instances)
      * }</pre>
@@ -209,7 +210,9 @@ public interface KGroupedStream<K, V> {
      * @param reducer       a {@link Reducer} that computes a new aggregate result. Cannot be {@code null}.
      * @param materialized  an instance of {@link Materialized} used to materialize a state store. Cannot be {@code null}.
      * @return a {@link KTable} that contains "update" records with unmodified keys, and values that represent the
-     * latest (rolling) aggregate for each key
+     * latest (rolling) aggregate for each key. If the reduce function returns {@code null}, it is then interpreted as
+     * deletion for the key, and future messages of the same key coming from upstream operators
+     * will be handled as newly initialized value.
      */
     KTable<K, V> reduce(final Reducer<V> reducer,
                         final Materialized<K, V, KeyValueStore<Bytes, byte[]>> materialized);
@@ -252,7 +255,9 @@ public interface KGroupedStream<K, V> {
      * @param aggregator    an {@link Aggregator} that computes a new aggregate result
      * @param <VR>          the value type of the resulting {@link KTable}
      * @return a {@link KTable} that contains "update" records with unmodified keys, and values that represent the
-     * latest (rolling) aggregate for each key
+     * latest (rolling) aggregate for each key. If the aggregate function returns {@code null}, it is then interpreted as
+     * deletion for the key, and future messages of the same key coming from upstream operators
+     * will be handled as newly initialized value.
      */
     <VR> KTable<K, VR> aggregate(final Initializer<VR> initializer,
                                  final Aggregator<? super K, ? super V, VR> aggregator);
@@ -271,7 +276,7 @@ public interface KGroupedStream<K, V> {
      * The specified {@link Aggregator} is applied for each input record and computes a new aggregate using the current
      * aggregate (or for the very first record using the intermediate aggregation result provided via the
      * {@link Initializer}) and the record's value.
-     * Thus, {@code aggregate(Initializer, Aggregator, Serde, String)} can be used to compute aggregate functions like
+     * Thus, {@code aggregate(Initializer, Aggregator, Materialized)} can be used to compute aggregate functions like
      * count (c.f. {@link #count()}).
      * <p>
      * Not all updates might get sent downstream, as an internal cache is used to deduplicate consecutive updates to
@@ -286,7 +291,7 @@ public interface KGroupedStream<K, V> {
      * <pre>{@code
      * KafkaStreams streams = ... // some aggregation on value type double
      * String queryableStoreName = "storeName" // the store name should be the name of the store as defined by the Materialized instance
-     * ReadOnlyKeyValueStore<String,Long> localStore = streams.store(queryableStoreName, QueryableStoreTypes.<String, Long>keyValueStore());
+     * ReadOnlyKeyValueStore<String, Long> localStore = streams.store(queryableStoreName, QueryableStoreTypes.<String, Long>keyValueStore());
      * String key = "some-key";
      * Long aggForKey = localStore.get(key); // key must be local (application state is shared over all running Kafka Streams instances)
      * }</pre>
@@ -309,7 +314,9 @@ public interface KGroupedStream<K, V> {
      * @param materialized  an instance of {@link Materialized} used to materialize a state store. Cannot be {@code null}.
      * @param <VR>          the value type of the resulting {@link KTable}
      * @return a {@link KTable} that contains "update" records with unmodified keys, and values that represent the
-     * latest (rolling) aggregate for each key
+     * latest (rolling) aggregate for each key. If the aggregate function returns {@code null}, it is then interpreted as
+     * deletion for the key, and future messages of the same key coming from upstream operators
+     * will be handled as newly initialized value.
      */
     <VR> KTable<K, VR> aggregate(final Initializer<VR> initializer,
                                  final Aggregator<? super K, ? super V, VR> aggregator,

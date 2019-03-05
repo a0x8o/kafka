@@ -231,6 +231,11 @@ public final class WorkerManager {
         private Future<Void> timeoutFuture = null;
 
         /**
+         * A future which is completed when the task transitions to DONE state.
+         */
+        private KafkaFutureImpl<String> doneFuture = null;
+
+        /**
          * A shutdown manager reference which will keep the WorkerManager
          * alive for as long as this worker is alive.
          */
@@ -280,7 +285,8 @@ public final class WorkerManager {
         void transitionToRunning() {
             state = State.RUNNING;
             timeoutFuture = scheduler.schedule(stateChangeExecutor,
-                new StopWorker(workerId, false), spec.durationMs());
+                new StopWorker(workerId, false),
+                Math.max(0, spec.endMs() - time.milliseconds()));
         }
 
         void transitionToStopping() {
@@ -299,6 +305,7 @@ public final class WorkerManager {
                 reference.close();
                 reference = null;
             }
+            doneFuture.complete(error);
         }
 
         @Override
@@ -307,31 +314,35 @@ public final class WorkerManager {
         }
     }
 
-    public void createWorker(long workerId, String taskId, TaskSpec spec) throws Throwable {
+    public KafkaFuture<String> createWorker(long workerId, String taskId, TaskSpec spec) throws Throwable {
         try (ShutdownManager.Reference ref = shutdownManager.takeReference()) {
             final Worker worker = stateChangeExecutor.
                 submit(new CreateWorker(workerId, taskId, spec, time.milliseconds())).get();
-            if (worker == null) {
+            if (worker.doneFuture != null) {
                 log.info("{}: Ignoring request to create worker {}, because there is already " +
                     "a worker with that id.", nodeName, workerId);
-                return;
+                return worker.doneFuture;
+            }
+            worker.doneFuture = new KafkaFutureImpl<>();
+            if (worker.spec.endMs() <= time.milliseconds()) {
+                log.info("{}: Will not run worker {} as it has expired.", nodeName, worker);
+                stateChangeExecutor.submit(new HandleWorkerHalting(worker,
+                    "worker expired", true));
+                return worker.doneFuture;
             }
             KafkaFutureImpl<String> haltFuture = new KafkaFutureImpl<>();
-            haltFuture.thenApply(new KafkaFuture.BaseFunction<String, Void>() {
-                @Override
-                public Void apply(String errorString) {
-                    if (errorString == null)
-                        errorString = "";
-                    if (errorString.isEmpty()) {
-                        log.info("{}: Worker {} is halting.", nodeName, worker);
-                    } else {
-                        log.info("{}: Worker {} is halting with error {}",
-                            nodeName, worker, errorString);
-                    }
-                    stateChangeExecutor.submit(
-                        new HandleWorkerHalting(worker, errorString, false));
-                    return null;
+            haltFuture.thenApply((KafkaFuture.BaseFunction<String, Void>) errorString -> {
+                if (errorString == null)
+                    errorString = "";
+                if (errorString.isEmpty()) {
+                    log.info("{}: Worker {} is halting.", nodeName, worker);
+                } else {
+                    log.info("{}: Worker {} is halting with error {}",
+                        nodeName, worker, errorString);
                 }
+                stateChangeExecutor.submit(
+                    new HandleWorkerHalting(worker, errorString, false));
+                return null;
             });
             try {
                 worker.taskWorker.start(platform, worker.status, haltFuture);
@@ -341,6 +352,7 @@ public final class WorkerManager {
                     "worker.start() exception: " + Utils.stackTrace(e), true));
             }
             stateChangeExecutor.submit(new FinishCreatingWorker(worker));
+            return worker.doneFuture;
         } catch (ExecutionException e) {
             if (e.getCause() instanceof RequestConflictException) {
                 log.info("{}: request conflict while creating worker {} for task {} with spec {}.",
@@ -381,7 +393,7 @@ public final class WorkerManager {
                         throw new RequestConflictException("There is already a worker ID " + workerId +
                             " with a different task spec.");
                     } else {
-                        return null;
+                        return worker;
                     }
                 }
                 worker = new Worker(workerId, taskId, spec, now);

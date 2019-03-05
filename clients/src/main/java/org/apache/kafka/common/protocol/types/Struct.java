@@ -99,6 +99,18 @@ public class Struct {
         return getString(field.name);
     }
 
+    public Boolean get(Field.Bool field) {
+        return getBoolean(field.name);
+    }
+
+    public Object[] get(Field.Array field) {
+        return getArray(field.name);
+    }
+
+    public Object[] get(Field.ComplexArray field) {
+        return getArray(field.name);
+    }
+
     public Long getOrElse(Field.Int64 field, long alternative) {
         if (hasField(field.name))
             return getLong(field.name);
@@ -135,6 +147,24 @@ public class Struct {
         return alternative;
     }
 
+    public boolean getOrElse(Field.Bool field, boolean alternative) {
+        if (hasField(field.name))
+            return getBoolean(field.name);
+        return alternative;
+    }
+
+    public Object[] getOrEmpty(Field.Array field) {
+        if (hasField(field.name))
+            return getArray(field.name);
+        return new Object[0];
+    }
+
+    public Object[] getOrEmpty(Field.ComplexArray field) {
+        if (hasField(field.name))
+            return getArray(field.name);
+        return new Object[0];
+    }
+
     /**
      * Get the record value for the field with the given name by doing a hash table lookup (slower!)
      *
@@ -159,6 +189,10 @@ public class Struct {
     }
 
     public boolean hasField(Field def) {
+        return schema.get(def.name) != null;
+    }
+
+    public boolean hasField(Field.ComplexArray def) {
         return schema.get(def.name) != null;
     }
 
@@ -248,6 +282,16 @@ public class Struct {
         return (ByteBuffer) result;
     }
 
+    public byte[] getByteArray(String name) {
+        Object result = get(name);
+        if (result instanceof byte[])
+            return (byte[]) result;
+        ByteBuffer buf = (ByteBuffer) result;
+        byte[] arr = new byte[buf.remaining()];
+        buf.get(arr);
+        return arr;
+    }
+
     /**
      * Set the given field to the specified value
      *
@@ -300,6 +344,31 @@ public class Struct {
         return set(def.name, value);
     }
 
+    public Struct set(Field.Bool def, boolean value) {
+        return set(def.name, value);
+    }
+
+    public Struct set(Field.Array def, Object[] value) {
+        return set(def.name, value);
+    }
+
+    public Struct set(Field.ComplexArray def, Object[] value) {
+        return set(def.name, value);
+    }
+
+    public Struct setByteArray(String name, byte[] value) {
+        ByteBuffer buf = value == null ? null : ByteBuffer.wrap(value);
+        return set(name, buf);
+    }
+
+    public Struct setIfExists(Field.Array def, Object[] value) {
+        return setIfExists(def.name, value);
+    }
+
+    public Struct setIfExists(Field.ComplexArray def, Object[] value) {
+        return setIfExists(def.name, value);
+    }
+
     public Struct setIfExists(Field def, Object value) {
         return setIfExists(def.name, value);
     }
@@ -341,6 +410,14 @@ public class Struct {
      */
     public Struct instance(String field) {
         return instance(schema.get(field));
+    }
+
+    public Struct instance(Field field) {
+        return instance(schema.get(field.name));
+    }
+
+    public Struct instance(Field.ComplexArray field) {
+        return instance(schema.get(field.name));
     }
 
     /**

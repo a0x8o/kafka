@@ -46,7 +46,7 @@ public class StreamTableJoinIntegrationTest extends AbstractJoinIntegrationTest 
     private KStream<Long, String> leftStream;
     private KTable<Long, String> rightTable;
 
-    public StreamTableJoinIntegrationTest(boolean cacheEnabled) {
+    public StreamTableJoinIntegrationTest(final boolean cacheEnabled) {
         super(cacheEnabled);
     }
 
@@ -82,7 +82,7 @@ public class StreamTableJoinIntegrationTest extends AbstractJoinIntegrationTest 
         TestUtils.waitForCondition(listener::revokedToPendingShutdownSeen, "Did not seen thread state transited to PENDING_SHUTDOWN");
 
         streams.close();
-        assertEquals(listener.runningToRevokedSeen(), true);
+        assertEquals(listener.createdToRevokedSeen(), true);
         assertEquals(listener.revokedToPendingShutdownSeen(), true);
     }
 

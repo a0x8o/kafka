@@ -24,6 +24,7 @@ import org.junit.Assert._
 import org.junit.{After, Test}
 import java.util.Properties
 
+import kafka.admin.TopicCommand.ZookeeperTopicService
 import kafka.common.TopicAlreadyMarkedForDeletionException
 import kafka.controller.{OfflineReplica, PartitionAndReplica, ReplicaDeletionSuccessful}
 import org.apache.kafka.common.TopicPartition
@@ -132,9 +133,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     assertTrue("Partition reassignment should fail for [test,0]", reassignPartitionsCommand.reassignPartitions())
     // wait until reassignment is completed
     TestUtils.waitUntilTrue(() => {
-      val partitionsBeingReassigned = zkClient.getPartitionReassignment
-      ReassignPartitionsCommand.checkIfPartitionReassignmentSucceeded(zkClient, topicPartition,
-        Map(topicPartition -> newReplicas), partitionsBeingReassigned) == ReassignmentFailed
+      ReassignPartitionsCommand.checkIfPartitionReassignmentSucceeded(zkClient, Map(topicPartition -> newReplicas))
+        .getOrElse(topicPartition, fail(s"Failed to get reassignment status for $topicPartition")) == ReassignmentFailed
     }, "Partition reassignment shouldn't complete.")
     val controllerId = zkClient.getControllerId.getOrElse(fail("Controller doesn't exist"))
     val controller = servers.filter(s => s.config.brokerId == controllerId).head
@@ -205,7 +205,7 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
 
     // increase the partition count for topic
     val topicCommandOptions = new TopicCommand.TopicCommandOptions(Array("--zookeeper", zkConnect, "--alter", "--topic", topic, "--partitions", "2"))
-    TopicCommand.alterTopic(zkClient, topicCommandOptions)
+    new ZookeeperTopicService(zkClient).alterTopic(topicCommandOptions)
 
     // trigger a controller switch now
     val previousControllerId = controllerId

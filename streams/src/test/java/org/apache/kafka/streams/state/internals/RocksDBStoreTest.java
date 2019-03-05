@@ -35,11 +35,12 @@ import org.apache.kafka.test.TestUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.Options;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -47,30 +48,40 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class RocksDBStoreTest {
-    private Serializer<String> stringSerializer = new StringSerializer();
-    private Deserializer<String> stringDeserializer = new StringDeserializer();
-    private RocksDBStore rocksDBStore;
-    private InternalMockProcessorContext context;
+    private static boolean enableBloomFilters = false;
+    final static String DB_NAME = "db-name";
+
     private File dir;
+    private final Serializer<String> stringSerializer = new StringSerializer();
+    private final Deserializer<String> stringDeserializer = new StringDeserializer();
+
+    InternalMockProcessorContext context;
+    RocksDBStore rocksDBStore;
 
     @Before
     public void setUp() {
-        final Properties props = StreamsTestUtils.minimalStreamsConfig();
+        final Properties props = StreamsTestUtils.getStreamsConfig();
         props.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, MockRocksDbConfigSetter.class);
-        rocksDBStore = new RocksDBStore("test");
+        rocksDBStore = getRocksDBStore();
         dir = TestUtils.tempDirectory();
         context = new InternalMockProcessorContext(dir,
             Serdes.String(),
             Serdes.String(),
             new StreamsConfig(props));
+    }
+
+    RocksDBStore getRocksDBStore() {
+        return new RocksDBStore(DB_NAME);
     }
 
     @After
@@ -82,19 +93,23 @@ public class RocksDBStoreTest {
     public void shouldRespectBulkloadOptionsDuringInit() {
         rocksDBStore.init(context, rocksDBStore);
 
-        StateRestoreListener restoreListener = context.getRestoreListener(rocksDBStore.name());
+        final StateRestoreListener restoreListener = context.getRestoreListener(rocksDBStore.name());
 
         restoreListener.onRestoreStart(null, rocksDBStore.name(), 0L, 0L);
 
         assertThat(rocksDBStore.getOptions().level0FileNumCompactionTrigger(), equalTo(1 << 30));
+        assertThat(rocksDBStore.getOptions().level0SlowdownWritesTrigger(), equalTo(1 << 30));
+        assertThat(rocksDBStore.getOptions().level0StopWritesTrigger(), equalTo(1 << 30));
 
         restoreListener.onRestoreEnd(null, rocksDBStore.name(), 0L);
 
         assertThat(rocksDBStore.getOptions().level0FileNumCompactionTrigger(), equalTo(10));
+        assertThat(rocksDBStore.getOptions().level0SlowdownWritesTrigger(), equalTo(20));
+        assertThat(rocksDBStore.getOptions().level0StopWritesTrigger(), equalTo(36));
     }
 
     @Test
-    public void shouldNotThrowExceptionOnRestoreWhenThereIsPreExistingRocksDbFiles() throws Exception {
+    public void shouldNotThrowExceptionOnRestoreWhenThereIsPreExistingRocksDbFiles() {
         rocksDBStore.init(context, rocksDBStore);
 
         final String message = "how can a 4 ounce bird carry a 2lb coconut";
@@ -106,11 +121,11 @@ public class RocksDBStoreTest {
 
         final List<KeyValue<byte[], byte[]>> restoreBytes = new ArrayList<>();
 
-        final byte[] restoredKey = "restoredKey".getBytes("UTF-8");
-        final byte[] restoredValue = "restoredValue".getBytes("UTF-8");
+        final byte[] restoredKey = "restoredKey".getBytes(UTF_8);
+        final byte[] restoredValue = "restoredValue".getBytes(UTF_8);
         restoreBytes.add(KeyValue.pair(restoredKey, restoredValue));
 
-        context.restore("test", restoreBytes);
+        context.restore(DB_NAME, restoreBytes);
 
         assertThat(
             stringDeserializer.deserialize(
@@ -131,21 +146,21 @@ public class RocksDBStoreTest {
     @Test
     public void shouldThrowProcessorStateExceptionOnOpeningReadOnlyDir() {
         final File tmpDir = TestUtils.tempDirectory();
-        InternalMockProcessorContext tmpContext = new InternalMockProcessorContext(tmpDir, new StreamsConfig(StreamsTestUtils.minimalStreamsConfig()));
+        final InternalMockProcessorContext tmpContext = new InternalMockProcessorContext(tmpDir, new StreamsConfig(StreamsTestUtils.getStreamsConfig()));
 
         assertTrue(tmpDir.setReadOnly());
 
         try {
             rocksDBStore.openDB(tmpContext);
             fail("Should have thrown ProcessorStateException");
-        } catch (ProcessorStateException e) {
+        } catch (final ProcessorStateException e) {
             // this is good, do nothing
         }
     }
 
     @Test
     public void shouldPutAll() {
-        List<KeyValue<Bytes, byte[]>> entries = new ArrayList<>();
+        final List<KeyValue<Bytes, byte[]>> entries = new ArrayList<>();
         entries.add(new KeyValue<>(
             new Bytes(stringSerializer.serialize(null, "1")),
             stringSerializer.serialize(null, "a")));
@@ -161,26 +176,26 @@ public class RocksDBStoreTest {
         rocksDBStore.flush();
 
         assertEquals(
+            "a",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))),
-            "a");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))));
         assertEquals(
+            "b",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))),
-            "b");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))));
         assertEquals(
+            "c",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))),
-            "c");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))));
     }
 
     @Test
     public void shouldTogglePrepareForBulkloadSetting() {
         rocksDBStore.init(context, rocksDBStore);
-        RocksDBStore.RocksDBBatchingRestoreCallback restoreListener =
+        final RocksDBStore.RocksDBBatchingRestoreCallback restoreListener =
             (RocksDBStore.RocksDBBatchingRestoreCallback) rocksDBStore.batchingStateRestoreCallback;
 
         restoreListener.onRestoreStart(null, null, 0, 0);
@@ -191,13 +206,13 @@ public class RocksDBStoreTest {
     }
 
     @Test
-    public void shouldTogglePrepareForBulkloadSettingWhenPrexistingSstFiles() throws Exception {
+    public void shouldTogglePrepareForBulkloadSettingWhenPrexistingSstFiles() {
         final List<KeyValue<byte[], byte[]>> entries = getKeyValueEntries();
 
         rocksDBStore.init(context, rocksDBStore);
         context.restore(rocksDBStore.name(), entries);
 
-        RocksDBStore.RocksDBBatchingRestoreCallback restoreListener =
+        final RocksDBStore.RocksDBBatchingRestoreCallback restoreListener =
             (RocksDBStore.RocksDBBatchingRestoreCallback) rocksDBStore.batchingStateRestoreCallback;
 
         restoreListener.onRestoreStart(null, null, 0, 0);
@@ -208,27 +223,27 @@ public class RocksDBStoreTest {
     }
 
     @Test
-    public void shouldRestoreAll() throws Exception {
+    public void shouldRestoreAll() {
         final List<KeyValue<byte[], byte[]>> entries = getKeyValueEntries();
 
         rocksDBStore.init(context, rocksDBStore);
         context.restore(rocksDBStore.name(), entries);
 
         assertEquals(
+            "a",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))),
-            "a");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))));
         assertEquals(
+            "b",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))),
-            "b");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))));
         assertEquals(
+            "c",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))),
-            "c");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))));
     }
 
     @Test
@@ -242,13 +257,13 @@ public class RocksDBStoreTest {
         rocksDBStore.putIfAbsent(keyBytes, valueBytesUpdate);
 
         final String retrievedValue = stringDeserializer.deserialize(null, rocksDBStore.get(keyBytes));
-        assertEquals(retrievedValue, "A");
+        assertEquals("A", retrievedValue);
     }
 
     @Test
-    public void shouldHandleDeletesOnRestoreAll() throws Exception {
+    public void shouldHandleDeletesOnRestoreAll() {
         final List<KeyValue<byte[], byte[]>> entries = getKeyValueEntries();
-        entries.add(new KeyValue<>("1".getBytes("UTF-8"), null));
+        entries.add(new KeyValue<>("1".getBytes(UTF_8), null));
 
         rocksDBStore.init(context, rocksDBStore);
         context.restore(rocksDBStore.name(), entries);
@@ -264,15 +279,15 @@ public class RocksDBStoreTest {
     }
 
     @Test
-    public void shouldHandleDeletesAndPutbackOnRestoreAll() throws Exception {
+    public void shouldHandleDeletesAndPutbackOnRestoreAll() {
         final List<KeyValue<byte[], byte[]>> entries = new ArrayList<>();
-        entries.add(new KeyValue<>("1".getBytes("UTF-8"), "a".getBytes("UTF-8")));
-        entries.add(new KeyValue<>("2".getBytes("UTF-8"), "b".getBytes("UTF-8")));
+        entries.add(new KeyValue<>("1".getBytes(UTF_8), "a".getBytes(UTF_8)));
+        entries.add(new KeyValue<>("2".getBytes(UTF_8), "b".getBytes(UTF_8)));
         // this will be deleted
-        entries.add(new KeyValue<>("1".getBytes("UTF-8"), null));
-        entries.add(new KeyValue<>("3".getBytes("UTF-8"), "c".getBytes("UTF-8")));
+        entries.add(new KeyValue<>("1".getBytes(UTF_8), null));
+        entries.add(new KeyValue<>("3".getBytes(UTF_8), "c".getBytes(UTF_8)));
         // this will restore key "1" as WriteBatch applies updates in order
-        entries.add(new KeyValue<>("1".getBytes("UTF-8"), "restored".getBytes("UTF-8")));
+        entries.add(new KeyValue<>("1".getBytes(UTF_8), "restored".getBytes(UTF_8)));
 
         rocksDBStore.init(context, rocksDBStore);
         context.restore(rocksDBStore.name(), entries);
@@ -287,24 +302,24 @@ public class RocksDBStoreTest {
         assertThat(keys, equalTo(Utils.mkSet("1", "2", "3")));
 
         assertEquals(
+            "restored",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))),
-            "restored");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))));
         assertEquals(
+            "b",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))),
-            "b");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))));
         assertEquals(
+            "c",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))),
-            "c");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))));
     }
 
     @Test
-    public void shouldRestoreThenDeleteOnRestoreAll() throws Exception {
+    public void shouldRestoreThenDeleteOnRestoreAll() {
         final List<KeyValue<byte[], byte[]>> entries = getKeyValueEntries();
 
         rocksDBStore.init(context, rocksDBStore);
@@ -312,26 +327,26 @@ public class RocksDBStoreTest {
         context.restore(rocksDBStore.name(), entries);
 
         assertEquals(
+            "a",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))),
-            "a");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))));
         assertEquals(
+            "b",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))),
-            "b");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "2")))));
         assertEquals(
+            "c",
             stringDeserializer.deserialize(
                 null,
-                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))),
-            "c");
+                rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))));
 
         entries.clear();
 
-        entries.add(new KeyValue<>("2".getBytes("UTF-8"), "b".getBytes("UTF-8")));
-        entries.add(new KeyValue<>("3".getBytes("UTF-8"), "c".getBytes("UTF-8")));
-        entries.add(new KeyValue<>("1".getBytes("UTF-8"), null));
+        entries.add(new KeyValue<>("2".getBytes(UTF_8), "b".getBytes(UTF_8)));
+        entries.add(new KeyValue<>("3".getBytes(UTF_8), "c".getBytes(UTF_8)));
+        entries.add(new KeyValue<>("1".getBytes(UTF_8), null));
 
         context.restore(rocksDBStore.name(), entries);
 
@@ -345,15 +360,13 @@ public class RocksDBStoreTest {
         assertThat(keys, equalTo(Utils.mkSet("2", "3")));
     }
 
-
-
     @Test
     public void shouldThrowNullPointerExceptionOnNullPut() {
         rocksDBStore.init(context, rocksDBStore);
         try {
             rocksDBStore.put(null, stringSerializer.serialize(null, "someVal"));
             fail("Should have thrown NullPointerException on null put()");
-        } catch (NullPointerException e) {
+        } catch (final NullPointerException e) {
             // this is good
         }
     }
@@ -364,7 +377,7 @@ public class RocksDBStoreTest {
         try {
             rocksDBStore.put(null, stringSerializer.serialize(null, "someVal"));
             fail("Should have thrown NullPointerException on null put()");
-        } catch (NullPointerException e) {
+        } catch (final NullPointerException e) {
             // this is good
         }
     }
@@ -375,7 +388,7 @@ public class RocksDBStoreTest {
         try {
             rocksDBStore.get(null);
             fail("Should have thrown NullPointerException on null get()");
-        } catch (NullPointerException e) {
+        } catch (final NullPointerException e) {
             // this is good
         }
     }
@@ -386,7 +399,7 @@ public class RocksDBStoreTest {
         try {
             rocksDBStore.delete(null);
             fail("Should have thrown NullPointerException on deleting null key");
-        } catch (NullPointerException e) {
+        } catch (final NullPointerException e) {
             // this is good
         }
     }
@@ -397,7 +410,7 @@ public class RocksDBStoreTest {
         try {
             rocksDBStore.range(null, new Bytes(stringSerializer.serialize(null, "2")));
             fail("Should have thrown NullPointerException on deleting null key");
-        } catch (NullPointerException e) {
+        } catch (final NullPointerException e) {
             // this is good
         }
     }
@@ -412,6 +425,54 @@ public class RocksDBStoreTest {
         rocksDBStore.flush();
     }
 
+    @Test
+    public void shouldHandleToggleOfEnablingBloomFilters() {
+
+        final Properties props = StreamsTestUtils.getStreamsConfig();
+        props.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, TestingBloomFilterRocksDBConfigSetter.class);
+        rocksDBStore = getRocksDBStore();
+        dir = TestUtils.tempDirectory();
+        context = new InternalMockProcessorContext(dir,
+            Serdes.String(),
+            Serdes.String(),
+            new StreamsConfig(props));
+
+        enableBloomFilters = false;
+        rocksDBStore.init(context, rocksDBStore);
+
+        final List<String> expectedValues = new ArrayList<>();
+        expectedValues.add("a");
+        expectedValues.add("b");
+        expectedValues.add("c");
+
+        final List<KeyValue<byte[], byte[]>> keyValues = getKeyValueEntries();
+        for (final KeyValue<byte[], byte[]> keyValue : keyValues) {
+            rocksDBStore.put(new Bytes(keyValue.key), keyValue.value);
+        }
+
+        int expectedIndex = 0;
+        for (final KeyValue<byte[], byte[]> keyValue : keyValues) {
+            final byte[] valBytes = rocksDBStore.get(new Bytes(keyValue.key));
+            assertThat(new String(valBytes, UTF_8), is(expectedValues.get(expectedIndex++)));
+        }
+        assertFalse(TestingBloomFilterRocksDBConfigSetter.bloomFiltersSet);
+
+        rocksDBStore.close();
+        expectedIndex = 0;
+
+        // reopen with Bloom Filters enabled
+        // should open fine without errors
+        enableBloomFilters = true;
+        rocksDBStore.init(context, rocksDBStore);
+
+        for (final KeyValue<byte[], byte[]> keyValue : keyValues) {
+            final byte[] valBytes = rocksDBStore.get(new Bytes(keyValue.key));
+            assertThat(new String(valBytes, UTF_8), is(expectedValues.get(expectedIndex++)));
+        }
+
+        assertTrue(TestingBloomFilterRocksDBConfigSetter.bloomFiltersSet);
+    }
+
     public static class MockRocksDbConfigSetter implements RocksDBConfigSetter {
         static boolean called;
 
@@ -423,11 +484,35 @@ public class RocksDBStoreTest {
         }
     }
 
-    private List<KeyValue<byte[], byte[]>> getKeyValueEntries() throws UnsupportedEncodingException {
+    public static class TestingBloomFilterRocksDBConfigSetter implements RocksDBConfigSetter {
+
+        static boolean bloomFiltersSet;
+
+        @Override
+        public void setConfig(final String storeName, final Options options, final Map<String, Object> configs) {
+
+            final BlockBasedTableConfig tableConfig = new BlockBasedTableConfig();
+            tableConfig.setBlockCacheSize(50 * 1024 * 1024L);
+            tableConfig.setBlockSize(4096L);
+            if (enableBloomFilters) {
+                tableConfig.setFilter(new BloomFilter());
+                options.optimizeFiltersForHits();
+                bloomFiltersSet = true;
+            } else {
+                options.setOptimizeFiltersForHits(false);
+                bloomFiltersSet = false;
+            }
+
+            options.setTableFormatConfig(tableConfig);
+        }
+    }
+
+    private List<KeyValue<byte[], byte[]>> getKeyValueEntries() {
         final List<KeyValue<byte[], byte[]>> entries = new ArrayList<>();
-        entries.add(new KeyValue<>("1".getBytes("UTF-8"), "a".getBytes("UTF-8")));
-        entries.add(new KeyValue<>("2".getBytes("UTF-8"), "b".getBytes("UTF-8")));
-        entries.add(new KeyValue<>("3".getBytes("UTF-8"), "c".getBytes("UTF-8")));
+        entries.add(new KeyValue<>("1".getBytes(UTF_8), "a".getBytes(UTF_8)));
+        entries.add(new KeyValue<>("2".getBytes(UTF_8), "b".getBytes(UTF_8)));
+        entries.add(new KeyValue<>("3".getBytes(UTF_8), "c".getBytes(UTF_8)));
         return entries;
     }
+
 }

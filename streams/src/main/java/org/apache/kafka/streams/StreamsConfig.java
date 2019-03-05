@@ -98,10 +98,11 @@ import static org.apache.kafka.common.requests.IsolationLevel.READ_COMMITTED;
  * StreamsConfig streamsConfig = new StreamsConfig(streamsProperties);
  * }</pre>
  *
- * When increasing both {@link ProducerConfig#RETRIES_CONFIG} and {@link ProducerConfig#MAX_BLOCK_MS_CONFIG} to be more resilient to non-available brokers you should also
- * consider increasing {@link ConsumerConfig#MAX_POLL_INTERVAL_MS_CONFIG} using the following guidance:
+ *
+ * When increasing {@link ProducerConfig#MAX_BLOCK_MS_CONFIG} to be more resilient to non-available brokers you should also
+ * increase {@link ConsumerConfig#MAX_POLL_INTERVAL_MS_CONFIG} using the following guidance:
  * <pre>
- *     max.poll.interval.ms > min ( max.block.ms, (retries +1) * request.timeout.ms )
+ *     max.poll.interval.ms > max.block.ms
  * </pre>
  *
  *
@@ -277,7 +278,7 @@ public class StreamsConfig extends AbstractConfig {
     /** {@code buffered.records.per.partition} */
     @SuppressWarnings("WeakerAccess")
     public static final String BUFFERED_RECORDS_PER_PARTITION_CONFIG = "buffered.records.per.partition";
-    private static final String BUFFERED_RECORDS_PER_PARTITION_DOC = "The maximum number of records to buffer per partition.";
+    private static final String BUFFERED_RECORDS_PER_PARTITION_DOC = "Maximum number of records to buffer per partition.";
 
     /** {@code cache.max.bytes.buffering} */
     @SuppressWarnings("WeakerAccess")
@@ -294,8 +295,13 @@ public class StreamsConfig extends AbstractConfig {
     @SuppressWarnings("WeakerAccess")
     public static final String COMMIT_INTERVAL_MS_CONFIG = "commit.interval.ms";
     private static final String COMMIT_INTERVAL_MS_DOC = "The frequency with which to save the position of the processor." +
-        " (Note, if 'processing.guarantee' is set to '" + EXACTLY_ONCE + "', the default value is " + EOS_DEFAULT_COMMIT_INTERVAL_MS + "," +
-        " otherwise the default value is " + DEFAULT_COMMIT_INTERVAL_MS + ".";
+        " (Note, if <code>processing.guarantee</code> is set to <code>" + EXACTLY_ONCE + "</code>, the default value is <code>" + EOS_DEFAULT_COMMIT_INTERVAL_MS + "</code>," +
+        " otherwise the default value is <code>" + DEFAULT_COMMIT_INTERVAL_MS + "</code>.";
+
+    /** {@code max.task.idle.ms} */
+    public static final String MAX_TASK_IDLE_MS_CONFIG = "max.task.idle.ms";
+    private static final String MAX_TASK_IDLE_MS_DOC = "Maximum amount of time a stream task will stay idle when not all of its partition buffers contain records," +
+        " to avoid potential out-of-order record processing across multiple input streams.";
 
     /** {@code connections.max.idle.ms} */
     @SuppressWarnings("WeakerAccess")
@@ -390,7 +396,8 @@ public class StreamsConfig extends AbstractConfig {
     @SuppressWarnings("WeakerAccess")
     public static final String PROCESSING_GUARANTEE_CONFIG = "processing.guarantee";
     private static final String PROCESSING_GUARANTEE_DOC = "The processing guarantee that should be used. Possible values are <code>" + AT_LEAST_ONCE + "</code> (default) and <code>" + EXACTLY_ONCE + "</code>. " +
-        "Note that exactly-once processing requires a cluster of at least three brokers by default what is the recommended setting for production; for development you can change this, by adjusting broker setting `transaction.state.log.replication.factor`.";
+        "Note that exactly-once processing requires a cluster of at least three brokers by default what is the recommended setting for production; for development you can change this, by adjusting broker setting " +
+        "<code>transaction.state.log.replication.factor</code> and <code>transaction.state.log.min.isr</code>.";
 
     /** {@code receive.buffer.bytes} */
     @SuppressWarnings("WeakerAccess")
@@ -437,7 +444,7 @@ public class StreamsConfig extends AbstractConfig {
     /** {@code state.cleanup.delay} */
     @SuppressWarnings("WeakerAccess")
     public static final String STATE_CLEANUP_DELAY_MS_CONFIG = "state.cleanup.delay.ms";
-    private static final String STATE_CLEANUP_DELAY_MS_DOC = "The amount of time in milliseconds to wait before deleting state when a partition has migrated. Only state directories that have not been modified for at least state.cleanup.delay.ms will be removed";
+    private static final String STATE_CLEANUP_DELAY_MS_DOC = "The amount of time in milliseconds to wait before deleting state when a partition has migrated. Only state directories that have not been modified for at least <code>state.cleanup.delay.ms</code> will be removed";
 
     /** {@code state.dir} */
     @SuppressWarnings("WeakerAccess")
@@ -537,6 +544,11 @@ public class StreamsConfig extends AbstractConfig {
                     1,
                     Importance.MEDIUM,
                     NUM_STREAM_THREADS_DOC)
+            .define(MAX_TASK_IDLE_MS_CONFIG,
+                    Type.LONG,
+                    0L,
+                    Importance.MEDIUM,
+                    MAX_TASK_IDLE_MS_DOC)
             .define(PROCESSING_GUARANTEE_CONFIG,
                     Type.STRING,
                     AT_LEAST_ONCE,
@@ -570,6 +582,7 @@ public class StreamsConfig extends AbstractConfig {
             .define(COMMIT_INTERVAL_MS_CONFIG,
                     Type.LONG,
                     DEFAULT_COMMIT_INTERVAL_MS,
+                    atLeast(0),
                     Importance.LOW,
                     COMMIT_INTERVAL_MS_DOC)
             .define(CONNECTIONS_MAX_IDLE_MS_CONFIG,
@@ -619,7 +632,7 @@ public class StreamsConfig extends AbstractConfig {
             .define(RECEIVE_BUFFER_CONFIG,
                     Type.INT,
                     32 * 1024,
-                    atLeast(0),
+                    atLeast(CommonClientConfigs.RECEIVE_BUFFER_LOWER_BOUND),
                     Importance.LOW,
                     CommonClientConfigs.RECEIVE_BUFFER_DOC)
             .define(RECONNECT_BACKOFF_MS_CONFIG,
@@ -660,7 +673,7 @@ public class StreamsConfig extends AbstractConfig {
             .define(SEND_BUFFER_CONFIG,
                     Type.INT,
                     128 * 1024,
-                    atLeast(0),
+                    atLeast(CommonClientConfigs.SEND_BUFFER_LOWER_BOUND),
                     Importance.LOW,
                     CommonClientConfigs.SEND_BUFFER_DOC)
             .define(STATE_CLEANUP_DELAY_MS_CONFIG,
@@ -687,15 +700,13 @@ public class StreamsConfig extends AbstractConfig {
     static {
         final Map<String, Object> tempProducerDefaultOverrides = new HashMap<>();
         tempProducerDefaultOverrides.put(ProducerConfig.LINGER_MS_CONFIG, "100");
-        tempProducerDefaultOverrides.put(ProducerConfig.RETRIES_CONFIG, 10);
-
         PRODUCER_DEFAULT_OVERRIDES = Collections.unmodifiableMap(tempProducerDefaultOverrides);
     }
 
     private static final Map<String, Object> PRODUCER_EOS_OVERRIDES;
     static {
         final Map<String, Object> tempProducerDefaultOverrides = new HashMap<>(PRODUCER_DEFAULT_OVERRIDES);
-        tempProducerDefaultOverrides.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);
+        tempProducerDefaultOverrides.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, Integer.MAX_VALUE);
         tempProducerDefaultOverrides.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
 
         PRODUCER_EOS_OVERRIDES = Collections.unmodifiableMap(tempProducerDefaultOverrides);
@@ -830,7 +841,12 @@ public class StreamsConfig extends AbstractConfig {
      * @param props properties that specify Kafka Streams and internal consumer/producer configuration
      */
     public StreamsConfig(final Map<?, ?> props) {
-        super(CONFIG, props);
+        this(props, true);
+    }
+
+    protected StreamsConfig(final Map<?, ?> props,
+                            final boolean doLog) {
+        super(CONFIG, props, doLog);
         eosEnabled = EXACTLY_ONCE.equals(getString(PROCESSING_GUARANTEE_CONFIG));
     }
 
@@ -871,10 +887,30 @@ public class StreamsConfig extends AbstractConfig {
         // consumer/producer configurations, log a warning and remove the user defined value from the Map.
         // Thus the default values for these consumer/producer configurations that are suitable for
         // Streams will be used instead.
-        final Object maxInFlightRequests = clientProvidedProps.get(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION);
-        if (eosEnabled && maxInFlightRequests != null && 5 < (int) maxInFlightRequests) {
-            throw new ConfigException(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION + " can't exceed 5 when using the idempotent producer");
+
+        if (eosEnabled) {
+            final Object maxInFlightRequests = clientProvidedProps.get(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION);
+
+            if (maxInFlightRequests != null) {
+                final int maxInFlightRequestsAsInteger;
+                if (maxInFlightRequests instanceof Integer) {
+                    maxInFlightRequestsAsInteger = (Integer) maxInFlightRequests;
+                } else if (maxInFlightRequests instanceof String) {
+                    try {
+                        maxInFlightRequestsAsInteger = Integer.parseInt(((String) maxInFlightRequests).trim());
+                    } catch (final NumberFormatException e) {
+                        throw new ConfigException(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, "String value could not be parsed as 32-bit integer");
+                    }
+                } else {
+                    throw new ConfigException(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, "Expected value to be a 32-bit integer, but it was a " + maxInFlightRequests.getClass().getName());
+                }
+
+                if (maxInFlightRequestsAsInteger > 5) {
+                    throw new ConfigException(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequestsAsInteger, "Can't exceed 5 when exactly-once processing is enabled");
+                }
+            }
         }
+
         for (final String config: nonConfigurableConfigs) {
             if (clientProvidedProps.containsKey(config)) {
                 final String eosMessage =  PROCESSING_GUARANTEE_CONFIG + " is set to " + EXACTLY_ONCE + ". Hence, ";
@@ -918,8 +954,7 @@ public class StreamsConfig extends AbstractConfig {
      */
     @SuppressWarnings("WeakerAccess")
     @Deprecated
-    public Map<String, Object> getConsumerConfigs(final String groupId,
-                                                  final String clientId) {
+    public Map<String, Object> getConsumerConfigs(final String groupId, final String clientId) {
         return getMainConsumerConfigs(groupId, clientId);
     }
 
@@ -938,8 +973,7 @@ public class StreamsConfig extends AbstractConfig {
      * @return Map of the consumer configuration.
      */
     @SuppressWarnings("WeakerAccess")
-    public Map<String, Object> getMainConsumerConfigs(final String groupId,
-                                                      final String clientId) {
+    public Map<String, Object> getMainConsumerConfigs(final String groupId, final String clientId) {
         final Map<String, Object> consumerProps = getCommonConsumerConfigs();
 
         // Get main consumer override configs
@@ -948,10 +982,11 @@ public class StreamsConfig extends AbstractConfig {
             consumerProps.put(entry.getKey(), entry.getValue());
         }
 
-        // add client id with stream client id prefix, and group id
+        // this is a hack to work around StreamsConfig constructor inside StreamsPartitionAssignor to avoid casting
         consumerProps.put(APPLICATION_ID_CONFIG, groupId);
+        // add client id with stream client id prefix, and group id
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        consumerProps.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId + "-consumer");
+        consumerProps.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId);
 
         // add configs required for stream partition assignor
         consumerProps.put(UPGRADE_FROM_CONFIG, getString(UPGRADE_FROM_CONFIG));
@@ -964,6 +999,7 @@ public class StreamsConfig extends AbstractConfig {
         // add admin retries configs for creating topics
         final AdminClientConfig adminClientDefaultConfig = new AdminClientConfig(getClientPropsWithPrefix(ADMIN_CLIENT_PREFIX, AdminClientConfig.configNames()));
         consumerProps.put(adminClientPrefix(AdminClientConfig.RETRIES_CONFIG), adminClientDefaultConfig.getInt(AdminClientConfig.RETRIES_CONFIG));
+        consumerProps.put(adminClientPrefix(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG), adminClientDefaultConfig.getLong(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG));
 
         // verify that producer batch config is no larger than segment size, then add topic configs required for creating topics
         final Map<String, Object> topicProps = originalsWithPrefix(TOPIC_PREFIX, false);
@@ -1017,7 +1053,7 @@ public class StreamsConfig extends AbstractConfig {
         // no need to set group id for a restore consumer
         baseConsumerProps.remove(ConsumerConfig.GROUP_ID_CONFIG);
         // add client id with stream client id prefix
-        baseConsumerProps.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId + "-restore-consumer");
+        baseConsumerProps.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId);
         baseConsumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
 
         return baseConsumerProps;
@@ -1077,7 +1113,7 @@ public class StreamsConfig extends AbstractConfig {
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, originals().get(BOOTSTRAP_SERVERS_CONFIG));
         // add client id with stream client id prefix
-        props.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId + "-producer");
+        props.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId);
 
         return props;
     }
@@ -1096,7 +1132,7 @@ public class StreamsConfig extends AbstractConfig {
         props.putAll(clientProvidedProps);
 
         // add client id with stream client id prefix
-        props.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId + "-admin");
+        props.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId);
 
         return props;
     }

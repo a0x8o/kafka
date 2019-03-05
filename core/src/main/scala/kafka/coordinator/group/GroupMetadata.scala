@@ -128,7 +128,7 @@ private object GroupMetadata {
     group.protocol = Option(protocol)
     group.leaderId = Option(leaderId)
     group.currentStateTimestamp = currentStateTimestamp
-    members.foreach(group.add)
+    members.foreach(group.add(_, null))
     group
   }
 }
@@ -172,6 +172,8 @@ case class CommitRecordMetadataAndOffset(appendedBatchOffset: Option[Long], offs
  */
 @nonthreadsafe
 private[group] class GroupMetadata(val groupId: String, initialState: GroupState, time: Time) extends Logging {
+  type JoinCallback = JoinGroupResult => Unit
+
   private[group] val lock = new ReentrantLock
 
   private var state: GroupState = initialState
@@ -182,6 +184,9 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
   private var protocol: Option[String] = None
 
   private val members = new mutable.HashMap[String, MemberMetadata]
+  private val pendingMembers = new mutable.HashSet[String]
+  private var numMembersAwaitingJoin = 0
+  private val supportedProtocols = new mutable.HashMap[String, Integer]().withDefaultValue(0)
   private val offsets = new mutable.HashMap[TopicPartition, CommitRecordMetadataAndOffset]
   private val pendingOffsetCommits = new mutable.HashMap[TopicPartition, OffsetAndMetadata]
   private val pendingTransactionalOffsetCommits = new mutable.HashMap[Long, mutable.Map[TopicPartition, CommitRecordMetadataAndOffset]]()
@@ -196,41 +201,56 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
   def not(groupState: GroupState) = state != groupState
   def has(memberId: String) = members.contains(memberId)
   def get(memberId: String) = members(memberId)
+  def size = members.size
 
   def isLeader(memberId: String): Boolean = leaderId.contains(memberId)
   def leaderOrNull: String = leaderId.orNull
   def protocolOrNull: String = protocol.orNull
   def currentStateTimestampOrDefault: Long = currentStateTimestamp.getOrElse(-1)
 
-  def add(member: MemberMetadata) {
+  def add(member: MemberMetadata, callback: JoinCallback = null) {
     if (members.isEmpty)
       this.protocolType = Some(member.protocolType)
 
     assert(groupId == member.groupId)
     assert(this.protocolType.orNull == member.protocolType)
-    assert(supportsProtocols(member.protocols))
+    assert(supportsProtocols(member.protocolType, MemberMetadata.plainProtocolSet(member.supportedProtocols)))
 
     if (leaderId.isEmpty)
       leaderId = Some(member.memberId)
     members.put(member.memberId, member)
+    member.supportedProtocols.foreach{ case (protocol, _) => supportedProtocols(protocol) += 1 }
+    member.awaitingJoinCallback = callback
+    if (member.isAwaitingJoin)
+      numMembersAwaitingJoin += 1
   }
 
   def remove(memberId: String) {
-    members.remove(memberId)
-    if (isLeader(memberId)) {
-      leaderId = if (members.isEmpty) {
-        None
-      } else {
-        Some(members.keys.head)
-      }
+    members.remove(memberId).foreach { member =>
+      member.supportedProtocols.foreach{ case (protocol, _) => supportedProtocols(protocol) -= 1 }
+      if (member.isAwaitingJoin)
+        numMembersAwaitingJoin -= 1
     }
+
+    if (isLeader(memberId))
+      leaderId = members.keys.headOption
   }
+
+  def isPendingMember(memberId: String): Boolean = pendingMembers.contains(memberId) && !has(memberId)
+
+  def addPendingMember(memberId: String) = pendingMembers.add(memberId)
+
+  def removePendingMember(memberId: String) = pendingMembers.remove(memberId)
 
   def currentState = state
 
-  def notYetRejoinedMembers = members.values.filter(_.awaitingJoinCallback == null).toList
+  def notYetRejoinedMembers = members.values.filter(!_.isAwaitingJoin).toList
+
+  def hasAllMembersJoined = members.size == numMembersAwaitingJoin && pendingMembers.isEmpty
 
   def allMembers = members.keySet
+
+  def numPending = pendingMembers.size
 
   def allMemberMetadata = members.values.toList
 
@@ -238,7 +258,6 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
     timeout.max(member.rebalanceTimeoutMs)
   }
 
-  // TODO: decide if ids should be predictable or random
   def generateMemberIdSuffix = UUID.randomUUID().toString
 
   def canRebalance = GroupMetadata.validPreviousStates(PreparingRebalance).contains(state)
@@ -268,13 +287,39 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
 
   private def candidateProtocols = {
     // get the set of protocols that are commonly supported by all members
-    allMemberMetadata
-      .map(_.protocols)
-      .reduceLeft((commonProtocols, protocols) => commonProtocols & protocols)
+    val numMembers = members.size
+    supportedProtocols.filter(_._2 == numMembers).map(_._1).toSet
   }
 
-  def supportsProtocols(memberProtocols: Set[String]) = {
-    members.isEmpty || (memberProtocols & candidateProtocols).nonEmpty
+  def supportsProtocols(memberProtocolType: String, memberProtocols: Set[String]) = {
+    if (is(Empty))
+      !memberProtocolType.isEmpty && memberProtocols.nonEmpty
+    else
+      protocolType.contains(memberProtocolType) && memberProtocols.exists(supportedProtocols(_) == members.size)
+  }
+
+  def updateMember(member: MemberMetadata,
+                   protocols: List[(String, Array[Byte])],
+                   callback: JoinCallback) = {
+    member.supportedProtocols.foreach{ case (protocol, _) => supportedProtocols(protocol) -= 1 }
+    protocols.foreach{ case (protocol, _) => supportedProtocols(protocol) += 1 }
+    member.supportedProtocols = protocols
+
+    if (callback != null && !member.isAwaitingJoin) {
+      numMembersAwaitingJoin += 1
+    } else if (callback == null && member.isAwaitingJoin) {
+      numMembersAwaitingJoin -= 1
+    }
+    member.awaitingJoinCallback = callback
+  }
+
+  def maybeInvokeJoinCallback(member: MemberMetadata,
+                              joinGroupResult: JoinGroupResult) : Unit = {
+    if (member.isAwaitingJoin) {
+      member.awaitingJoinCallback(joinGroupResult)
+      member.awaitingJoinCallback = null
+      numMembersAwaitingJoin -= 1
+    }
   }
 
   def initNextGeneration() = {

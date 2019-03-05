@@ -26,6 +26,7 @@ import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.GroupAuthorizationException;
 import org.apache.kafka.common.errors.TopicAuthorizationException;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.record.DefaultRecordBatch;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.AbstractResponse;
@@ -55,6 +56,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import static org.apache.kafka.common.record.RecordBatch.NO_PRODUCER_EPOCH;
 import static org.apache.kafka.common.record.RecordBatch.NO_PRODUCER_ID;
@@ -99,6 +101,7 @@ public class TransactionManager {
     private final Set<TopicPartition> pendingPartitionsInTransaction;
     private final Set<TopicPartition> partitionsInTransaction;
     private final Map<TopicPartition, CommittedOffset> pendingTxnOffsetCommits;
+    private TransactionalRequestResult pendingResult;
 
     // This is used by the TxnRequestHandlers to control how long to back off before a given request is retried.
     // For instance, this value is lowered by the AddPartitionsToTxnHandler when it receives a CONCURRENT_TRANSACTIONS
@@ -196,18 +199,19 @@ public class TransactionManager {
     }
 
     TransactionManager() {
-        this(new LogContext(), null, 0, 100);
+        this(new LogContext(), null, 0, 100L);
     }
 
     public synchronized TransactionalRequestResult initializeTransactions() {
-        ensureTransactional();
-        transitionTo(State.INITIALIZING);
-        setProducerIdAndEpoch(ProducerIdAndEpoch.NONE);
-        this.nextSequence.clear();
-        InitProducerIdRequest.Builder builder = new InitProducerIdRequest.Builder(transactionalId, transactionTimeoutMs);
-        InitProducerIdHandler handler = new InitProducerIdHandler(builder);
-        enqueueRequest(handler);
-        return handler.result;
+        return handleCachedTransactionRequestResult(() -> {
+            transitionTo(State.INITIALIZING);
+            setProducerIdAndEpoch(ProducerIdAndEpoch.NONE);
+            this.nextSequence.clear();
+            InitProducerIdRequest.Builder builder = new InitProducerIdRequest.Builder(transactionalId, transactionTimeoutMs);
+            InitProducerIdHandler handler = new InitProducerIdHandler(builder);
+            enqueueRequest(handler);
+            return handler.result;
+        }, State.INITIALIZING);
     }
 
     public synchronized void beginTransaction() {
@@ -217,21 +221,23 @@ public class TransactionManager {
     }
 
     public synchronized TransactionalRequestResult beginCommit() {
-        ensureTransactional();
-        maybeFailWithError();
-        transitionTo(State.COMMITTING_TRANSACTION);
-        return beginCompletingTransaction(TransactionResult.COMMIT);
+        return handleCachedTransactionRequestResult(() -> {
+            maybeFailWithError();
+            transitionTo(State.COMMITTING_TRANSACTION);
+            return beginCompletingTransaction(TransactionResult.COMMIT);
+        }, State.COMMITTING_TRANSACTION);
     }
 
     public synchronized TransactionalRequestResult beginAbort() {
-        ensureTransactional();
-        if (currentState != State.ABORTABLE_ERROR)
-            maybeFailWithError();
-        transitionTo(State.ABORTING_TRANSACTION);
+        return handleCachedTransactionRequestResult(() -> {
+            if (currentState != State.ABORTABLE_ERROR)
+                maybeFailWithError();
+            transitionTo(State.ABORTING_TRANSACTION);
 
-        // We're aborting the transaction, so there should be no need to add new partitions
-        newPartitionsInTransaction.clear();
-        return beginCompletingTransaction(TransactionResult.ABORT);
+            // We're aborting the transaction, so there should be no need to add new partitions
+            newPartitionsInTransaction.clear();
+            return beginCompletingTransaction(TransactionResult.ABORT);
+        }, State.ABORTING_TRANSACTION);
     }
 
     private TransactionalRequestResult beginCompletingTransaction(TransactionResult transactionResult) {
@@ -419,7 +425,7 @@ public class TransactionManager {
         if (currentSequenceNumber == null)
             throw new IllegalStateException("Attempt to increment sequence number for a partition with no current sequence.");
 
-        currentSequenceNumber += increment;
+        currentSequenceNumber = DefaultRecordBatch.incrementSequence(currentSequenceNumber, increment);
         nextSequence.put(topicPartition, currentSequenceNumber);
     }
 
@@ -839,12 +845,29 @@ public class TransactionManager {
                                                           String consumerGroupId) {
         for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
             OffsetAndMetadata offsetAndMetadata = entry.getValue();
-            CommittedOffset committedOffset = new CommittedOffset(offsetAndMetadata.offset(), offsetAndMetadata.metadata());
+            CommittedOffset committedOffset = new CommittedOffset(offsetAndMetadata.offset(),
+                    offsetAndMetadata.metadata(), offsetAndMetadata.leaderEpoch());
             pendingTxnOffsetCommits.put(entry.getKey(), committedOffset);
         }
         TxnOffsetCommitRequest.Builder builder = new TxnOffsetCommitRequest.Builder(transactionalId, consumerGroupId,
                 producerIdAndEpoch.producerId, producerIdAndEpoch.epoch, pendingTxnOffsetCommits);
         return new TxnOffsetCommitHandler(result, builder);
+    }
+
+    private TransactionalRequestResult handleCachedTransactionRequestResult(
+            Supplier<TransactionalRequestResult> transactionalRequestResultSupplier,
+            State targetState) {
+        ensureTransactional();
+
+        if (pendingResult != null && currentState == targetState) {
+            TransactionalRequestResult result = pendingResult;
+            if (result.isCompleted())
+                pendingResult = null;
+            return result;
+        }
+
+        pendingResult = transactionalRequestResultSupplier.get();
+        return pendingResult;
     }
 
     abstract class TxnRequestHandler implements RequestCompletionHandler {
@@ -855,8 +878,8 @@ public class TransactionManager {
             this.result = result;
         }
 
-        TxnRequestHandler() {
-            this(new TransactionalRequestResult());
+        TxnRequestHandler(String operation) {
+            this(new TransactionalRequestResult(operation));
         }
 
         void fatalError(RuntimeException e) {
@@ -947,6 +970,7 @@ public class TransactionManager {
         private final InitProducerIdRequest.Builder builder;
 
         private InitProducerIdHandler(InitProducerIdRequest.Builder builder) {
+            super("InitProducerId");
             this.builder = builder;
         }
 
@@ -989,6 +1013,7 @@ public class TransactionManager {
         private long retryBackoffMs;
 
         private AddPartitionsToTxnHandler(AddPartitionsToTxnRequest.Builder builder) {
+            super("AddPartitionsToTxn");
             this.builder = builder;
             this.retryBackoffMs = TransactionManager.this.retryBackoffMs;
         }
@@ -1092,6 +1117,7 @@ public class TransactionManager {
         private final FindCoordinatorRequest.Builder builder;
 
         private FindCoordinatorHandler(FindCoordinatorRequest.Builder builder) {
+            super("FindCoordinator");
             this.builder = builder;
         }
 
@@ -1148,6 +1174,7 @@ public class TransactionManager {
         private final EndTxnRequest.Builder builder;
 
         private EndTxnHandler(EndTxnRequest.Builder builder) {
+            super("EndTxn(" + builder.result() + ")");
             this.builder = builder;
         }
 
@@ -1197,6 +1224,7 @@ public class TransactionManager {
 
         private AddOffsetsToTxnHandler(AddOffsetsToTxnRequest.Builder builder,
                                        Map<TopicPartition, OffsetAndMetadata> offsets) {
+            super("AddOffsetsToTxn");
             this.builder = builder;
             this.offsets = offsets;
         }
@@ -1272,50 +1300,49 @@ public class TransactionManager {
         public void handleResponse(AbstractResponse response) {
             TxnOffsetCommitResponse txnOffsetCommitResponse = (TxnOffsetCommitResponse) response;
             boolean coordinatorReloaded = false;
-            boolean hadFailure = false;
             Map<TopicPartition, Errors> errors = txnOffsetCommitResponse.errors();
+
+            log.debug("Received TxnOffsetCommit response for consumer group {}: {}", builder.consumerGroupId(),
+                    errors);
 
             for (Map.Entry<TopicPartition, Errors> entry : errors.entrySet()) {
                 TopicPartition topicPartition = entry.getKey();
                 Errors error = entry.getValue();
                 if (error == Errors.NONE) {
-                    log.debug("Successfully added offsets {} from consumer group {} to transaction.",
-                            builder.offsets(), builder.consumerGroupId());
                     pendingTxnOffsetCommits.remove(topicPartition);
                 } else if (error == Errors.COORDINATOR_NOT_AVAILABLE
                         || error == Errors.NOT_COORDINATOR
                         || error == Errors.REQUEST_TIMED_OUT) {
-                    hadFailure = true;
                     if (!coordinatorReloaded) {
                         coordinatorReloaded = true;
                         lookupCoordinator(FindCoordinatorRequest.CoordinatorType.GROUP, builder.consumerGroupId());
                     }
-                } else if (error == Errors.UNKNOWN_TOPIC_OR_PARTITION) {
-                    hadFailure = true;
+                } else if (error == Errors.UNKNOWN_TOPIC_OR_PARTITION
+                        || error == Errors.COORDINATOR_LOAD_IN_PROGRESS) {
+                    // If the topic is unknown or the coordinator is loading, retry with the current coordinator
+                    continue;
                 } else if (error == Errors.GROUP_AUTHORIZATION_FAILED) {
                     abortableError(new GroupAuthorizationException(builder.consumerGroupId()));
-                    return;
+                    break;
                 } else if (error == Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED
                         || error == Errors.INVALID_PRODUCER_EPOCH
                         || error == Errors.UNSUPPORTED_FOR_MESSAGE_FORMAT) {
                     fatalError(error.exception());
-                    return;
+                    break;
                 } else {
                     fatalError(new KafkaException("Unexpected error in TxnOffsetCommitResponse: " + error.message()));
-                    return;
+                    break;
                 }
             }
 
-            if (!hadFailure || !result.isSuccessful()) {
-                // all attempted partitions were either successful, or there was a fatal failure.
-                // either way, we are not retrying, so complete the request.
+            if (result.isCompleted()) {
+                pendingTxnOffsetCommits.clear();
+            } else if (pendingTxnOffsetCommits.isEmpty()) {
                 result.done();
-                return;
-            }
-
-            // retry the commits which failed with a retriable error.
-            if (!pendingTxnOffsetCommits.isEmpty())
+            } else {
+                // Retry the commits which failed with a retriable error
                 reenqueue();
+            }
         }
     }
 }

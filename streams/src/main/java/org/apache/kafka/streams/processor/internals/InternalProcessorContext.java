@@ -57,12 +57,10 @@ public interface InternalProcessorContext extends ProcessorContext {
     /**
      * Mark this context as being initialized
      */
-    void initialized();
+    void initialize();
 
     /**
      * Mark this context as being uninitialized
      */
     void uninitialize();
-
-    long streamTime();
 }

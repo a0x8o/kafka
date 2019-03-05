@@ -28,36 +28,58 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TimeoutException;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.Exit;
 import org.apache.kafka.common.utils.Utils;
-import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.test.TestUtils;
 
-import java.io.File;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.util.Collections.emptyMap;
+import static org.apache.kafka.common.utils.Utils.mkEntry;
 
 public class SmokeTestDriver extends SmokeTestUtil {
+    private static final String[] TOPICS = new String[] {
+        "data",
+        "echo",
+        "max",
+        "min", "min-suppressed", "min-raw",
+        "dif",
+        "sum",
+        "cnt",
+        "avg",
+        "tagg"
+    };
 
-    public static final int MAX_RECORD_EMPTY_RETRIES = 60;
+    private static final int MAX_RECORD_EMPTY_RETRIES = 30;
 
     private static class ValueList {
         public final String key;
         private final int[] values;
         private int index;
 
-        ValueList(int min, int max) {
+        ValueList(final int min, final int max) {
             this.key = min + "-" + max;
 
             this.values = new int[max - min + 1];
@@ -77,71 +99,8 @@ public class SmokeTestDriver extends SmokeTestUtil {
         }
     }
 
-    // This main() is not used by the system test. It is intended to be used for local debugging.
-    public static void main(String[] args) throws InterruptedException {
-        final String kafka = "localhost:9092";
-        final File stateDir = TestUtils.tempDirectory();
-
-        final int numKeys = 20;
-        final int maxRecordsPerKey = 1000;
-
-        Thread driver = new Thread() {
-            public void run() {
-                try {
-                    Map<String, Set<Integer>> allData = generate(kafka, numKeys, maxRecordsPerKey);
-                    verify(kafka, allData, maxRecordsPerKey);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            }
-        };
-
-        final Properties props = new Properties();
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, kafka);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, createDir(stateDir, "1").getAbsolutePath());
-        SmokeTestClient streams1 = new SmokeTestClient(props);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, createDir(stateDir, "2").getAbsolutePath());
-        SmokeTestClient streams2 = new SmokeTestClient(props);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, createDir(stateDir, "3").getAbsolutePath());
-        SmokeTestClient streams3 = new SmokeTestClient(props);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, createDir(stateDir, "4").getAbsolutePath());
-        SmokeTestClient streams4 = new SmokeTestClient(props);
-
-        System.out.println("starting the driver");
-        driver.start();
-
-        System.out.println("starting the first and second client");
-        streams1.start();
-        streams2.start();
-
-        sleep(10000);
-
-        System.out.println("starting the third client");
-        streams3.start();
-
-        System.out.println("closing the first client");
-        streams1.close();
-        System.out.println("closed the first client");
-
-        sleep(10000);
-
-        System.out.println("starting the forth client");
-        streams4.start();
-
-        driver.join();
-
-        System.out.println("driver stopped");
-        streams2.close();
-        streams3.close();
-        streams4.close();
-
-        System.out.println("shutdown");
-    }
-
-    public static Map<String, Set<Integer>> generate(final String kafka,
-                                                     final int numKeys,
-                                                     final int maxRecordsPerKey) {
-        return generate(kafka, numKeys, maxRecordsPerKey, true);
+    public static String[] topics() {
+        return Arrays.copyOf(TOPICS, TOPICS.length);
     }
 
     public static Map<String, Set<Integer>> generate(final String kafka,
@@ -153,10 +112,7 @@ public class SmokeTestDriver extends SmokeTestUtil {
         producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka);
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
-        // the next 2 config values make sure that all records are produced with no loss and no duplicates
-        producerProps.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);
         producerProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        producerProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 80000);
 
         final KafkaProducer<byte[], byte[]> producer = new KafkaProducer<>(producerProps);
 
@@ -166,7 +122,7 @@ public class SmokeTestDriver extends SmokeTestUtil {
         final ValueList[] data = new ValueList[numKeys];
         for (int i = 0; i < numKeys; i++) {
             data[i] = new ValueList(i, i + maxRecordsPerKey - 1);
-            allData.put(data[i].key, new HashSet<Integer>());
+            allData.put(data[i].key, new HashSet<>());
         }
         final Random rand = new Random();
 
@@ -180,7 +136,7 @@ public class SmokeTestDriver extends SmokeTestUtil {
         while (remaining > 0) {
             final int index = autoTerminate ? rand.nextInt(remaining) : rand.nextInt(numKeys);
             final String key = data[index].key;
-            int value = data[index].next();
+            final int value = data[index].next();
 
             if (autoTerminate && value < 0) {
                 remaining--;
@@ -188,7 +144,11 @@ public class SmokeTestDriver extends SmokeTestUtil {
             } else {
 
                 final ProducerRecord<byte[], byte[]> record =
-                    new ProducerRecord<>("data", stringSerde.serializer().serialize("", key), intSerde.serializer().serialize("", value));
+                    new ProducerRecord<>(
+                        "data",
+                        stringSerde.serializer().serialize("", key),
+                        intSerde.serializer().serialize("", value)
+                    );
 
                 producer.send(record, new TestCallback(record, needRetry));
 
@@ -206,6 +166,7 @@ public class SmokeTestDriver extends SmokeTestUtil {
         while (!needRetry.isEmpty()) {
             final List<ProducerRecord<byte[], byte[]>> needRetry2 = new ArrayList<>();
             for (final ProducerRecord<byte[], byte[]> record : needRetry) {
+                System.out.println("retry producing " + stringSerde.deserializer().deserialize("", record.key()));
                 producer.send(record, new TestCallback(record, needRetry2));
             }
             producer.flush();
@@ -215,6 +176,19 @@ public class SmokeTestDriver extends SmokeTestUtil {
                 System.err.println("Failed to produce all records after multiple retries");
                 Exit.exit(1);
             }
+        }
+
+        // now that we've sent everything, we'll send some final records with a timestamp high enough to flush out
+        // all suppressed records.
+        final List<PartitionInfo> partitions = producer.partitionsFor("data");
+        for (final PartitionInfo partition : partitions) {
+            producer.send(new ProducerRecord<>(
+                partition.topic(),
+                partition.partition(),
+                System.currentTimeMillis() + Duration.ofDays(2).toMillis(),
+                stringSerde.serializer().serialize("", "flush"),
+                intSerde.serializer().serialize("", 0)
+            ));
         }
 
         producer.close();
@@ -244,106 +218,117 @@ public class SmokeTestDriver extends SmokeTestUtil {
         }
     }
 
-    private static void shuffle(int[] data, int windowSize) {
-        Random rand = new Random();
+    private static void shuffle(final int[] data, @SuppressWarnings("SameParameterValue") final int windowSize) {
+        final Random rand = new Random();
         for (int i = 0; i < data.length; i++) {
             // we shuffle data within windowSize
-            int j = rand.nextInt(Math.min(data.length - i, windowSize)) + i;
+            final int j = rand.nextInt(Math.min(data.length - i, windowSize)) + i;
 
             // swap
-            int tmp = data[i];
+            final int tmp = data[i];
             data[i] = data[j];
             data[j] = tmp;
         }
     }
 
-    public static void verify(String kafka, Map<String, Set<Integer>> allData, int maxRecordsPerKey) {
-        Properties props = new Properties();
+    public static class NumberDeserializer implements Deserializer<Number> {
+
+        @Override
+        public void configure(final Map<String, ?> configs, final boolean isKey) {
+
+        }
+
+        @Override
+        public Number deserialize(final String topic, final byte[] data) {
+            final Number value;
+            switch (topic) {
+                case "data":
+                case "echo":
+                case "min":
+                case "min-raw":
+                case "min-suppressed":
+                case "max":
+                case "dif":
+                    value = intSerde.deserializer().deserialize(topic, data);
+                    break;
+                case "sum":
+                case "cnt":
+                case "tagg":
+                    value = longSerde.deserializer().deserialize(topic, data);
+                    break;
+                case "avg":
+                    value = doubleSerde.deserializer().deserialize(topic, data);
+                    break;
+                default:
+                    throw new RuntimeException("unknown topic: " + topic);
+            }
+            return value;
+        }
+
+        @Override
+        public void close() {
+
+        }
+    }
+
+    public static VerificationResult verify(final String kafka,
+                                            final Map<String, Set<Integer>> inputs,
+                                            final int maxRecordsPerKey) {
+        final Properties props = new Properties();
         props.put(ConsumerConfig.CLIENT_ID_CONFIG, "verifier");
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, NumberDeserializer.class);
 
-        KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(props);
-        List<TopicPartition> partitions = getAllPartitions(consumer, "echo", "max", "min", "dif", "sum", "cnt", "avg", "wcnt", "tagg");
+        final KafkaConsumer<String, Number> consumer = new KafkaConsumer<>(props);
+        final List<TopicPartition> partitions = getAllPartitions(consumer, TOPICS);
         consumer.assign(partitions);
         consumer.seekToBeginning(partitions);
 
-        final int recordsGenerated = allData.size() * maxRecordsPerKey;
+        final int recordsGenerated = inputs.size() * maxRecordsPerKey;
         int recordsProcessed = 0;
+        final Map<String, AtomicInteger> processed =
+            Stream.of(TOPICS)
+                  .collect(Collectors.toMap(t -> t, t -> new AtomicInteger(0)));
 
-        HashMap<String, Integer> max = new HashMap<>();
-        HashMap<String, Integer> min = new HashMap<>();
-        HashMap<String, Integer> dif = new HashMap<>();
-        HashMap<String, Long> sum = new HashMap<>();
-        HashMap<String, Long> cnt = new HashMap<>();
-        HashMap<String, Double> avg = new HashMap<>();
-        HashMap<String, Long> wcnt = new HashMap<>();
-        HashMap<String, Long> tagg = new HashMap<>();
+        final Map<String, Map<String, LinkedList<ConsumerRecord<String, Number>>>> events = new HashMap<>();
 
-        HashSet<String> keys = new HashSet<>();
-        HashMap<String, Set<Integer>> received = new HashMap<>();
-        for (String key : allData.keySet()) {
-            keys.add(key);
-            received.put(key, new HashSet<Integer>());
-        }
+        VerificationResult verificationResult = new VerificationResult(false, "no results yet");
         int retry = 0;
         final long start = System.currentTimeMillis();
         while (System.currentTimeMillis() - start < TimeUnit.MINUTES.toMillis(6)) {
-            ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(500));
+            final ConsumerRecords<String, Number> records = consumer.poll(Duration.ofSeconds(1));
             if (records.isEmpty() && recordsProcessed >= recordsGenerated) {
-                if (verifyMin(min, allData, false)
-                    && verifyMax(max, allData, false)
-                    && verifyDif(dif, allData, false)
-                    && verifySum(sum, allData, false)
-                    && verifyCnt(cnt, allData, false)
-                    && verifyAvg(avg, allData, false)
-                    && verifyTAgg(tagg, allData, false)) {
+                verificationResult = verifyAll(inputs, events);
+                if (verificationResult.passed()) {
                     break;
-                }
-                if (retry++ > MAX_RECORD_EMPTY_RETRIES) {
+                } else if (retry++ > MAX_RECORD_EMPTY_RETRIES) {
+                    System.out.println(Instant.now() + " Didn't get any more results, verification hasn't passed, and out of retries.");
                     break;
+                } else {
+                    System.out.println(Instant.now() + " Didn't get any more results, but verification hasn't passed (yet). Retrying...");
                 }
             } else {
-                for (ConsumerRecord<byte[], byte[]> record : records) {
-                    String key = stringSerde.deserializer().deserialize("", record.key());
-                    switch (record.topic()) {
-                        case "echo":
-                            Integer value = intSerde.deserializer().deserialize("", record.value());
-                            recordsProcessed++;
-                            if (recordsProcessed % 100 == 0) {
-                                System.out.println("Echo records processed = " + recordsProcessed);
-                            }
-                            received.get(key).add(value);
-                            break;
-                        case "min":
-                            min.put(key, intSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        case "max":
-                            max.put(key, intSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        case "dif":
-                            dif.put(key, intSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        case "sum":
-                            sum.put(key, longSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        case "cnt":
-                            cnt.put(key, longSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        case "avg":
-                            avg.put(key, doubleSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        case "wcnt":
-                            wcnt.put(key, longSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        case "tagg":
-                            tagg.put(key, longSerde.deserializer().deserialize("", record.value()));
-                            break;
-                        default:
-                            System.out.println("unknown topic: " + record.topic());
+                retry = 0;
+                for (final ConsumerRecord<String, Number> record : records) {
+                    final String key = record.key();
+
+                    final String topic = record.topic();
+                    processed.get(topic).incrementAndGet();
+
+                    if (topic.equals("echo")) {
+                        recordsProcessed++;
+                        if (recordsProcessed % 100 == 0) {
+                            System.out.println("Echo records processed = " + recordsProcessed);
+                        }
                     }
+
+                    events.computeIfAbsent(topic, t -> new HashMap<>())
+                          .computeIfAbsent(key, k -> new LinkedList<>())
+                          .add(record);
                 }
+
+                System.out.println(processed);
             }
         }
         consumer.close();
@@ -362,255 +347,196 @@ public class SmokeTestDriver extends SmokeTestUtil {
         }
 
         boolean success;
-        success = allData.equals(received);
+
+        final Map<String, Set<Number>> received =
+            events.get("echo")
+                  .entrySet()
+                  .stream()
+                  .map(entry -> mkEntry(
+                      entry.getKey(),
+                      entry.getValue().stream().map(ConsumerRecord::value).collect(Collectors.toSet()))
+                  )
+                  .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        success = inputs.equals(received);
 
         if (success) {
             System.out.println("ALL-RECORDS-DELIVERED");
         } else {
             int missedCount = 0;
-            for (Map.Entry<String, Set<Integer>> entry : allData.entrySet()) {
+            for (final Map.Entry<String, Set<Integer>> entry : inputs.entrySet()) {
                 missedCount += received.get(entry.getKey()).size();
             }
             System.out.println("missedRecords=" + missedCount);
         }
 
-        success &= verifyMin(min, allData, true);
-        success &= verifyMax(max, allData, true);
-        success &= verifyDif(dif, allData, true);
-        success &= verifySum(sum, allData, true);
-        success &= verifyCnt(cnt, allData, true);
-        success &= verifyAvg(avg, allData, true);
-        success &= verifyTAgg(tagg, allData, true);
+        // give it one more try if it's not already passing.
+        if (!verificationResult.passed()) {
+            verificationResult = verifyAll(inputs, events);
+        }
+        success &= verificationResult.passed();
+
+        System.out.println(verificationResult.result());
 
         System.out.println(success ? "SUCCESS" : "FAILURE");
+        return verificationResult;
     }
 
-    private static boolean verifyMin(Map<String, Integer> map, Map<String, Set<Integer>> allData, final boolean print) {
-        if (map.isEmpty()) {
-            if (print) {
-                System.out.println("min is empty");
-            }
+    public static class VerificationResult {
+        private final boolean passed;
+        private final String result;
+
+        VerificationResult(final boolean passed, final String result) {
+            this.passed = passed;
+            this.result = result;
+        }
+
+        public boolean passed() {
+            return passed;
+        }
+
+        public String result() {
+            return result;
+        }
+    }
+
+    private static VerificationResult verifyAll(final Map<String, Set<Integer>> inputs,
+                                                final Map<String, Map<String, LinkedList<ConsumerRecord<String, Number>>>> events) {
+        final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        boolean pass;
+        try (final PrintStream resultStream = new PrintStream(byteArrayOutputStream)) {
+            pass = verifyTAgg(resultStream, inputs, events.get("tagg"));
+            pass &= verifySuppressed(resultStream, "min-suppressed", inputs, events, SmokeTestDriver::getMin);
+            pass &= verify(resultStream, "min", inputs, events, SmokeTestDriver::getMin);
+            pass &= verify(resultStream, "max", inputs, events, SmokeTestDriver::getMax);
+            pass &= verify(resultStream, "dif", inputs, events, key -> getMax(key).intValue() - getMin(key).intValue());
+            pass &= verify(resultStream, "sum", inputs, events, SmokeTestDriver::getSum);
+            pass &= verify(resultStream, "cnt", inputs, events, key1 -> getMax(key1).intValue() - getMin(key1).intValue() + 1L);
+            pass &= verify(resultStream, "avg", inputs, events, SmokeTestDriver::getAvg);
+        }
+        return new VerificationResult(pass, new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8));
+    }
+
+    private static boolean verify(final PrintStream resultStream,
+                                  final String topic,
+                                  final Map<String, Set<Integer>> inputData,
+                                  final Map<String, Map<String, LinkedList<ConsumerRecord<String, Number>>>> events,
+                                  final Function<String, Number> keyToExpectation) {
+        final Map<String, LinkedList<ConsumerRecord<String, Number>>> observedInputEvents = events.get("data");
+        final Map<String, LinkedList<ConsumerRecord<String, Number>>> outputEvents = events.getOrDefault(topic, emptyMap());
+        if (outputEvents.isEmpty()) {
+            resultStream.println(topic + " is empty");
             return false;
         } else {
-            if (print) {
-                System.out.println("verifying min");
-            }
+            resultStream.printf("verifying %s with %d keys%n", topic, outputEvents.size());
 
-            if (map.size() != allData.size()) {
-                if (print) {
-                    System.out.println("fail: resultCount=" + map.size() + " expectedCount=" + allData.size());
-                }
+            if (outputEvents.size() != inputData.size()) {
+                resultStream.printf("fail: resultCount=%d expectedCount=%s%n\tresult=%s%n\texpected=%s%n",
+                                    outputEvents.size(), inputData.size(), outputEvents.keySet(), inputData.keySet());
                 return false;
             }
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                int expected = getMin(entry.getKey());
-                if (expected != entry.getValue()) {
-                    if (print) {
-                        System.out.println("fail: key=" + entry.getKey() + " min=" + entry.getValue() + " expected=" + expected);
-                    }
+            for (final Map.Entry<String, LinkedList<ConsumerRecord<String, Number>>> entry : outputEvents.entrySet()) {
+                final String key = entry.getKey();
+                final Number expected = keyToExpectation.apply(key);
+                final Number actual = entry.getValue().getLast().value();
+                if (!expected.equals(actual)) {
+                    resultStream.printf("%s fail: key=%s actual=%s expected=%s%n\t inputEvents=%n%s%n\toutputEvents=%n%s%n",
+                                        topic,
+                                        key,
+                                        actual,
+                                        expected,
+                                        indent("\t\t", observedInputEvents.get(key)),
+                                        indent("\t\t", entry.getValue()));
                     return false;
                 }
             }
+            return true;
         }
-        return true;
     }
 
-    private static boolean verifyMax(Map<String, Integer> map, Map<String, Set<Integer>> allData, final boolean print) {
-        if (map.isEmpty()) {
-            if (print) {
-                System.out.println("max is empty");
-            }
-            return false;
-        } else {
-            if (print) {
-                System.out.println("verifying max");
-            }
 
-            if (map.size() != allData.size()) {
-                if (print) {
-                    System.out.println("fail: resultCount=" + map.size() + " expectedCount=" + allData.size());
-                }
+    private static boolean verifySuppressed(final PrintStream resultStream,
+                                            @SuppressWarnings("SameParameterValue") final String topic,
+                                            final Map<String, Set<Integer>> inputs,
+                                            final Map<String, Map<String, LinkedList<ConsumerRecord<String, Number>>>> events,
+                                            final Function<String, Number> getMin) {
+        resultStream.println("verifying suppressed " + topic);
+        final Map<String, LinkedList<ConsumerRecord<String, Number>>> topicEvents = events.getOrDefault(topic, emptyMap());
+        for (final Map.Entry<String, LinkedList<ConsumerRecord<String, Number>>> entry : topicEvents.entrySet()) {
+            if (entry.getValue().size() != 1) {
+                final String unsuppressedTopic = topic.replace("-suppressed", "-raw");
+                final String key = entry.getKey();
+                final String unwindowedKey = key.substring(1, key.length() - 1).replaceAll("@.*", "");
+                resultStream.printf("fail: key=%s%n\tnon-unique result:%n%s%n\traw results:%n%s%n\tinput data:%n%s%n",
+                                    key,
+                                    indent("\t\t", entry.getValue()),
+                                    indent("\t\t", events.get(unsuppressedTopic).get(key)),
+                                    indent("\t\t", events.get("data").get(unwindowedKey))
+                );
                 return false;
             }
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                int expected = getMax(entry.getKey());
-                if (expected != entry.getValue()) {
-                    if (print) {
-                        System.out.println("fail: key=" + entry.getKey() + " max=" + entry.getValue() + " expected=" + expected);
-                    }
-                    return false;
-                }
-            }
         }
-        return true;
+        return verify(resultStream, topic, inputs, events, windowedKey -> {
+            final String unwindowedKey = windowedKey.substring(1, windowedKey.length() - 1).replaceAll("@.*", "");
+            return getMin.apply(unwindowedKey);
+        });
     }
 
-    private static boolean verifyDif(Map<String, Integer> map, Map<String, Set<Integer>> allData, final boolean print) {
-        if (map.isEmpty()) {
-            if (print) {
-                System.out.println("dif is empty");
-            }
-            return false;
-        } else {
-            if (print) {
-                System.out.println("verifying dif");
-            }
-
-            if (map.size() != allData.size()) {
-                if (print) {
-                    System.out.println("fail: resultCount=" + map.size() + " expectedCount=" + allData.size());
-                }
-                return false;
-            }
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                int min = getMin(entry.getKey());
-                int max = getMax(entry.getKey());
-                int expected = max - min;
-                if (entry.getValue() == null || expected != entry.getValue()) {
-                    if (print) {
-                        System.out.println("fail: key=" + entry.getKey() + " dif=" + entry.getValue() + " expected=" + expected);
-                    }
-                    return false;
-                }
-            }
+    private static String indent(@SuppressWarnings("SameParameterValue") final String prefix,
+                                 final LinkedList<ConsumerRecord<String, Number>> list) {
+        final StringBuilder stringBuilder = new StringBuilder();
+        for (final ConsumerRecord<String, Number> record : list) {
+            stringBuilder.append(prefix).append(record).append('\n');
         }
-        return true;
+        return stringBuilder.toString();
     }
 
-    private static boolean verifyCnt(Map<String, Long> map, Map<String, Set<Integer>> allData, final boolean print) {
-        if (map.isEmpty()) {
-            if (print) {
-                System.out.println("cnt is empty");
-            }
-            return false;
-        } else {
-            if (print) {
-                System.out.println("verifying cnt");
-            }
-
-            if (map.size() != allData.size()) {
-                if (print) {
-                    System.out.println("fail: resultCount=" + map.size() + " expectedCount=" + allData.size());
-                }
-                return false;
-            }
-            for (Map.Entry<String, Long> entry : map.entrySet()) {
-                int min = getMin(entry.getKey());
-                int max = getMax(entry.getKey());
-                long expected = (max - min) + 1L;
-                if (expected != entry.getValue()) {
-                    if (print) {
-                        System.out.println("fail: key=" + entry.getKey() + " cnt=" + entry.getValue() + " expected=" + expected);
-                    }
-                    return false;
-                }
-            }
-        }
-        return true;
+    private static Long getSum(final String key) {
+        final int min = getMin(key).intValue();
+        final int max = getMax(key).intValue();
+        return ((long) min + (long) max) * (max - min + 1L) / 2L;
     }
 
-    private static boolean verifySum(Map<String, Long> map, Map<String, Set<Integer>> allData, final boolean print) {
-        if (map.isEmpty()) {
-            if (print) {
-                System.out.println("sum is empty");
-            }
-            return false;
-        } else {
-            if (print) {
-                System.out.println("verifying sum");
-            }
-
-            if (map.size() != allData.size()) {
-                if (print) {
-                    System.out.println("fail: resultCount=" + map.size() + " expectedCount=" + allData.size());
-                }
-                return false;
-            }
-            for (Map.Entry<String, Long> entry : map.entrySet()) {
-                int min = getMin(entry.getKey());
-                int max = getMax(entry.getKey());
-                long expected = ((long) min + (long) max) * (max - min + 1L) / 2L;
-                if (expected != entry.getValue()) {
-                    if (print) {
-                        System.out.println("fail: key=" + entry.getKey() + " sum=" + entry.getValue() + " expected=" + expected);
-                    }
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    private static boolean verifyAvg(Map<String, Double> map, Map<String, Set<Integer>> allData, final boolean print) {
-        if (map.isEmpty()) {
-            if (print) {
-                System.out.println("avg is empty");
-            }
-            return false;
-        } else {
-            if (print) {
-                System.out.println("verifying avg");
-            }
-
-            if (map.size() != allData.size()) {
-                if (print) {
-                    System.out.println("fail: resultCount=" + map.size() + " expectedCount=" + allData.size());
-                }
-                return false;
-            }
-            for (Map.Entry<String, Double> entry : map.entrySet()) {
-                int min = getMin(entry.getKey());
-                int max = getMax(entry.getKey());
-                double expected = ((long) min + (long) max) / 2.0;
-
-                if (entry.getValue() == null || expected != entry.getValue()) {
-                    if (print) {
-                        System.out.println("fail: key=" + entry.getKey() + " avg=" + entry.getValue() + " expected=" + expected);
-                    }
-                    return false;
-                }
-            }
-        }
-        return true;
+    private static Double getAvg(final String key) {
+        final int min = getMin(key).intValue();
+        final int max = getMax(key).intValue();
+        return ((long) min + (long) max) / 2.0;
     }
 
 
-    private static boolean verifyTAgg(Map<String, Long> map, Map<String, Set<Integer>> allData, final boolean print) {
-        if (map.isEmpty()) {
-            if (print) {
-                System.out.println("tagg is empty");
-            }
+    private static boolean verifyTAgg(final PrintStream resultStream,
+                                      final Map<String, Set<Integer>> allData,
+                                      final Map<String, LinkedList<ConsumerRecord<String, Number>>> taggEvents) {
+        if (taggEvents == null) {
+            resultStream.println("tagg is missing");
+            return false;
+        } else if (taggEvents.isEmpty()) {
+            resultStream.println("tagg is empty");
             return false;
         } else {
-            if (print) {
-                System.out.println("verifying tagg");
-            }
+            resultStream.println("verifying tagg");
 
             // generate expected answer
-            Map<String, Long> expected = new HashMap<>();
-            for (String key : allData.keySet()) {
-                int min = getMin(key);
-                int max = getMax(key);
-                String cnt = Long.toString(max - min + 1L);
+            final Map<String, Long> expected = new HashMap<>();
+            for (final String key : allData.keySet()) {
+                final int min = getMin(key).intValue();
+                final int max = getMax(key).intValue();
+                final String cnt = Long.toString(max - min + 1L);
 
-                if (expected.containsKey(cnt)) {
-                    expected.put(cnt, expected.get(cnt) + 1L);
-                } else {
-                    expected.put(cnt, 1L);
-                }
+                expected.put(cnt, expected.getOrDefault(cnt, 0L) + 1);
             }
 
             // check the result
-            for (Map.Entry<String, Long> entry : map.entrySet()) {
-                String key = entry.getKey();
+            for (final Map.Entry<String, LinkedList<ConsumerRecord<String, Number>>> entry : taggEvents.entrySet()) {
+                final String key = entry.getKey();
                 Long expectedCount = expected.remove(key);
-                if (expectedCount == null)
+                if (expectedCount == null) {
                     expectedCount = 0L;
+                }
 
-                if (entry.getValue() != expectedCount) {
-                    if (print) {
-                        System.out.println("fail: key=" + key + " tagg=" + entry.getValue() + " expected=" + expected.get(key));
-                    }
+                if (entry.getValue().getLast().value().longValue() != expectedCount) {
+                    resultStream.println("fail: key=" + key + " tagg=" + entry.getValue() + " expected=" + expected.get(key));
+                    resultStream.println("\t outputEvents: " + entry.getValue());
                     return false;
                 }
             }
@@ -619,31 +545,19 @@ public class SmokeTestDriver extends SmokeTestUtil {
         return true;
     }
 
-    private static int getMin(String key) {
+    private static Number getMin(final String key) {
         return Integer.parseInt(key.split("-")[0]);
     }
 
-    private static int getMax(String key) {
+    private static Number getMax(final String key) {
         return Integer.parseInt(key.split("-")[1]);
     }
 
-    private static int getMinFromWKey(String key) {
-        return getMin(key.split("@")[0]);
-    }
+    private static List<TopicPartition> getAllPartitions(final KafkaConsumer<?, ?> consumer, final String... topics) {
+        final ArrayList<TopicPartition> partitions = new ArrayList<>();
 
-    private static int getMaxFromWKey(String key) {
-        return getMax(key.split("@")[0]);
-    }
-
-    private static long getStartFromWKey(String key) {
-        return Long.parseLong(key.split("@")[1]);
-    }
-
-    private static List<TopicPartition> getAllPartitions(KafkaConsumer<?, ?> consumer, String... topics) {
-        ArrayList<TopicPartition> partitions = new ArrayList<>();
-
-        for (String topic : topics) {
-            for (PartitionInfo info : consumer.partitionsFor(topic)) {
+        for (final String topic : topics) {
+            for (final PartitionInfo info : consumer.partitionsFor(topic)) {
                 partitions.add(new TopicPartition(info.topic(), info.partition()));
             }
         }

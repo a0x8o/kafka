@@ -24,20 +24,24 @@ import com.yammer.metrics.core.Gauge
 import kafka.metrics.{KafkaMetricsGroup, KafkaTimer}
 import kafka.utils.CoreUtils.inLock
 import kafka.utils.ShutdownableThread
+import org.apache.kafka.common.errors.ControllerMovedException
 import org.apache.kafka.common.utils.Time
 
 import scala.collection._
+import scala.collection.JavaConverters._
 
 object ControllerEventManager {
   val ControllerEventThreadName = "controller-event-thread"
 }
 class ControllerEventManager(controllerId: Int, rateAndTimeMetrics: Map[ControllerState, KafkaTimer],
-                             eventProcessedListener: ControllerEvent => Unit) extends KafkaMetricsGroup {
+                             eventProcessedListener: ControllerEvent => Unit,
+                             controllerMovedListener: () => Unit) extends KafkaMetricsGroup {
 
   @volatile private var _state: ControllerState = ControllerState.Idle
   private val putLock = new ReentrantLock()
   private val queue = new LinkedBlockingQueue[ControllerEvent]
-  private val thread = new ControllerEventThread(ControllerEventManager.ControllerEventThreadName)
+  // Visible for test
+  private[controller] val thread = new ControllerEventThread(ControllerEventManager.ControllerEventThreadName)
   private val time = Time.SYSTEM
 
   private val eventQueueTimeHist = newHistogram("EventQueueTimeMs")
@@ -57,6 +61,7 @@ class ControllerEventManager(controllerId: Int, rateAndTimeMetrics: Map[Controll
   def start(): Unit = thread.start()
 
   def close(): Unit = {
+    thread.initiateShutdown()
     clearAndPut(KafkaController.ShutdownEventThread)
     thread.awaitShutdown()
   }
@@ -66,6 +71,10 @@ class ControllerEventManager(controllerId: Int, rateAndTimeMetrics: Map[Controll
   }
 
   def clearAndPut(event: ControllerEvent): Unit = inLock(putLock) {
+    queue.asScala.foreach(evt =>
+      if (evt.isInstanceOf[PreemptableControllerEvent])
+        evt.asInstanceOf[PreemptableControllerEvent].preempt()
+    )
     queue.clear()
     put(event)
   }
@@ -75,7 +84,7 @@ class ControllerEventManager(controllerId: Int, rateAndTimeMetrics: Map[Controll
 
     override def doWork(): Unit = {
       queue.take() match {
-        case KafkaController.ShutdownEventThread => initiateShutdown()
+        case KafkaController.ShutdownEventThread => // The shutting down of the thread has been initiated at this point. Ignore this event.
         case controllerEvent =>
           _state = controllerEvent.state
 
@@ -86,6 +95,9 @@ class ControllerEventManager(controllerId: Int, rateAndTimeMetrics: Map[Controll
               controllerEvent.process()
             }
           } catch {
+            case e: ControllerMovedException =>
+              info(s"Controller moved to another broker when processing $controllerEvent.", e)
+              controllerMovedListener()
             case e: Throwable => error(s"Error processing event $controllerEvent", e)
           }
 

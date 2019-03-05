@@ -23,6 +23,8 @@ import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.internals.PartitionStates;
 import org.apache.kafka.common.requests.IsolationLevel;
+import org.apache.kafka.common.utils.LogContext;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,7 +34,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 /**
  * A class for tracking the topics, partitions, and offsets for the consumer. A partition
@@ -53,6 +58,8 @@ import java.util.regex.Pattern;
 public class SubscriptionState {
     private static final String SUBSCRIPTION_EXCEPTION_MESSAGE =
             "Subscription to topics, partitions and pattern are mutually exclusive";
+
+    private final Logger log;
 
     private enum SubscriptionType {
         NONE, AUTO_TOPICS, AUTO_PATTERN, USER_ASSIGNED
@@ -82,7 +89,8 @@ public class SubscriptionState {
     /* User-provided listener to be invoked when assignment changes */
     private ConsumerRebalanceListener rebalanceListener;
 
-    public SubscriptionState(OffsetResetStrategy defaultResetStrategy) {
+    public SubscriptionState(LogContext logContext, OffsetResetStrategy defaultResetStrategy) {
+        this.log = logContext.logger(this.getClass());
         this.defaultResetStrategy = defaultResetStrategy;
         this.subscription = Collections.emptySet();
         this.assignment = new PartitionStates<>();
@@ -171,28 +179,44 @@ public class SubscriptionState {
     }
 
     /**
-     * Change the assignment to the specified partitions returned from the coordinator,
-     * note this is different from {@link #assignFromUser(Set)} which directly set the assignment from user inputs
+     * Change the assignment to the specified partitions returned from the coordinator, note this is
+     * different from {@link #assignFromUser(Set)} which directly set the assignment from user inputs.
+     *
+     * @return true if assignments matches subscription, otherwise false
      */
-    public void assignFromSubscribed(Collection<TopicPartition> assignments) {
+    public boolean assignFromSubscribed(Collection<TopicPartition> assignments) {
         if (!this.partitionsAutoAssigned())
             throw new IllegalArgumentException("Attempt to dynamically assign partitions while manual assignment in use");
 
-        Map<TopicPartition, TopicPartitionState> assignedPartitionStates = partitionToStateMap(assignments);
-        fireOnAssignment(assignedPartitionStates.keySet());
-
-        if (this.subscribedPattern != null) {
-            for (TopicPartition tp : assignments) {
-                if (!this.subscribedPattern.matcher(tp.topic()).matches())
-                    throw new IllegalArgumentException("Assigned partition " + tp + " for non-subscribed topic regex pattern; subscription pattern is " + this.subscribedPattern);
+        Predicate<TopicPartition> predicate = topicPartition -> {
+            if (this.subscribedPattern != null) {
+                boolean match = this.subscribedPattern.matcher(topicPartition.topic()).matches();
+                if (!match) {
+                    log.info("Assigned partition {} for non-subscribed topic regex pattern; subscription pattern is {}",
+                            topicPartition,
+                            this.subscribedPattern);
+                }
+                return match;
+            } else {
+                boolean match = this.subscription.contains(topicPartition.topic());
+                if (!match) {
+                    log.info("Assigned partition {} for non-subscribed topic; subscription is {}", topicPartition, this.subscription);
+                }
+                return match;
             }
-        } else {
-            for (TopicPartition tp : assignments)
-                if (!this.subscription.contains(tp.topic()))
-                    throw new IllegalArgumentException("Assigned partition " + tp + " for non-subscribed topic; subscription is " + this.subscription);
+        };
+
+        boolean assignmentMatchedSubscription = assignments.stream().allMatch(predicate);
+
+        if (assignmentMatchedSubscription) {
+            Map<TopicPartition, TopicPartitionState> assignedPartitionStates = partitionToStateMap(
+                    assignments);
+            fireOnAssignment(assignedPartitionStates.keySet());
+
+            this.assignment.set(assignedPartitionStates);
         }
 
-        this.assignment.set(assignedPartitionStates);
+        return assignmentMatchedSubscription;
     }
 
     public void subscribe(Pattern pattern, ConsumerRebalanceListener listener) {
@@ -218,7 +242,7 @@ public class SubscriptionState {
         this.assignment.clear();
         this.subscribedPattern = null;
         this.subscriptionType = SubscriptionType.NONE;
-        fireOnAssignment(Collections.<TopicPartition>emptySet());
+        fireOnAssignment(Collections.emptySet());
     }
 
     public Pattern subscribedPattern() {
@@ -230,13 +254,7 @@ public class SubscriptionState {
     }
 
     public Set<TopicPartition> pausedPartitions() {
-        HashSet<TopicPartition> paused = new HashSet<>();
-        for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
-            if (state.value().paused) {
-                paused.add(state.topicPartition());
-            }
-        }
-        return paused;
+        return collectPartitions(TopicPartitionState::isPaused, Collectors.toSet());
     }
 
     /**
@@ -264,17 +282,23 @@ public class SubscriptionState {
         assignedState(tp).seek(offset);
     }
 
+    /**
+     * @return an unmodifiable view of the currently assigned partitions
+     */
     public Set<TopicPartition> assignedPartitions() {
         return this.assignment.partitionSet();
     }
 
+    /**
+     * Provides the number of assigned partitions in a thread safe manner.
+     * @return the number of assigned partitions.
+     */
+    public int numAssignedPartitions() {
+        return this.assignment.size();
+    }
+
     public List<TopicPartition> fetchablePartitions() {
-        List<TopicPartition> fetchable = new ArrayList<>(assignment.size());
-        for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
-            if (state.value().isFetchable())
-                fetchable.add(state.topicPartition());
-        }
-        return fetchable;
+        return collectPartitions(TopicPartitionState::isFetchable, Collectors.toList());
     }
 
     public boolean partitionsAutoAssigned() {
@@ -316,10 +340,10 @@ public class SubscriptionState {
 
     public Map<TopicPartition, OffsetAndMetadata> allConsumed() {
         Map<TopicPartition, OffsetAndMetadata> allConsumed = new HashMap<>();
-        for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
+        assignment.stream().forEach(state -> {
             if (state.value().hasValidPosition())
                 allConsumed.put(state.topicPartition(), new OffsetAndMetadata(state.value().position));
-        }
+        });
         return allConsumed;
     }
 
@@ -350,25 +374,23 @@ public class SubscriptionState {
     }
 
     public boolean hasAllFetchPositions() {
-        for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
-            if (!state.value().hasValidPosition())
-                return false;
-        }
-        return true;
+        return assignment.stream().allMatch(state -> state.value().hasValidPosition());
     }
 
     public Set<TopicPartition> missingFetchPositions() {
-        Set<TopicPartition> missing = new HashSet<>();
-        for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
-            if (state.value().isMissingPosition())
-                missing.add(state.topicPartition());
-        }
-        return missing;
+        return collectPartitions(TopicPartitionState::isMissingPosition, Collectors.toSet());
+    }
+
+    private <T extends Collection<TopicPartition>> T collectPartitions(Predicate<TopicPartitionState> filter, Collector<TopicPartition, ?, T> collector) {
+        return assignment.stream()
+                .filter(state -> filter.test(state.value()))
+                .map(PartitionStates.PartitionState::topicPartition)
+                .collect(collector);
     }
 
     public void resetMissingPositions() {
         final Set<TopicPartition> partitionsWithNoOffsets = new HashSet<>();
-        for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
+        assignment.stream().forEach(state -> {
             TopicPartition tp = state.topicPartition();
             TopicPartitionState partitionState = state.value();
             if (partitionState.isMissingPosition()) {
@@ -377,20 +399,15 @@ public class SubscriptionState {
                 else
                     partitionState.reset(defaultResetStrategy);
             }
-        }
+        });
 
         if (!partitionsWithNoOffsets.isEmpty())
             throw new NoOffsetForPartitionException(partitionsWithNoOffsets);
     }
 
     public Set<TopicPartition> partitionsNeedingReset(long nowMs) {
-        Set<TopicPartition> partitions = new HashSet<>();
-        for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
-            TopicPartitionState partitionState = state.value();
-            if (partitionState.awaitingReset() && partitionState.isResetAllowed(nowMs))
-                partitions.add(state.topicPartition());
-        }
-        return partitions;
+        return collectPartitions(state -> state.awaitingReset() && state.isResetAllowed(nowMs),
+                Collectors.toSet());
     }
 
     public boolean isAssigned(TopicPartition tp) {
@@ -493,6 +510,10 @@ public class SubscriptionState {
 
         private boolean isMissingPosition() {
             return !hasValidPosition() && !awaitingReset();
+        }
+
+        private boolean isPaused() {
+            return paused;
         }
 
         private void seek(long offset) {

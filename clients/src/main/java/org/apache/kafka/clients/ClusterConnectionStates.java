@@ -19,8 +19,13 @@ package org.apache.kafka.clients;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.kafka.common.errors.AuthenticationException;
+import org.apache.kafka.common.utils.LogContext;
+import org.slf4j.Logger;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,8 +38,10 @@ final class ClusterConnectionStates {
     private final static int RECONNECT_BACKOFF_EXP_BASE = 2;
     private final double reconnectBackoffMaxExp;
     private final Map<String, NodeConnectionState> nodeState;
+    private final Logger log;
 
-    public ClusterConnectionStates(long reconnectBackoffMs, long reconnectBackoffMaxMs) {
+    public ClusterConnectionStates(long reconnectBackoffMs, long reconnectBackoffMaxMs, LogContext logContext) {
+        this.log = logContext.logger(ClusterConnectionStates.class);
         this.reconnectBackoffInitMs = reconnectBackoffMs;
         this.reconnectBackoffMaxMs = reconnectBackoffMaxMs;
         this.reconnectBackoffMaxExp = Math.log(this.reconnectBackoffMaxMs / (double) Math.max(reconnectBackoffMs, 1)) / Math.log(RECONNECT_BACKOFF_EXP_BASE);
@@ -104,16 +111,27 @@ final class ClusterConnectionStates {
      * Enter the connecting state for the given connection.
      * @param id the id of the connection
      * @param now the current time
+     * @throws UnknownHostException 
      */
-    public void connecting(String id, long now) {
-        if (nodeState.containsKey(id)) {
-            NodeConnectionState node = nodeState.get(id);
-            node.lastConnectAttemptMs = now;
-            node.state = ConnectionState.CONNECTING;
-        } else {
-            nodeState.put(id, new NodeConnectionState(ConnectionState.CONNECTING, now,
-                this.reconnectBackoffInitMs));
+    public void connecting(String id, long now, String host, ClientDnsLookup clientDnsLookup) throws UnknownHostException {
+        NodeConnectionState connectionState = nodeState.get(id);
+        if (connectionState != null && connectionState.host().equals(host)) {
+            connectionState.lastConnectAttemptMs = now;
+            connectionState.state = ConnectionState.CONNECTING;
+            connectionState.moveToNextAddress();
+            return;
+        } else if (connectionState != null) {
+            log.info("Hostname for node {} changed from {} to {}.", id, connectionState.host(), host);
         }
+
+        // Create a new NodeConnectionState if nodeState does not already contain one
+        // for the specified id or if the hostname associated with the node id changed.
+        nodeState.put(id, new NodeConnectionState(ConnectionState.CONNECTING, now,
+            this.reconnectBackoffInitMs, host, clientDnsLookup));
+    }
+
+    public InetAddress currentAddress(String id) {
+        return nodeState.get(id).currentAddress();
     }
 
     /**
@@ -334,14 +352,39 @@ final class ClusterConnectionStates {
         long reconnectBackoffMs;
         // Connection is being throttled if current time < throttleUntilTimeMs.
         long throttleUntilTimeMs;
+        private List<InetAddress> addresses;
+        private int index = 0;
+        private final String host;
+        private final ClientDnsLookup clientDnsLookup;
 
-        public NodeConnectionState(ConnectionState state, long lastConnectAttempt, long reconnectBackoffMs) {
+        public NodeConnectionState(ConnectionState state, long lastConnectAttempt, long reconnectBackoffMs, 
+                String host, ClientDnsLookup clientDnsLookup) throws UnknownHostException {
             this.state = state;
+            this.addresses = ClientUtils.resolve(host, clientDnsLookup);
             this.authenticationException = null;
             this.lastConnectAttemptMs = lastConnectAttempt;
             this.failedAttempts = 0;
             this.reconnectBackoffMs = reconnectBackoffMs;
             this.throttleUntilTimeMs = 0;
+            this.host = host;
+            this.clientDnsLookup = clientDnsLookup;
+        }
+
+        public String host() {
+            return host;
+        }
+
+        public InetAddress currentAddress() {
+            return addresses.get(index);
+        }
+
+        /*
+         * implementing a ring buffer with the addresses
+         */
+        public void moveToNextAddress() throws UnknownHostException {
+            index = (index + 1) % addresses.size();
+            if (index == 0)
+                addresses = ClientUtils.resolve(host, clientDnsLookup);
         }
 
         public String toString() {
