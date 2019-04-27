@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.streams.state.internals;
+package org.apache.kafka.common.errors;
 
-import org.junit.Test;
+public class FencedInstanceIdException extends ApiException {
+    private static final long serialVersionUID = 1L;
 
-public class InMemoryTimeOrderedKeyValueBufferTest {
-
-    @Test
-    public void bufferShouldAllowCacheEnablement() {
-        new InMemoryTimeOrderedKeyValueBuffer.Builder<>(null, null, null).withCachingEnabled();
+    public FencedInstanceIdException(String message) {
+        super(message);
     }
 
-    @Test
-    public void bufferShouldAllowCacheDisablement() {
-        new InMemoryTimeOrderedKeyValueBuffer.Builder<>(null, null, null).withCachingDisabled();
+    public FencedInstanceIdException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
