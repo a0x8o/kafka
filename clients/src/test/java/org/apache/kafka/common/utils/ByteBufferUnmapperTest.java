@@ -15,20 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.kafka.message;
+package org.apache.kafka.common.utils;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.kafka.test.TestUtils;
+import org.junit.Test;
 
-public enum MessageSpecType {
-    @JsonProperty("request")
-    REQUEST,
+import java.io.File;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 
-    @JsonProperty("response")
-    RESPONSE,
+public class ByteBufferUnmapperTest {
 
-    @JsonProperty("header")
-    HEADER,
+    /**
+     * Checks that unmap doesn't throw exceptions.
+     */
+    @Test
+    public void testUnmap() throws Exception {
+        File file = TestUtils.tempFile();
+        try (FileChannel channel = FileChannel.open(file.toPath())) {
+            MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_ONLY, 0, 0);
+            ByteBufferUnmapper.unmap(file.getAbsolutePath(), map);
+        }
+    }
 
-    @JsonProperty("data")
-    DATA;
 }
