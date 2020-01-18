@@ -14,20 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package integration.kafka.api
+package kafka.api
 
 import java.util
+import java.util.Properties
 import java.util.concurrent.ExecutionException
 
-import kafka.api.IntegrationTestHarness
-import kafka.security.auth.{Cluster, Topic}
+import kafka.security.authorizer.AclEntry
 import kafka.server.KafkaConfig
-import kafka.utils.Implicits._
 import kafka.utils.Logging
 import kafka.utils.TestUtils._
-import org.apache.kafka.clients.admin.{Admin, AdminClient, AdminClientConfig, CreateTopicsOptions, CreateTopicsResult, DescribeClusterOptions, DescribeTopicsOptions, NewTopic, TopicDescription}
+import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsOptions, CreateTopicsResult, DescribeClusterOptions, DescribeTopicsOptions, NewTopic, TopicDescription}
 import org.apache.kafka.common.acl.AclOperation
 import org.apache.kafka.common.errors.{TopicExistsException, UnknownTopicOrPartitionException}
+import org.apache.kafka.common.resource.ResourceType
 import org.apache.kafka.common.utils.Utils
 import org.junit.Assert._
 import org.junit.rules.Timeout
@@ -45,9 +45,8 @@ import scala.compat.java8.OptionConverters._
  * authentication/authorization layers, we may add the test case here.
  */
 abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logging {
-  val brokerCount = 3
-  val consumerCount = 1
-  val producerCount = 1
+  def brokerCount = 3
+  override def logDirCount = 2
 
   var client: Admin = _
 
@@ -69,7 +68,7 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
 
   @Test
   def testCreateDeleteTopics(): Unit = {
-    client = AdminClient.create(createConfig())
+    client = Admin.create(createConfig())
     val topics = Seq("mytopic", "mytopic2", "mytopic3")
     val newTopics = Seq(
       new NewTopic("mytopic", Map((0: Integer) -> Seq[Integer](1, 2).asJava, (1: Integer) -> Seq[Integer](2, 0).asJava).asJava),
@@ -156,11 +155,11 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
 
   @Test
   def testAuthorizedOperations(): Unit = {
-    client = AdminClient.create(createConfig())
+    client = Admin.create(createConfig())
 
     // without includeAuthorizedOperations flag
     var result = client.describeCluster
-    assertEquals(Set().asJava, result.authorizedOperations().get())
+    assertNull(result.authorizedOperations().get())
 
     //with includeAuthorizedOperations flag
     result = client.describeCluster(new DescribeClusterOptions().includeAuthorizedOperations(true))
@@ -174,27 +173,21 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
 
     // without includeAuthorizedOperations flag
     var topicResult = getTopicMetadata(client, topic)
-    assertEquals(Set().asJava, topicResult.authorizedOperations)
+    assertNull(topicResult.authorizedOperations)
 
     //with includeAuthorizedOperations flag
     topicResult = getTopicMetadata(client, topic, new DescribeTopicsOptions().includeAuthorizedOperations(true))
-    expectedOperations = Topic.supportedOperations
-      .map(operation => operation.toJava).asJava
+    expectedOperations = AclEntry.supportedOperations(ResourceType.TOPIC).asJava
     assertEquals(expectedOperations, topicResult.authorizedOperations)
   }
 
-  def configuredClusterPermissions() : Set[AclOperation] = {
-    Cluster.supportedOperations.map(operation => operation.toJava)
+  def configuredClusterPermissions(): Set[AclOperation] = {
+    AclEntry.supportedOperations(ResourceType.CLUSTER)
   }
 
-  override def generateConfigs: Seq[KafkaConfig] = {
-    val cfgs = createBrokerConfigs(brokerCount, zkConnect, interBrokerSecurityProtocol = Some(securityProtocol),
-      trustStoreFile = trustStoreFile, saslProperties = serverSaslProperties, logDirCount = 2)
-    cfgs.foreach { config =>
-      config.setProperty(KafkaConfig.ListenersProp, s"${listenerName.value}://localhost:$RandomPort")
-      config.remove(KafkaConfig.InterBrokerSecurityProtocolProp)
-      config.setProperty(KafkaConfig.InterBrokerListenerNameProp, listenerName.value)
-      config.setProperty(KafkaConfig.ListenerSecurityProtocolMapProp, s"${listenerName.value}:${securityProtocol.name}")
+  override def modifyConfigs(configs: Seq[Properties]): Unit = {
+    super.modifyConfigs(configs)
+    configs.foreach { config =>
       config.setProperty(KafkaConfig.DeleteTopicEnableProp, "true")
       config.setProperty(KafkaConfig.GroupInitialRebalanceDelayMsProp, "0")
       config.setProperty(KafkaConfig.AutoLeaderRebalanceEnableProp, "false")
@@ -204,8 +197,6 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
       if (!config.containsKey(KafkaConfig.SslTruststorePasswordProp))
         config.setProperty(KafkaConfig.SslTruststorePasswordProp, "some.invalid.pass")
     }
-    cfgs.foreach(_ ++= serverConfig)
-    cfgs.map(KafkaConfig.fromProps)
   }
 
   def createConfig(): util.Map[String, Object] = {

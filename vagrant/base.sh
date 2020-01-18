@@ -107,6 +107,9 @@ popd
 popd
 popd
 
+# Install iperf
+apt-get install -y iperf traceroute
+
 # Test multiple Kafka versions
 # We want to use the latest Scala version per Kafka version
 # Previously we could not pull in Scala 2.12 builds, because Scala 2.12 requires Java 8 and we were running the system
@@ -131,10 +134,12 @@ get_kafka 2.0.1 2.12
 chmod a+rw /opt/kafka-2.0.1
 get_kafka 2.1.1 2.12
 chmod a+rw /opt/kafka-2.1.1
-get_kafka 2.2.1 2.12
-chmod a+rw /opt/kafka-2.2.1
-get_kafka 2.3.0 2.12
-chmod a+rw /opt/kafka-2.3.0
+get_kafka 2.2.2 2.12
+chmod a+rw /opt/kafka-2.2.2
+get_kafka 2.3.1 2.12
+chmod a+rw /opt/kafka-2.3.1
+get_kafka 2.4.0 2.12
+chmod a+rw /opt/kafka-2.4.0
 
 # For EC2 nodes, we want to use /mnt, which should have the local disk. On local
 # VMs, we can just create it if it doesn't exist and use it like we'd use
@@ -150,3 +155,11 @@ chmod a+rwx /mnt
 ntpdate -u pool.ntp.org
 # Install ntp daemon - it will automatically start on boot
 apt-get -y install ntp
+
+# Increase the ulimit
+mkdir -p /etc/security/limits.d
+echo "* soft nofile 128000" >> /etc/security/limits.d/nofile.conf
+echo "* hard nofile 128000" >> /etc/security/limits.d/nofile.conf
+
+ulimit -Hn 128000
+ulimit -Sn 128000

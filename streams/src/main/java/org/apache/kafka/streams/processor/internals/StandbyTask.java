@@ -120,6 +120,9 @@ public class StandbyTask extends AbstractTask {
     }
 
     private void flushAndCheckpointState() {
+        // this could theoretically throw a ProcessorStateException caused by a ProducerFencedException,
+        // but in practice this shouldn't happen for standby tasks, since they don't produce to changelog topics
+        // or downstream topics.
         stateMgr.flush();
         stateMgr.checkpoint(Collections.emptyMap());
     }
@@ -194,6 +197,12 @@ public class StandbyTask extends AbstractTask {
 
     Map<TopicPartition, Long> checkpointedOffsets() {
         return Collections.unmodifiableMap(stateMgr.checkpointed());
+    }
+
+    public Map<TopicPartition, Long> changelogPositions() {
+        // this maintains the most upto date value of the latest offset for a record consumed off
+        // the changelog topic, that is also within the offsetLimit tracked.
+        return stateMgr.standbyRestoredOffsets();
     }
 
     private long updateOffsetLimits(final TopicPartition partition) {

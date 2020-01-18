@@ -24,7 +24,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.{Optional, Properties}
 
 import kafka.api.Request
-import kafka.log.{Log, LogConfig, LogManager, ProducerStateManager}
+import kafka.log.{AppendOrigin, Log, LogConfig, LogManager, ProducerStateManager}
 import kafka.cluster.BrokerEndPoint
 import kafka.server.QuotaFactory.UnboundedQuota
 import kafka.server.checkpoints.LazyOffsetCheckpoints
@@ -49,6 +49,7 @@ import org.apache.kafka.common.{IsolationLevel, Node, TopicPartition}
 import org.easymock.EasyMock
 import org.junit.Assert._
 import org.junit.{After, Before, Test}
+import org.mockito.Mockito
 
 import scala.collection.JavaConverters._
 import scala.collection.{Map, Seq}
@@ -133,7 +134,7 @@ class ReplicaManagerTest {
         timeout = 0,
         requiredAcks = 3,
         internalTopicsAllowed = false,
-        isFromClient = true,
+        origin = AppendOrigin.Client,
         entriesPerPartition = Map(new TopicPartition("test1", 0) -> MemoryRecords.withRecords(CompressionType.NONE,
           new SimpleRecord("first message".getBytes))),
         responseCallback = callback)
@@ -341,7 +342,8 @@ class ReplicaManagerTest {
       // now commit the transaction
       val endTxnMarker = new EndTransactionMarker(ControlRecordType.COMMIT, 0)
       val commitRecordBatch = MemoryRecords.withEndTransactionMarker(producerId, epoch, endTxnMarker)
-      appendRecords(replicaManager, new TopicPartition(topic, 0), commitRecordBatch, isFromClient = false)
+      appendRecords(replicaManager, new TopicPartition(topic, 0), commitRecordBatch,
+        origin = AppendOrigin.Coordinator)
         .onFire { response => assertEquals(Errors.NONE, response.error) }
 
       // the LSO has advanced, but the appended commit marker has not been replicated, so
@@ -418,7 +420,8 @@ class ReplicaManagerTest {
       // now abort the transaction
       val endTxnMarker = new EndTransactionMarker(ControlRecordType.ABORT, 0)
       val abortRecordBatch = MemoryRecords.withEndTransactionMarker(producerId, epoch, endTxnMarker)
-      appendRecords(replicaManager, new TopicPartition(topic, 0), abortRecordBatch, isFromClient = false)
+      appendRecords(replicaManager, new TopicPartition(topic, 0), abortRecordBatch,
+        origin = AppendOrigin.Coordinator)
         .onFire { response => assertEquals(Errors.NONE, response.error) }
 
       // fetch as follower to advance the high watermark
@@ -944,14 +947,14 @@ class ReplicaManagerTest {
       Optional.of(0))
     var fetchResult = sendConsumerFetch(replicaManager, tp0, partitionData, Some(clientMetadata))
     assertNotNull(fetchResult.get)
-    assertEquals(fetchResult.get.error, Errors.NONE)
+    assertEquals(Errors.NONE, fetchResult.get.error)
 
     // Fetch from follower, with empty ClientMetadata (which implies an older version)
     partitionData = new FetchRequest.PartitionData(0L, 0L, 100,
       Optional.of(0))
     fetchResult = sendConsumerFetch(replicaManager, tp0, partitionData, None)
     assertNotNull(fetchResult.get)
-    assertEquals(fetchResult.get.error, Errors.NOT_LEADER_FOR_PARTITION)
+    assertEquals(Errors.NOT_LEADER_FOR_PARTITION, fetchResult.get.error)
   }
 
   @Test
@@ -999,7 +1002,7 @@ class ReplicaManagerTest {
     replicaManager.becomeLeaderOrFollower(0, becomeFollowerRequest, (_, _) => ())
 
     assertNotNull(fetchResult.get)
-    assertEquals(fetchResult.get.error, Errors.NOT_LEADER_FOR_PARTITION)
+    assertEquals(Errors.NOT_LEADER_FOR_PARTITION, fetchResult.get.error)
   }
 
   @Test
@@ -1048,7 +1051,7 @@ class ReplicaManagerTest {
     replicaManager.becomeLeaderOrFollower(0, becomeFollowerRequest, (_, _) => ())
 
     assertNotNull(fetchResult.get)
-    assertEquals(fetchResult.get.error, Errors.FENCED_LEADER_EPOCH)
+    assertEquals(Errors.FENCED_LEADER_EPOCH, fetchResult.get.error)
   }
 
   @Test
@@ -1079,13 +1082,114 @@ class ReplicaManagerTest {
       Optional.of(1))
     var fetchResult = sendConsumerFetch(replicaManager, tp0, partitionData, Some(clientMetadata))
     assertNotNull(fetchResult.get)
-    assertEquals(fetchResult.get.error, Errors.NONE)
+    assertEquals(Errors.NONE, fetchResult.get.error)
 
     partitionData = new FetchRequest.PartitionData(0L, 0L, 100,
       Optional.empty())
     fetchResult = sendConsumerFetch(replicaManager, tp0, partitionData, Some(clientMetadata))
     assertNotNull(fetchResult.get)
-    assertEquals(fetchResult.get.error, Errors.NONE)
+    assertEquals(Errors.NONE, fetchResult.get.error)
+  }
+
+  @Test
+  def testClearFetchPurgatoryOnStopReplica(): Unit = {
+    // As part of a reassignment, we may send StopReplica to the old leader.
+    // In this case, we should ensure that pending purgatory operations are cancelled
+    // immediately rather than sitting around to timeout.
+
+    val mockTimer = new MockTimer
+    val replicaManager = setupReplicaManagerWithMockedPurgatories(mockTimer, aliveBrokerIds = Seq(0, 1))
+
+    val tp0 = new TopicPartition(topic, 0)
+    val offsetCheckpoints = new LazyOffsetCheckpoints(replicaManager.highWatermarkCheckpoints)
+    replicaManager.createPartition(tp0).createLogIfNotExists(0, isNew = false, isFutureReplica = false, offsetCheckpoints)
+    val partition0Replicas = Seq[Integer](0, 1).asJava
+
+    val becomeLeaderRequest = new LeaderAndIsrRequest.Builder(ApiKeys.LEADER_AND_ISR.latestVersion, 0, 0, brokerEpoch,
+      Seq(new LeaderAndIsrPartitionState()
+        .setTopicName(tp0.topic)
+        .setPartitionIndex(tp0.partition)
+        .setControllerEpoch(0)
+        .setLeader(0)
+        .setLeaderEpoch(1)
+        .setIsr(partition0Replicas)
+        .setZkVersion(0)
+        .setReplicas(partition0Replicas)
+        .setIsNew(true)).asJava,
+      Set(new Node(0, "host1", 0), new Node(1, "host2", 1)).asJava).build()
+    replicaManager.becomeLeaderOrFollower(1, becomeLeaderRequest, (_, _) => ())
+
+    val partitionData = new FetchRequest.PartitionData(0L, 0L, 100,
+      Optional.of(1))
+    val fetchResult = sendConsumerFetch(replicaManager, tp0, partitionData, None, timeout = 10)
+    assertNull(fetchResult.get)
+
+    Mockito.when(replicaManager.metadataCache.contains(tp0)).thenReturn(true)
+
+    // We have a fetch in purgatory, now receive a stop replica request and
+    // assert that the fetch returns with a NOT_LEADER error
+
+    replicaManager.stopReplica(tp0, deletePartition = true)
+    assertNotNull(fetchResult.get)
+    assertEquals(Errors.NOT_LEADER_FOR_PARTITION, fetchResult.get.error)
+  }
+
+  @Test
+  def testClearProducePurgatoryOnStopReplica(): Unit = {
+    val mockTimer = new MockTimer
+    val replicaManager = setupReplicaManagerWithMockedPurgatories(mockTimer, aliveBrokerIds = Seq(0, 1))
+
+    val tp0 = new TopicPartition(topic, 0)
+    val offsetCheckpoints = new LazyOffsetCheckpoints(replicaManager.highWatermarkCheckpoints)
+    replicaManager.createPartition(tp0).createLogIfNotExists(0, isNew = false, isFutureReplica = false, offsetCheckpoints)
+    val partition0Replicas = Seq[Integer](0, 1).asJava
+
+    val becomeLeaderRequest = new LeaderAndIsrRequest.Builder(ApiKeys.LEADER_AND_ISR.latestVersion, 0, 0, brokerEpoch,
+      Seq(new LeaderAndIsrPartitionState()
+        .setTopicName(tp0.topic)
+        .setPartitionIndex(tp0.partition)
+        .setControllerEpoch(0)
+        .setLeader(0)
+        .setLeaderEpoch(1)
+        .setIsr(partition0Replicas)
+        .setZkVersion(0)
+        .setReplicas(partition0Replicas)
+        .setIsNew(true)).asJava,
+      Set(new Node(0, "host1", 0), new Node(1, "host2", 1)).asJava).build()
+    replicaManager.becomeLeaderOrFollower(1, becomeLeaderRequest, (_, _) => ())
+
+    val produceResult = sendProducerAppend(replicaManager, tp0)
+    assertNull(produceResult.get)
+
+    Mockito.when(replicaManager.metadataCache.contains(tp0)).thenReturn(true)
+
+    replicaManager.stopReplica(tp0, deletePartition = true)
+    assertNotNull(produceResult.get)
+    assertEquals(Errors.NOT_LEADER_FOR_PARTITION, produceResult.get.error)
+  }
+
+  private def sendProducerAppend(replicaManager: ReplicaManager,
+                                 topicPartition: TopicPartition): AtomicReference[PartitionResponse] = {
+    val produceResult = new AtomicReference[PartitionResponse]()
+    def callback(response: Map[TopicPartition, PartitionResponse]): Unit = {
+      produceResult.set(response(topicPartition))
+    }
+
+    val records = MemoryRecords.withRecords(CompressionType.NONE,
+      new SimpleRecord("a".getBytes()),
+      new SimpleRecord("b".getBytes()),
+      new SimpleRecord("c".getBytes())
+    )
+
+    replicaManager.appendRecords(
+      timeout = 10,
+      requiredAcks = -1,
+      internalTopicsAllowed = false,
+      origin = AppendOrigin.Client,
+      entriesPerPartition = Map(topicPartition -> records),
+      responseCallback = callback
+    )
+    produceResult
   }
 
   private def sendConsumerFetch(replicaManager: ReplicaManager,
@@ -1294,7 +1398,7 @@ class ReplicaManagerTest {
   private def appendRecords(replicaManager: ReplicaManager,
                             partition: TopicPartition,
                             records: MemoryRecords,
-                            isFromClient: Boolean = true,
+                            origin: AppendOrigin = AppendOrigin.Client,
                             requiredAcks: Short = -1): CallbackResult[PartitionResponse] = {
     val result = new CallbackResult[PartitionResponse]()
     def appendCallback(responses: Map[TopicPartition, PartitionResponse]): Unit = {
@@ -1307,7 +1411,7 @@ class ReplicaManagerTest {
       timeout = 1000,
       requiredAcks = requiredAcks,
       internalTopicsAllowed = false,
-      isFromClient = isFromClient,
+      origin = origin,
       entriesPerPartition = Map(partition -> records),
       responseCallback = appendCallback)
 
@@ -1370,14 +1474,14 @@ class ReplicaManagerTest {
     val logProps = new Properties()
     val mockLogMgr = TestUtils.createLogManager(config.logDirs.map(new File(_)), LogConfig(logProps))
     val aliveBrokers = aliveBrokerIds.map(brokerId => createBroker(brokerId, s"host$brokerId", brokerId))
-    val metadataCache: MetadataCache = EasyMock.createMock(classOf[MetadataCache])
-    EasyMock.expect(metadataCache.getAliveBrokers).andReturn(aliveBrokers).anyTimes()
+
+    val metadataCache: MetadataCache = Mockito.mock(classOf[MetadataCache])
+    Mockito.when(metadataCache.getAliveBrokers).thenReturn(aliveBrokers)
+
     aliveBrokerIds.foreach { brokerId =>
-      EasyMock.expect(metadataCache.getAliveBroker(EasyMock.eq(brokerId)))
-        .andReturn(Option(createBroker(brokerId, s"host$brokerId", brokerId)))
-        .anyTimes()
+      Mockito.when(metadataCache.getAliveBroker(brokerId))
+        .thenReturn(Option(createBroker(brokerId, s"host$brokerId", brokerId)))
     }
-    EasyMock.replay(metadataCache)
 
     val mockProducePurgatory = new DelayedOperationPurgatory[DelayedProduce](
       purgatoryName = "Produce", timer, reaperEnabled = false)

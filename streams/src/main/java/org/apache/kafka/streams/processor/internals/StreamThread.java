@@ -43,6 +43,7 @@ import org.apache.kafka.streams.processor.TaskMetadata;
 import org.apache.kafka.streams.processor.ThreadMetadata;
 import org.apache.kafka.streams.processor.internals.assignment.AssignorError;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
+import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl.Version;
 import org.apache.kafka.streams.processor.internals.metrics.ThreadMetrics;
 import org.apache.kafka.streams.state.internals.ThreadCache;
 import org.slf4j.Logger;
@@ -58,6 +59,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -146,7 +148,7 @@ public class StreamThread extends Thread {
             this.validTransitions.addAll(Arrays.asList(validTransitions));
         }
 
-        public boolean isRunning() {
+        public boolean isAlive() {
             return equals(RUNNING) || equals(STARTING) || equals(PARTITIONS_REVOKED) || equals(PARTITIONS_ASSIGNED);
         }
 
@@ -234,14 +236,9 @@ public class StreamThread extends Thread {
         return oldState;
     }
 
-    public boolean isRunningAndNotRebalancing() {
-        // we do not need to grab stateLock since it is a single read
-        return state == State.RUNNING;
-    }
-
     public boolean isRunning() {
         synchronized (stateLock) {
-            return state.isRunning();
+            return state.isAlive();
         }
     }
 
@@ -602,8 +599,10 @@ public class StreamThread extends Thread {
         // tasks would never be added to the metrics.
         ThreadMetrics.createTaskSensor(threadId, streamsMetrics);
         ThreadMetrics.closeTaskSensor(threadId, streamsMetrics);
-        ThreadMetrics.skipRecordSensor(threadId, streamsMetrics);
-        ThreadMetrics.commitOverTasksSensor(threadId, streamsMetrics);
+        if (streamsMetrics.version() == Version.FROM_0100_TO_24) {
+            ThreadMetrics.skipRecordSensor(threadId, streamsMetrics);
+            ThreadMetrics.commitOverTasksSensor(threadId, streamsMetrics);
+        }
 
         this.time = time;
         this.builder = builder;
@@ -1188,8 +1187,27 @@ public class StreamThread extends Thread {
             standbyTasksMetadata);
     }
 
-    public Map<TaskId, StreamTask> tasks() {
+    public Map<TaskId, StreamTask> activeTasks() {
         return taskManager.activeTasks();
+    }
+
+    public List<StreamTask> allStreamsTasks() {
+        return taskManager.allStreamsTasks();
+    }
+
+    public List<StandbyTask> allStandbyTasks() {
+        return taskManager.allStandbyTasks();
+    }
+
+    public Set<TaskId> restoringTaskIds() {
+        return taskManager.restoringTaskIds();
+    }
+
+    public Map<TaskId, Task> allTasks() {
+        final Map<TaskId, Task> result = new TreeMap<>();
+        result.putAll(taskManager.standbyTasks());
+        result.putAll(taskManager.activeTasks());
+        return result;
     }
 
     /**
