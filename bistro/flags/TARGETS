@@ -1,0 +1,10 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "flags_lib",
+    srcs = ["Flags.cpp"],
+    headers = ["Flags.h"],
+    external_deps = ["gflags"],
+)

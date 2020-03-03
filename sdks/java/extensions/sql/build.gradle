@@ -1,0 +1,177 @@
+import groovy.json.JsonOutput
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+  id 'org.apache.beam.module'
+  id 'ca.coglinc.javacc'
+}
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
+  // javacc generated code produces lint warnings
+  disableLintWarnings: ['dep-ann'])
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
+ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
+
+configurations {
+  // Create an fmppTask configuration representing the dependencies
+  // required to define and execute the Ant FMPP task.
+  // TODO: Migrate to a FMPP plugin once one exists
+  fmppTask
+  fmppTemplates
+}
+
+dependencies {
+  javacc "net.java.dev.javacc:javacc:4.0"
+  fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
+  fmppTask "org.freemarker:freemarker:2.3.28"
+  fmppTemplates library.java.vendored_calcite_1_20_0
+  compile project(":sdks:java:core")
+  compile project(":sdks:java:extensions:join-library")
+  compile project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.commons_codec
+  compile library.java.commons_csv
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile library.java.vendored_calcite_1_20_0
+  compile "com.alibaba:fastjson:1.2.49"
+  compile "org.codehaus.janino:janino:3.0.11"
+  compile "org.codehaus.janino:commons-compiler:3.0.11"
+  provided project(":sdks:java:io:kafka")
+  provided project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:mongodb")
+  provided project(":sdks:java:io:parquet")
+  provided library.java.kafka_clients
+  testCompile library.java.vendored_calcite_1_20_0
+  testCompile library.java.vendored_guava_26_0_jre
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile library.java.quickcheck_core
+  testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
+  testRuntimeClasspath library.java.slf4j_jdk14
+}
+
+// Copy Calcite templates and our own template into the build directory
+// so we have one location for the FMPP task to parse.
+task copyFmppTemplatesFromSrc(type: Copy) {
+  from "src/main/codegen"
+  into "${project.buildDir}/templates-fmpp/codegen"
+}
+task copyFmppTemplatesFromCalciteCore(type: Copy) {
+  dependsOn configurations.fmppTemplates
+  File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
+    it.name.startsWith("beam-vendor-calcite")
+  }.singleFile
+  from zipTree(calciteCoreJar)
+  include "**/Parser.jj"
+  into "${project.buildDir}/templates-fmpp"
+  filter{
+    line ->
+      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+  }
+  filter{
+    line ->
+      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+  }
+}
+
+// Generate the FMPP sources from the FMPP templates.
+def generateFmppOutputDir = "${project.buildDir}/generated/fmpp"
+task generateFmppSources {
+  dependsOn configurations.fmppTask
+  dependsOn copyFmppTemplatesFromSrc
+  dependsOn copyFmppTemplatesFromCalciteCore
+  doLast {
+    ant.taskdef(name: "fmpp", classname: "fmpp.tools.AntTask", classpath: configurations.fmppTask.asPath)
+    ant.fmpp(configuration: "src/main/codegen/config.fmpp", sourceRoot: "${project.buildDir}/templates-fmpp/codegen/templates", outputRoot: generateFmppOutputDir)
+  }
+}
+
+// Match the output directory for generated code with the package, to be more tool-friendly
+def generateFmppJavaccRoot = "${generateFmppOutputDir}/javacc"
+def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
+def generatedJavaccPackageDir = "${generatedJavaccSourceDir}/org/apache/beam/sdk/extensions/sql/impl/parser/impl"
+compileJavacc {
+  dependsOn generateFmppSources
+  inputDirectory = file(generateFmppJavaccRoot)
+  outputDirectory = file(generatedJavaccPackageDir)
+  arguments = [static: "false", lookahead: "2"]
+}
+
+// Help IntelliJ find the fmpp bits
+idea {
+  module {
+    sourceDirs += file(generateFmppOutputDir)
+    generatedSourceDirs += file(generateFmppOutputDir)
+
+    sourceDirs += file(generatedJavaccSourceDir)
+    generatedSourceDirs += file(generatedJavaccSourceDir)
+  }
+}
+
+// Run basic SQL example
+task runBasicExample(type: JavaExec) {
+  description = "Run basic SQL example"
+  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
+}
+
+// Run SQL example on POJO inputs
+task runPojoExample(type: JavaExec) {
+  description = "Run SQL example for PCollections of POJOs"
+  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
+}
+
+task integrationTest(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+  exclude '**/KafkaCSVTableIT.java'
+  maxParallelForks 4
+  classpath = project(":sdks:java:extensions:sql")
+          .sourceSets
+          .test
+          .runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn integrationTest
+}

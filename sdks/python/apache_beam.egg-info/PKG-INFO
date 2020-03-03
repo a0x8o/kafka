@@ -1,0 +1,20 @@
+Metadata-Version: 1.1
+Name: apache-beam
+Version: 0.7.0.dev0
+Summary: Apache Beam SDK for Python
+Home-page: https://beam.apache.org
+Author: Apache Software Foundation
+Author-email: dev@beam.apache.org
+License: Apache License, Version 2.0
+Download-URL: TBD
+Description: 
+        TBD
+        
+Keywords: apache beam
+Platform: UNKNOWN
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Software Development :: Libraries :: Python Modules

@@ -1,0 +1,16 @@
+[FLINK-8165] ParameterTool serialization fix
+[FLINK-7989][yarn] Do not upload the flink-dist jar twice
+[FLINK-7694][flip6] Migrate JobMetricsHandler to new RestServerEndpoint
+[hotfix][flip6] Add unit tests JobVertexMetricsHeadersTest
+[hotfix][Javadoc] Remove wrong Javadoc from SubtaskMetricsHandler
+[FLINK-8143][flip6] Migrate SubtaskMetricsHandler to new RestServerEndpoint
+[hotfix][Javadoc] Fix typo in ConversionException
+[FLIP-7716][flip6] Migrate JobManagerMetricsHandler to new RestServerEndpoint
+[FLINK-7717][flip6] Migrate TaskManagerMetricsHandler to new RestServerEndpoint
+[FLINK-8150] [flip6] Add TaskManagerIdPathParameterTest
+[FLINK-8150] [flip6] Expose TaskExecutor's ResourceID as TaskExecutor id
+[FLINK-7679][build] Upgrade maven enforcer plugin to 3.0.0-M1
+[FLINK-8166] Create hadoop-free binary in release scripts
+[FLINK-7300] Ignore more exceptions in end-to-end tests
+[hotfix] Fail unacknowledged checkpoints before trying to restart the failed tasks
+

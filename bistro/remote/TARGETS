@@ -1,0 +1,31 @@
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "remote_lib",
+    srcs = [
+        "BusiestRemoteWorkerSelector.cpp",
+        "RemoteWorker.cpp",
+        "RemoteWorkerSelector.cpp",
+        "RemoteWorkerState.cpp",
+        "RemoteWorkers.cpp",
+        "RoundRobinRemoteWorkerSelector.cpp",
+    ],
+    headers = [
+        "BusiestRemoteWorkerSelector.h",
+        "RemoteWorker.h",
+        "RemoteWorkerSelector.h",
+        "RemoteWorkerState.h",
+        "RemoteWorkerUpdate.h",
+        "RemoteWorkers.h",
+        "RoundRobinRemoteWorkerSelector.h",
+        "WorkerSetID.h",
+    ],
+    deps = [
+        "//bistro/bistro/flags:flags_lib",
+        "//bistro/bistro/if:if-cpp2",
+        "//bistro/bistro/statuses:statuses_lib",
+        "//folly:glog",
+        "//folly:json",
+        "//folly:optional",
+    ],
+)

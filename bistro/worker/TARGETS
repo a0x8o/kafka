@@ -1,0 +1,40 @@
+load("@fbcode_macros//build_defs:cpp_binary.bzl", "cpp_binary")
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "bistro_worker_lib",
+    srcs = ["BistroWorkerHandler.cpp"],
+    headers = ["BistroWorkerHandler.h"],
+    deps = [
+        "//bistro/bistro/if:if-cpp2",
+        "//bistro/bistro/if:worker_if-cpp2",
+        "//bistro/bistro/processes:processes",
+        # for enforceWorkerSchedulerProtocolVersion()
+        "//bistro/bistro/remote:remote_lib",
+        "//bistro/bistro/statuses:statuses_lib",
+        "//bistro/bistro/utils:utils_lib",
+        "//common/fb303/cpp:fb303",
+        "//folly/experimental:auto_timer",
+        "//folly/experimental:threaded_repeating_function_runner",
+        "//folly:file",
+        "//folly:json",
+        "//folly:mpmc_queue",
+        "//folly:random",
+        "//folly:synchronized",
+        "//thrift/lib/cpp2:server",
+    ],
+    external_deps = [
+        ("boost", None, "boost_filesystem"),
+    ],
+)
+
+cpp_binary(
+    name = "bistro_worker",
+    srcs = ["main.cpp"],
+    deps = [
+        ":bistro_worker_lib",
+        "//folly:memory",
+        "//folly/init:init",
+    ],
+    external_deps = ["glog"],
+)

@@ -1,0 +1,62 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_unittest.bzl", "cpp_unittest")
+
+cpp_unittest(
+    name = "test_all_tasks",
+    srcs = ["test_all_tasks.cpp"],
+    headers = ["utils.h"],
+    deps = [
+        "//bistro/bistro/physical:physical_lib",
+        "//folly:conv",
+        "//folly:file_util",
+        "//folly:optional",
+        "//folly/experimental:test_util",
+    ],
+    external_deps = [("boost", None, "boost_filesystem")],
+)
+
+cpp_unittest(
+    name = "test_utils",
+    srcs = ["test_utils.cpp"],
+    headers = ["utils.h"],
+    deps = [
+        "//bistro/bistro/physical:physical_lib",
+        "//folly:conv",
+        "//folly:file_util",
+        "//folly:optional",
+        "//folly/experimental:test_util",
+    ],
+    external_deps = [
+        "glog",
+        ("boost", None, "boost_filesystem"),
+    ],
+)
+
+cpp_unittest(
+    name = "test_cgroup_resources",
+    srcs = ["test_cgroup_resources.cpp"],
+    headers = ["utils.h"],
+    deps = [
+        "//bistro/bistro/physical:physical_lib",
+        "//folly:conv",
+        "//folly:file_util",
+        "//folly:optional",
+        "//folly/experimental:test_util",
+    ],
+    external_deps = [("boost", None, "boost_filesystem")],
+)
+
+cpp_unittest(
+    name = "test_usable_fetcher",
+    srcs = ["test_usable_fetcher.cpp"],
+    headers = ["utils.h"],
+    deps = [
+        "//bistro/bistro/physical:physical_lib",
+        "//folly:conv",
+        "//folly:file_util",
+        "//folly:optional",
+        "//folly/experimental:test_util",
+    ],
+    external_deps = [("boost", None, "boost_filesystem")],
+)

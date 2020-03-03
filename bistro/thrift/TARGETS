@@ -1,0 +1,29 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+load("@fbcode_macros//build_defs:cpp_unittest.bzl", "cpp_unittest")
+
+cpp_library(
+    name = "conversion_lib",
+    srcs = ["ThriftConversion.cpp"],
+    headers = ["ThriftConversion.h"],
+    deps = [
+        "//bistro/bistro/config:config_lib",
+        "//bistro/bistro/if:if-cpp2-types",
+        "//folly:dynamic",
+        "//folly:json",
+        "//folly/experimental:dynamic_parser",
+    ],
+)
+
+cpp_unittest(
+    name = "test_thrift_conversion",
+    srcs = ["test_thrift_conversion.cpp"],
+    deps = [
+        ":conversion_lib",
+        "//bistro/bistro/config:config_lib",
+        "//bistro/bistro/if:if-cpp2-types",
+        "//folly:json",
+        "//thrift/lib/cpp2/protocol:protocol",
+    ],
+)

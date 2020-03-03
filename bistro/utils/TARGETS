@@ -1,0 +1,87 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "exception_lib",
+    srcs = ["Exception.cpp"],
+    headers = ["Exception.h"],
+    deps = ["//folly:conv"],
+    external_deps = [
+        "glog",
+    ],
+)
+
+cpp_library(
+    name = "hostname_lib",
+    srcs = ["hostname.cpp"],
+    headers = ["hostname.h"],
+    external_deps = [
+        "glog",  # Future: Move startsWithAny elsewhere.
+        ("boost", None, "boost_algorithm"),
+    ],
+)
+
+cpp_library(
+    name = "shell_lib",
+    srcs = ["shell.cpp"],
+    headers = ["shell.h"],
+    deps = ["//folly:string"],
+    external_deps = [
+        ("boost", None, "boost_algorithm"),
+    ],
+)
+
+cpp_library(
+    name = "utils_lib",
+    srcs = [
+        "Exception.cpp",
+        "LogWriter.cpp",
+        "SettingsMap.cpp",
+        "TemporaryFile.cpp",
+        "server_socket.cpp",
+        "service_clients.cpp",
+        "signal.cpp",
+    ],
+    headers = [
+        # Classes
+        "EnumHash.h",
+        "LogLines.h",
+        "LogWriter.h",
+        "PeriodicPoller.h",
+        "service_clients.h",
+        "server_socket.h",
+        "SettingsMap.h",
+        "ShuffledRange.h",
+        "SymbolTable.h",
+        "TemporaryFile.h",
+        # Collections of utility functions
+        "signal.h",
+        "Exception.h",
+    ],
+    deps = [
+        "//bistro/bistro/if:common-cpp2-types",
+        "//bistro/bistro/sqlite:sqlite_lib",
+        "//folly:conv",
+        "//folly:dynamic",
+        "//folly:optional",
+        "//folly:random",
+        "//folly:range",
+        "//folly:scope_guard",
+        "//folly:string",
+        "//folly:synchronized",
+        "//folly/experimental:auto_timer",
+        "//folly/experimental:threaded_repeating_function_runner",
+        "//folly/io/async:server_socket",
+        "//thrift/lib/cpp/async:socket",
+        "//thrift/lib/cpp2:header_client_channel",
+        "//thrift/lib/cpp2/protocol:protocol",
+    ],
+    external_deps = [
+        ("boost", None, "boost_regex"),
+        ("boost", None, "boost_filesystem"),
+        "boost",
+        "gflags",
+        "glog",
+    ],
+)

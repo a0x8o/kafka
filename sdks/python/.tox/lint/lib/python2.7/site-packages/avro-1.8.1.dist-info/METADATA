@@ -1,0 +1,16 @@
+Metadata-Version: 2.0
+Name: avro
+Version: 1.8.1
+Summary: Avro is a serialization and RPC framework.
+Home-page: http://avro.apache.org/
+Author: Apache Avro
+Author-email: dev@avro.apache.org
+License: Apache License 2.0
+Keywords: avro serialization rpc
+Platform: UNKNOWN
+Provides-Extra: snappy
+Requires-Dist: python-snappy; extra == 'snappy'
+
+UNKNOWN
+
+

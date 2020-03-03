@@ -1,0 +1,14 @@
+package exec;
+
+option java_package = "org.apache.drill.exec.proto";
+option java_outer_classname = "SchemaDefProtos";
+option optimize_for = SPEED;
+
+import "Types.proto";
+
+
+enum ValueMode {
+	VALUE_VECTOR = 0;
+	RLE = 1;
+	DICT = 2;
+}

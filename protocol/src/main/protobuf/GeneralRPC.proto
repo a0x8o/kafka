@@ -1,0 +1,31 @@
+package exec.rpc;
+
+option java_package = "org.apache.drill.exec.proto";
+option java_outer_classname = "GeneralRPCProtos";
+option optimize_for = SPEED;
+
+import "Coordination.proto";
+
+message Ack{
+	optional bool ok = 1;
+}
+
+enum RpcMode {
+  REQUEST = 0;
+  RESPONSE = 1;
+  RESPONSE_FAILURE = 2;
+  PING = 3;
+  PONG = 4;
+}
+
+message RpcHeader{
+	optional RpcMode mode = 1;
+	optional int32 coordination_id = 2; // reusable coordination identifier.  Sender defines.  Server returns on return.  Irrelevant for purely single direction rpc.
+	optional int32 rpc_type = 3; // a rpc mode specific rpc type.
+}
+
+message CompleteRpcMessage {
+    optional RpcHeader header = 1; // required
+    optional bytes protobuf_body = 2; // required
+    optional bytes raw_body = 3; // optional
+}

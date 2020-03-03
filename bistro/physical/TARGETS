@@ -1,0 +1,42 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "physical_lib",
+    srcs = [
+        "AllTasksPhysicalResourceMonitor.cpp",
+        "CGroupResources.cpp",
+        "TaskPhysicalResourceFetcher.cpp",
+        "UsablePhysicalResourceFetcher.cpp",
+        "UsablePhysicalResourceMonitor.cpp",
+        "utils.cpp",
+    ],
+    headers = [
+        "AllTasksPhysicalResourceMonitor.h",
+        "CGroupPaths.h",
+        "CGroupResources.h",
+        "TaskPhysicalResourceFetcher.h",
+        "UsablePhysicalResourceFetcher.h",
+        "UsablePhysicalResourceMonitor.h",
+        "utils.h",
+    ],
+    deps = [
+        "//bistro/bistro/if:common-cpp2-types",
+        "//bistro/bistro/processes:subprocess_with_timeout",
+        "//bistro/bistro/utils:exception_lib",
+        "//bistro/bistro/utils:utils_lib",
+        "//folly:conv",
+        "//folly:demangle",
+        "//folly:exception",
+        "//folly:file",
+        "//folly:file_util",
+        "//folly:optional",
+        "//folly:string",
+        "//folly:synchronized",
+        "//folly/gen:file",
+    ],
+    external_deps = [
+        ("boost", None, "boost_filesystem"),
+    ],
+)

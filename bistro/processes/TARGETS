@@ -1,0 +1,70 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "processes",
+    srcs = [
+        "AsyncCGroupReaper.cpp",
+        "AsyncReadPipeRateLimiter.cpp",
+        "CGroupSetup.cpp",
+        "TaskSubprocessQueue.cpp",
+    ],
+    headers = [
+        "AsyncCGroupReaper.h",
+        "AsyncReadPipe.h",
+        "AsyncReadPipeRateLimiter.h",
+        "AsyncSubprocess.h",
+        "CGroupSetup.h",
+        "SubprocessOutputWithTimeout.h",
+        "TaskSubprocessQueue.h",
+    ],
+    deps = [
+        "//bistro/bistro/if:common-cpp2-types",
+        "//bistro/bistro/physical:physical_lib",
+        "//bistro/bistro/statuses:statuses_lib",
+        "//bistro/bistro/utils:exception_lib",
+        "//bistro/bistro/utils:hostname_lib",
+        "//bistro/bistro/utils:shell_lib",
+        "//bistro/bistro/utils:utils_lib",
+        "//folly:conv",
+        "//folly:exception",
+        "//folly:file",
+        "//folly:file_util",
+        "//folly:glog",
+        "//folly:json",
+        "//folly:mpmc_queue",
+        "//folly:string",
+        "//folly:subprocess",
+        "//folly:synchronized",
+        "//folly/executors:io_thread_pool_executor",
+        "//folly/futures:core",
+        "//folly/gen:file",
+        "//folly/gen:string",
+        "//folly/io/async:async_base",
+        "//thrift/lib/cpp2/protocol:protocol",
+    ],
+    external_deps = [
+        ("boost", None, "boost_filesystem"),
+    ],
+)
+
+cpp_library(
+    name = "subprocess_with_timeout",
+    srcs = ["SubprocessOutputWithTimeout.cpp"],
+    headers = [
+        "AsyncReadPipe.h",
+        "AsyncSubprocess.h",
+        "SubprocessOutputWithTimeout.h",
+    ],
+    deps = [
+        "//folly:exception",
+        "//folly:file",
+        "//folly:file_util",
+        "//folly:subprocess",
+        "//folly/futures:core",
+        "//folly/gen:string",
+        "//folly/io/async:async_base",
+        "//folly/io/async:event_base_manager",
+    ],
+)

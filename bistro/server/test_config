@@ -1,0 +1,24 @@
+{
+
+"bistro_settings" : {
+  "resources": {},
+  "nodes" : {
+    "levels": [ "level1", "level2"],
+    "node_sources": [{
+      "source": "manual",
+      "prefs": {
+        "node1": ["node11", "node12"],
+        "node2": ["node21", "node22"]
+      }
+    }]
+  },
+  "enabled" : true 
+},
+
+"bistro_job->foo" : {
+  "owner" : "bistro",
+  "enabled" : true,
+  "config" : {}
+}
+
+}

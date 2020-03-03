@@ -1,0 +1,19 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "monitor_lib",
+    srcs = ["Monitor.cpp"],
+    headers = ["Monitor.h"],
+    deps = [
+        "//bistro/bistro/config:config_lib",
+        "//bistro/bistro/flags:flags_lib",
+        "//bistro/bistro/nodes:nodes_lib",
+        "//bistro/bistro/statuses:statuses_lib",
+        "//folly:conv",
+        "//folly:synchronized",
+        "//folly/experimental:auto_timer",
+        "//folly/experimental:threaded_repeating_function_runner",
+    ],
+)

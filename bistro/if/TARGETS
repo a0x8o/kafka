@@ -1,0 +1,54 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:thrift_library.bzl", "thrift_library")
+
+thrift_library(
+    name = "if",
+    languages = [
+        "cpp2",
+        "py",
+    ],
+    py_base_module = "facebook.bistro",
+    thrift_cpp2_options = "stack_arguments",
+    thrift_srcs = {"scheduler.thrift": ["BistroScheduler"]},
+    deps = [
+        "//bistro/bistro/if:bits",
+        "//bistro/bistro/if:common",
+        "//common/fb303/if:fb303",
+    ],
+)
+
+thrift_library(
+    name = "worker_if",
+    languages = [
+        "cpp2",
+        "py",
+    ],
+    py_base_module = "facebook.bistro",
+    thrift_cpp2_options = "stack_arguments",
+    thrift_srcs = {"worker.thrift": ["BistroWorker"]},
+    deps = [
+        "//bistro/bistro/if:common",
+        "//common/fb303/if:fb303",
+    ],
+)
+
+thrift_library(
+    name = "common",
+    languages = [
+        "cpp2",
+        "py",
+    ],
+    py_base_module = "facebook.bistro",
+    thrift_srcs = {"common.thrift": []},
+)
+
+thrift_library(
+    name = "bits",
+    languages = [
+        "cpp2",
+        "py",
+    ],
+    py_base_module = "facebook.bistro",
+    thrift_srcs = {"bits.thrift": []},
+)

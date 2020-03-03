@@ -1,229 +1,192 @@
-Apache Kafka
-=================
-See our [web site](https://kafka.apache.org) for details on the project.
-
-You need to have [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) installed.
-
-Java 8 should be used for building in order to support both Java 8 and Java 11 at runtime.
-
-Scala 2.12 is used by default, see below for how to use a different Scala version or all of the supported Scala versions.
-
-### Build a jar and run it ###
-    ./gradlew jar
-
-Follow instructions in https://kafka.apache.org/documentation.html#quickstart
-
-### Build source jar ###
-    ./gradlew srcJar
-
-### Build aggregated javadoc ###
-    ./gradlew aggregatedJavadoc
-
-### Build javadoc and scaladoc ###
-    ./gradlew javadoc
-    ./gradlew javadocJar # builds a javadoc jar for each module
-    ./gradlew scaladoc
-    ./gradlew scaladocJar # builds a scaladoc jar for each module
-    ./gradlew docsJar # builds both (if applicable) javadoc and scaladoc jars for each module
-
-### Run unit/integration tests ###
-    ./gradlew test # runs both unit and integration tests
-    ./gradlew unitTest
-    ./gradlew integrationTest
-    
-### Force re-running tests without code change ###
-    ./gradlew cleanTest test
-    ./gradlew cleanTest unitTest
-    ./gradlew cleanTest integrationTest
-
-### Running a particular unit/integration test ###
-    ./gradlew clients:test --tests RequestResponseTest
-
-### Running a particular test method within a unit/integration test ###
-    ./gradlew core:test --tests kafka.api.ProducerFailureHandlingTest.testCannotSendToInternalTopic
-    ./gradlew clients:test --tests org.apache.kafka.clients.MetadataTest.testMetadataUpdateWaitTime
-
-### Running a particular unit/integration test with log4j output ###
-Change the log4j setting in either `clients/src/test/resources/log4j.properties` or `core/src/test/resources/log4j.properties`
-
-    ./gradlew clients:test --tests RequestResponseTest
-
-### Specifying test retries ###
-By default, each failed test is retried once up to a maximum of five retries per test run. Tests are retried at the end of the test task. Adjust these parameters in the following way:
-
-    ./gradlew test -PmaxTestRetries=1 -PmaxTestRetryFailures=5
-    
-See [Test Retry Gradle Plugin](https://github.com/gradle/test-retry-gradle-plugin) for more details.
-
-### Generating test coverage reports ###
-Generate coverage reports for the whole project:
-
-    ./gradlew reportCoverage
-
-Generate coverage for a single module, i.e.: 
-
-    ./gradlew clients:reportCoverage
-    
-### Building a binary release gzipped tar ball ###
-    ./gradlew clean releaseTarGz
-
-The above command will fail if you haven't set up the signing key. To bypass signing the artifact, you can run:
-
-    ./gradlew clean releaseTarGz -x signArchives
-
-The release file can be found inside `./core/build/distributions/`.
-
-### Cleaning the build ###
-    ./gradlew clean
-
-### Running a task with one of the Scala versions available (2.12.x or 2.13.x) ###
-*Note that if building the jars with a version other than 2.12.x, you need to set the `SCALA_VERSION` variable or change it in `bin/kafka-run-class.sh` to run the quick start.*
-
-You can pass either the major version (eg 2.12) or the full version (eg 2.12.7):
-
-    ./gradlew -PscalaVersion=2.12 jar
-    ./gradlew -PscalaVersion=2.12 test
-    ./gradlew -PscalaVersion=2.12 releaseTarGz
-
-### Running a task with all the scala versions enabled by default ###
-
-Append `All` to the task name:
-
-    ./gradlew testAll
-    ./gradlew jarAll
-    ./gradlew releaseTarGzAll
-
-### Running a task for a specific project ###
-This is for `core`, `examples` and `clients`
-
-    ./gradlew core:jar
-    ./gradlew core:test
-
-### Listing all gradle tasks ###
-    ./gradlew tasks
-
-### Building IDE project ####
-*Note that this is not strictly necessary (IntelliJ IDEA has good built-in support for Gradle projects, for example).*
-
-    ./gradlew eclipse
-    ./gradlew idea
-
-The `eclipse` task has been configured to use `${project_dir}/build_eclipse` as Eclipse's build directory. Eclipse's default
-build directory (`${project_dir}/bin`) clashes with Kafka's scripts directory and we don't use Gradle's build directory
-to avoid known issues with this configuration.
-
-### Publishing the jar for all version of Scala and for all projects to maven ###
-    ./gradlew uploadArchivesAll
-
-Please note for this to work you should create/update `${GRADLE_USER_HOME}/gradle.properties` (typically, `~/.gradle/gradle.properties`) and assign the following variables
-
-    mavenUrl=
-    mavenUsername=
-    mavenPassword=
-    signing.keyId=
-    signing.password=
-    signing.secretKeyRingFile=
-
-### Publishing the streams quickstart archetype artifact to maven ###
-For the Streams archetype project, one cannot use gradle to upload to maven; instead the `mvn deploy` command needs to be called at the quickstart folder:
-
-    cd streams/quickstart
-    mvn deploy
-
-Please note for this to work you should create/update user maven settings (typically, `${USER_HOME}/.m2/settings.xml`) to assign the following variables
-
-    <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-       xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                           https://maven.apache.org/xsd/settings-1.0.0.xsd">
-    ...                           
-    <servers>
-       ...
-       <server>
-          <id>apache.snapshots.https</id>
-          <username>${maven_username}</username>
-          <password>${maven_password}</password>
-       </server>
-       <server>
-          <id>apache.releases.https</id>
-          <username>${maven_username}</username>
-          <password>${maven_password}</password>
-        </server>
-        ...
-     </servers>
-     ...
-
-
-### Installing the jars to the local Maven repository ###
-    ./gradlew installAll
-
-### Building the test jar ###
-    ./gradlew testJar
-
-### Determining how transitive dependencies are added ###
-    ./gradlew core:dependencies --configuration runtime
-
-### Determining if any dependencies could be updated ###
-    ./gradlew dependencyUpdates
-
-### Running code quality checks ###
-There are two code quality analysis tools that we regularly run, spotbugs and checkstyle.
-
-#### Checkstyle ####
-Checkstyle enforces a consistent coding style in Kafka.
-You can run checkstyle using:
-
-    ./gradlew checkstyleMain checkstyleTest
-
-The checkstyle warnings will be found in `reports/checkstyle/reports/main.html` and `reports/checkstyle/reports/test.html` files in the
-subproject build directories. They are also printed to the console. The build will fail if Checkstyle fails.
-
-#### Spotbugs ####
-Spotbugs uses static analysis to look for bugs in the code.
-You can run spotbugs using:
-
-    ./gradlew spotbugsMain spotbugsTest -x test
-
-The spotbugs warnings will be found in `reports/spotbugs/main.html` and `reports/spotbugs/test.html` files in the subproject build
-directories.  Use -PxmlSpotBugsReport=true to generate an XML report instead of an HTML one.
-
-### Common build options ###
-
-The following options should be set with a `-P` switch, for example `./gradlew -PmaxParallelForks=1 test`.
-
-* `commitId`: sets the build commit ID as .git/HEAD might not be correct if there are local commits added for build purposes.
-* `mavenUrl`: sets the URL of the maven deployment repository (`file://path/to/repo` can be used to point to a local repository).
-* `maxParallelForks`: limits the maximum number of processes for each task.
-* `showStandardStreams`: shows standard out and standard error of the test JVM(s) on the console.
-* `skipSigning`: skips signing of artifacts.
-* `testLoggingEvents`: unit test events to be logged, separated by comma. For example `./gradlew -PtestLoggingEvents=started,passed,skipped,failed test`.
-* `xmlSpotBugsReport`: enable XML reports for spotBugs. This also disables HTML reports as only one can be enabled at a time.
-* `maxTestRetries`: the maximum number of retries for a failing test case.
-* `maxTestRetryFailures`: maximum number of test failures before retrying is disabled for subsequent tests.
-
-### Dependency Analysis ###
-
-The gradle [dependency debugging documentation](https://docs.gradle.org/current/userguide/viewing_debugging_dependencies.html) mentions using the `dependencies` or `dependencyInsight` tasks to debug dependencies for the root project or individual subprojects.
-
-Alternatively, use the `allDeps` or `allDepInsight` tasks for recursively iterating through all subprojects:
-
-    ./gradlew allDeps
-
-    ./gradlew allDepInsight --configuration runtime --dependency com.fasterxml.jackson.core:jackson-databind
-
-These take the same arguments as the builtin variants.
-
-### Running system tests ###
-
-See [tests/README.md](tests/README.md).
-
-### Running in Vagrant ###
-
-See [vagrant/README.md](vagrant/README.md).
-
-### Contribution ###
-
-Apache Kafka is interested in building the community; we would welcome any thoughts or [patches](https://issues.apache.org/jira/browse/KAFKA). You can reach us [on the Apache mailing lists](http://kafka.apache.org/contact.html).
-
-To contribute follow the instructions here:
- * https://kafka.apache.org/contributing.html
+# Bistro: A fast, flexible toolkit for scheduling and running distributed tasks
+
+<<<<<<< HEAD
+[![Build Status](https://travis-ci.org/facebook/bistro.svg?branch=master)](https://travis-ci.org/facebook/bistro)
+=======
+[![Build Status](https://github.com/apache/drill/workflows/Github%20CI/badge.svg)](https://github.com/apache/drill/actions)
+[![Artifact](https://img.shields.io/maven-central/v/org.apache.drill/distribution.svg)](https://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.apache.drill%22%20AND%20a%3A%22distribution%22)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
+>>>>>>> f553d9c60492c530e5ee4b885c55b7f283ecf09b
+
+This README is a very abbreviated introduction to Bistro. Visit
+http://facebook.github.io/bistro for a more structured introduction, and for the docs.
+
+Bistro is a toolkit for making distributed computation systems. It can
+schedule and run distributed tasks, including data-parallel jobs.  It
+enforces resource constraints for worker hosts and data-access bottlenecks.
+It supports remote worker pools, low-latency batch scheduling, dynamic
+shards, and a variety of other possibilities.  It has command-line and web
+UIs.
+
+Some of the diverse problems that Bistro solved at Facebook:
+ - Safely run map-only ETL tasks against live production databases (MySQL,
+   HBase, Postgres).
+ - Provide a resource-aware job queue for batch CPU/GPU compute jobs.
+ - Replace Hadoop for a periodic online data compression task on HBase,
+   improving time-to-completion and reliability by over 10x.
+
+You can run Bistro "out of the box" to suit a variety of different
+applications, but even so, it is a tool for engineers.  You should be able
+to get started just by reading the documentation, but when in doubt, look at
+the code --- it was written to be read.
+
+<<<<<<< HEAD
+Some applications of Bistro may involve writing small plugins to make it fit
+your needs.  The code is built to be extensible.  Ask for tips, and we'll do
+our best to [help](https://www.facebook.com/groups/bistro.scheduler).  In
+return, we hope that you will send a pull request to allow us to share your
+work with the community.
+=======
+ * Remote Execution Installation Instructions
+ * [Running Drill on Docker instructions](https://drill.apache.org/docs/running-drill-on-docker/)
+ * Information about how to submit logical and distributed physical plans
+ * More example queries and sample data
+ * Find out ways to be involved or discuss Drill
+>>>>>>> f553d9c60492c530e5ee4b885c55b7f283ecf09b
+
+## Early release
+
+<<<<<<< HEAD
+Although Bistro has been in production at Facebook for over 3 years, the
+present public release is partial, including just the server components.
+The CLI tools and web UI will be shipping shortly.
+=======
+## Join the community!
+Apache Drill is an Apache Foundation project and is seeking all types of users and contributions.
+Please say hello on the [Apache Drill mailing list](http://drill.apache.org/mailinglists/).You can also join our [Google Hangouts](http://drill.apache.org/community-resources/)
+or [join](https://bit.ly/2VM0XS8) our [Slack Channel](https://join.slack.com/t/apache-drill/shared_invite/enQtNTQ4MjM1MDA3MzQ2LTJlYmUxMTRkMmUwYmQ2NTllYmFmMjU4MDk0NjYwZjBmYjg0MDZmOTE2ZDg0ZjBlYmI3Yjc4Y2I2NTQyNGVlZTc) if you need help with using or developing Apache Drill.
+(More information can be found on [Apache Drill website](http://drill.apache.org/)).
+>>>>>>> f553d9c60492c530e5ee4b885c55b7f283ecf09b
+
+## Install the dependencies and build
+
+Bistro needs a 64-bit Linux, Folly, FBThrift, Proxygen, boost, and
+libsqlite3.  You need 2-3GB of RAM to build, as well as GCC 4.9 or above.
+
+`build/README.md` documents the usage of Docker-based scripts that build
+Bistro on Ubuntu 14.04, 16.04, and Debian 8.6.  You should be able to follow
+very similar steps on most modern Linux distributions.
+
+If you run into dependency problems, look at `bistro/cmake/setup.cmake` for
+a full list of Bistro's external dependencies (direct and indirect).  We
+gratefully accept patches that improve Bistro's builds, or add support for
+various flavors of Linux and Mac OS.
+
+The binaries will be in `bistro/cmake/{Debug,Release}`.  Available build
+targets are explained here:
+   http://cmake.org/Wiki/CMake_Useful_Variables#Compilers_and_Tools
+You can start Bistro's unit tests by running `ctest` in those directories.
+
+## Your first Bistro run
+
+This is just one simple demo, but Bistro is a very flexible tool. Refer to
+http://facebook.github.io/bistro/ for more in-depth information.
+
+We are going to start a single Bistro scheduler talking to one 'remote'
+worker.
+
+Aside: The scheduler tracks jobs, and data shards on which to execute them.
+It also makes sure only to start new tasks when the required resources are
+available.  The remote worker is a module for executing centrally scheduled
+work on many machines.  The UI can aggregate many schedulers at once, so
+using remote workers is optional --- a share-nothing, many-scheduler system
+is sometimes preferable.
+
+Let's make a task to execute:
+
+```
+cat <<EOF > ~/demo_bistro_task.sh
+#!/bin/bash
+echo "I got these arguments: \$@"
+echo "stderr is also logged" 1>&2
+echo "done" > "\$2"  # Report the task status to Bistro via a named pipe
+EOF
+chmod u+x ~/demo_bistro_task.sh
+```
+
+Open two terminals, one for the scheduler, and one for the worker.
+
+```
+# In both terminals
+cd bistro/bistro
+# Start the scheduler in one terminal
+./cmake/Debug/server/bistro_scheduler \
+  --server_port=6789 --http_server_port=6790 \
+  --config_file=scripts/test_configs/simple --clean_statuses \
+  --CAUTION_startup_wait_for_workers=1 --instance_node_name=scheduler
+# Start the worker in another
+mkdir /tmp/bistro_worker
+./cmake/Debug/worker/bistro_worker --server_port=27182 --scheduler_host=:: \
+  --scheduler_port=6789 --worker_command="$HOME/demo_bistro_task.sh" \
+  --data_dir=/tmp/bistro_worker
+```
+
+You should be seeing some lively log activity on both terminals. In several
+seconds, the worker-scheduler negotiation should complete, and you should
+see messages like "Task ...  quit with status" and "Got status".
+
+Since we passed `--clean_statuses`, the scheduler will not persist any task
+completions that happened during this run.  The worker, on the other hand,
+will keep a record of the task logs in `/tmp/bistro_worker/task_logs.sql3`.
+
+If you want task completions to persist across runs, tell Bistro where to
+put the SQLite database, via `--data_dir=/tmp/bistro_scheduler` and
+`--status_table=task_statuses`
+
+<<<<<<< HEAD
+```
+mkdir /tmp/bistro_scheduler
+./cmake/Debug/server/bistro_scheduler \
+  --server_port=6789 --http_server_port=6790 \
+  --config_file=scripts/test_configs/simple \
+  --data_dir=/tmp/bistro_scheduler --status_table=task_statuses \
+  --CAUTION_startup_wait_for_workers=1 --instance_node_name=scheduler
+```
+
+You can query the running scheduler via its REST API:
+
+```
+curl -d '{"a":{"handler":"jobs"},"b":{"handler":"running_tasks"}}' :::6790
+curl -d '{"my subquery":{"handler":"task_logs","log_type":"stdout"}}' :::6790
+```
+
+**Pro-tip:** If you have `perl` installed, try piping the JSON output
+through `json_pp` --- it's much easier to read!
+
+You should also take a look at the scheduler configuration to see how its
+jobs, nodes, and resources were specified.
+=======
+To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or 
+[Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
+>>>>>>> 2fb7bb1c93a507f3e42707d704f9d0dd63d7ade7
+
+```
+less scripts/test_configs/simple
+```
+
+For debugging, we typically invoke the binaries like this:
+
+```
+gdb cmake/Debug/worker/bistro_worker -ex "r ..." 2>&1 | tee WORKER.txt
+```
+
+<<<<<<< HEAD
+When configuring a real deployment, be sure to carefully review the `--help`
+of the scheduler & worker binaries, as well as the documentation on
+http://facebook.github.io/bistro.  And don't hesitate to ask for help in the group:
+https://www.facebook.com/groups/bistro.scheduler
+=======
+Instructions for building and testing Beam itself
+are in the [contribution guide](https://beam.apache.org/contribute/).
+>>>>>>> 2fb7bb1c93a507f3e42707d704f9d0dd63d7ade7
+
+## License
+
+<<<<<<< HEAD
+See [LICENSE](LICENSE).
+=======
+* [Apache Beam](https://beam.apache.org)
+* [Overview](https://beam.apache.org/use/beam-overview/)
+* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)
+* [Community metrics](https://s.apache.org/beam-community-metrics)
+>>>>>>> 2fb7bb1c93a507f3e42707d704f9d0dd63d7ade7

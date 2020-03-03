@@ -1,0 +1,33 @@
+# @autodeps
+
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+load("@fbcode_macros//build_defs:cpp_unittest.bzl", "cpp_unittest")
+
+cpp_library(
+    name = "sqlite_lib",
+    srcs = [
+        "Database.cpp",
+        "Statement.cpp",
+    ],
+    headers = [
+        "Database.h",
+        "Statement.h",
+    ],
+    deps = [
+        "//folly:conv",
+        "//folly:range",
+    ],
+    external_deps = [
+        "boost",
+        "glog",
+        "sqlite",
+        ("boost", None, "boost_filesystem"),
+        ("boost", None, "boost_range"),
+    ],
+)
+
+cpp_unittest(
+    name = "test_sqlite",
+    srcs = ["test_sqlite.cpp"],
+    deps = [":sqlite_lib"],
+)

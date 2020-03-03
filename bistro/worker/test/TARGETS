@@ -1,0 +1,33 @@
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+load("@fbcode_macros//build_defs:cpp_unittest.bzl", "cpp_unittest")
+
+cpp_library(
+    name = "bistro_worker_test_lib",
+    srcs = [
+        "BistroWorkerTestThread.cpp",
+        "FakeBistroWorkerThread.cpp",
+    ],
+    headers = [
+        "BistroWorkerTestThread.h",
+        "FakeBistroWorkerThread.h",
+    ],
+    deps = [
+        "//bistro/bistro/test:test_lib",
+        "//bistro/bistro/worker:bistro_worker_lib",
+        "//thrift/lib/cpp2:server",
+        "//thrift/lib/cpp2/util:scoped_server_thread",
+        "//thrift/lib/cpp2/util:util",
+    ],
+)
+
+cpp_unittest(
+    name = "test_worker",
+    srcs = ["test_worker.cpp"],
+    deps = [
+        ":bistro_worker_test_lib",
+        "//bistro/bistro/server/test:thrift_monitor_test_thread_lib",
+        "//folly:dynamic",
+        "//folly:json",
+        "//folly/experimental:test_util",
+    ],
+)
