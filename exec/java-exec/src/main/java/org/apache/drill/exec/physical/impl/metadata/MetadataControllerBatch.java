@@ -163,7 +163,6 @@ public class MetadataControllerBatch extends AbstractBinaryRecordBatch<MetadataC
           finishedLeft = !firstLeft;
           break outer;
         case NOT_YET:
-        case STOP:
           return outcome;
         case OK_NEW_SCHEMA:
           if (firstLeft) {
@@ -209,7 +208,6 @@ public class MetadataControllerBatch extends AbstractBinaryRecordBatch<MetadataC
           finishedRight = true;
           break outer;
         case NOT_YET:
-        case STOP:
           return outcome;
         case OK_NEW_SCHEMA:
           firstRight = false;
@@ -588,9 +586,9 @@ public class MetadataControllerBatch extends AbstractBinaryRecordBatch<MetadataC
     Multimap<String, StatisticsHolder<?>> columnStatistics = ArrayListMultimap.create();
     Map<String, TypeProtos.MinorType> columnTypes = new HashMap<>();
     for (ColumnMetadata column : columnMetadata) {
-      String fieldName = AnalyzeColumnUtils.getColumnName(column.name());
 
       if (AnalyzeColumnUtils.isColumnStatisticsField(column.name())) {
+        String fieldName = AnalyzeColumnUtils.getColumnName(column.name());
         StatisticsKind<?> statisticsKind = AnalyzeColumnUtils.getStatisticsKind(column.name());
         columnStatistics.put(fieldName,
             new StatisticsHolder<>(getConvertedColumnValue(reader.column(column.name())), statisticsKind));
@@ -733,12 +731,6 @@ public class MetadataControllerBatch extends AbstractBinaryRecordBatch<MetadataC
     }
 
     return childLocations;
-  }
-
-  @Override
-  protected void killIncoming(boolean sendUpstream) {
-    left.kill(sendUpstream);
-    right.kill(sendUpstream);
   }
 
   @Override

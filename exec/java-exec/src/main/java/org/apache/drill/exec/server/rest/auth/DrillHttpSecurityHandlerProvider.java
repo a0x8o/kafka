@@ -27,11 +27,14 @@ import org.apache.drill.exec.exception.DrillbitStartupException;
 import org.apache.drill.exec.rpc.security.AuthStringUtil;
 import org.apache.drill.exec.server.DrillbitContext;
 import org.apache.drill.exec.server.rest.WebServerConstants;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.authentication.SessionAuthentication;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.security.Constraint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -46,12 +49,12 @@ import java.util.Set;
 
 
 public class DrillHttpSecurityHandlerProvider extends ConstraintSecurityHandler {
-
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillHttpSecurityHandlerProvider.class);
+  private static final Logger logger = LoggerFactory.getLogger(DrillHttpSecurityHandlerProvider.class);
 
   private final Map<String, DrillHttpConstraintSecurityHandler> securityHandlers =
       CaseInsensitiveMap.newHashMapWithExpectedSize(2);
 
+  @SuppressWarnings("unchecked")
   public DrillHttpSecurityHandlerProvider(DrillConfig config, DrillbitContext drillContext)
       throws DrillbitStartupException {
 
@@ -98,7 +101,8 @@ public class DrillHttpSecurityHandlerProvider extends ConstraintSecurityHandler 
     }
 
     if (securityHandlers.size() == 0) {
-      throw new DrillbitStartupException("Authentication is enabled for WebServer but none of the security mechanism " +
+      throw new DrillbitStartupException(
+          "Authentication is enabled for WebServer but none of the security mechanism " +
           "was configured properly. Please verify the configurations and try again.");
     }
 
@@ -139,10 +143,14 @@ public class DrillHttpSecurityHandlerProvider extends ConstraintSecurityHandler 
       if (isSpnegoEnabled() && (!isFormEnabled() || uri.equals(WebServerConstants.SPENGO_LOGIN_RESOURCE_PATH))) {
         securityHandler = securityHandlers.get(Constraint.__SPNEGO_AUTH);
         securityHandler.handle(target, baseRequest, request, response);
+      } else if(isBasicEnabled() && request.getHeader(HttpHeader.AUTHORIZATION.asString()) != null) {
+        securityHandler = securityHandlers.get(Constraint.__BASIC_AUTH);
+        securityHandler.handle(target, baseRequest, request, response);
       } else if (isFormEnabled()) {
         securityHandler = securityHandlers.get(Constraint.__FORM_AUTH);
         securityHandler.handle(target, baseRequest, request, response);
       }
+
     }
     // If user has logged in, use the corresponding handler to handle the request
     else {
@@ -160,6 +168,7 @@ public class DrillHttpSecurityHandlerProvider extends ConstraintSecurityHandler 
     }
   }
 
+  @Override
   public void doStop() throws Exception {
     super.doStop();
     for (DrillHttpConstraintSecurityHandler securityHandler : securityHandlers.values()) {
@@ -175,8 +184,12 @@ public class DrillHttpSecurityHandlerProvider extends ConstraintSecurityHandler 
     return securityHandlers.containsKey(Constraint.__FORM_AUTH);
   }
 
+  public boolean isBasicEnabled() {
+    return securityHandlers.containsKey(Constraint.__BASIC_AUTH);
+  }
+
   /**
-   * Return's list of configured mechanisms for HTTP authentication. For backward
+   * Returns a list of configured mechanisms for HTTP authentication. For backward
    * compatibility if authentication is enabled it will include FORM mechanism by default.
    * @param config - {@link DrillConfig}
    * @return

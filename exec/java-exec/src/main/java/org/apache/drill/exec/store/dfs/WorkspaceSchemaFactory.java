@@ -84,6 +84,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.drill.shaded.guava.com.google.common.base.Joiner;
@@ -93,7 +95,7 @@ import org.apache.drill.shaded.guava.com.google.common.collect.Lists;
 import org.apache.drill.shaded.guava.com.google.common.collect.Sets;
 
 public class WorkspaceSchemaFactory {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WorkspaceSchemaFactory.class);
+  private static final Logger logger = LoggerFactory.getLogger(WorkspaceSchemaFactory.class);
 
   private final List<FormatMatcher> fileMatchers;
   private final List<FormatMatcher> dropFileMatchers;
@@ -290,9 +292,9 @@ public class WorkspaceSchemaFactory {
   public class WorkspaceSchema extends AbstractSchema implements ExpandingConcurrentMap.MapValueFactory<TableInstance, DrillTable> {
     private final ExpandingConcurrentMap<TableInstance, DrillTable> tables = new ExpandingConcurrentMap<>(this);
     private final SchemaConfig schemaConfig;
-    private DrillFileSystem fs;
+    private final DrillFileSystem fs;
     // Drill Process User file-system
-    private DrillFileSystem dpsFs;
+    private final DrillFileSystem dpsFs;
 
     public WorkspaceSchema(List<String> parentSchemaPath, String wsName, SchemaConfig schemaConfig, DrillFileSystem fs) {
       super(parentSchemaPath, wsName);
@@ -425,58 +427,27 @@ public class WorkspaceSchemaFactory {
 
         for (DotDrillFile f : files) {
           switch (f.getType()) {
-          case VIEW:
-            try {
-              return new DrillViewTable(getView(f), f.getOwner(), schemaConfig.getViewExpansionContext());
-            } catch (AccessControlException e) {
-              if (!schemaConfig.getIgnoreAuthErrors()) {
-                logger.debug(e.getMessage());
-                throw UserException.permissionError(e)
-                  .message("Not authorized to read view [%s] in schema [%s]", tableName, getFullSchemaName())
-                  .build(logger);
+            case VIEW:
+              try {
+                return new DrillViewTable(getView(f), f.getOwner(), schemaConfig.getViewExpansionContext());
+              } catch (AccessControlException e) {
+                if (!schemaConfig.getIgnoreAuthErrors()) {
+                  logger.debug(e.getMessage());
+                  throw UserException.permissionError(e)
+                    .message("Not authorized to read view [%s] in schema [%s]", tableName, getFullSchemaName())
+                    .build(logger);
+                }
+              } catch (IOException e) {
+                logger.warn("Failure while trying to load {}.view.drill file in workspace [{}]", tableName, getFullSchemaName(), e);
               }
-            } catch (IOException e) {
-              logger.warn("Failure while trying to load {}.view.drill file in workspace [{}]", tableName, getFullSchemaName(), e);
-            }
+            default:
           }
         }
       } catch (UnsupportedOperationException e) {
         logger.debug("The filesystem for this workspace does not support this operation.", e);
       }
-      final DrillTable table = tables.get(tableKey);
-      if (table != null) {
-        MetadataProviderManager providerManager = null;
-
-        if (schemaConfig.getOption(ExecConstants.METASTORE_ENABLED).bool_val) {
-          try {
-            MetastoreRegistry metastoreRegistry = plugin.getContext().getMetastoreRegistry();
-            TableInfo tableInfo = TableInfo.builder()
-                .storagePlugin(plugin.getName())
-                .workspace(schemaName)
-                .name(tableName)
-                .build();
-
-            MetastoreTableInfo metastoreTableInfo = metastoreRegistry.get()
-                .tables()
-                .basicRequests()
-                .metastoreTableInfo(tableInfo);
-            if (metastoreTableInfo.isExists()) {
-              providerManager = new MetastoreMetadataProviderManager(metastoreRegistry, tableInfo,
-                  new MetastoreMetadataProviderConfig(schemaConfig.getOption(ExecConstants.METASTORE_USE_SCHEMA_METADATA).bool_val,
-                      schemaConfig.getOption(ExecConstants.METASTORE_USE_STATISTICS_METADATA).bool_val,
-                      schemaConfig.getOption(ExecConstants.METASTORE_FALLBACK_TO_FILE_METADATA).bool_val));
-            }
-          } catch (MetastoreException e) {
-            logger.warn("Exception happened during obtaining Metastore instance.", e);
-          }
-        }
-        if (providerManager == null) {
-          providerManager = FileSystemMetadataProviderManager.init();
-        }
-        setMetadataTable(providerManager, table, tableName);
-        setSchema(providerManager, tableName);
-        table.setTableMetadataProviderManager(providerManager);
-      }
+      DrillTable table = tables.get(tableKey);
+      setMetadataProviderManager(table, tableName);
       return table;
     }
 
@@ -640,6 +611,7 @@ public class WorkspaceSchemaFactory {
           FormatPluginConfig formatConfig = optionExtractor.createConfigForTable(key);
           FormatSelection selection = new FormatSelection(formatConfig, newSelection);
           DrillTable drillTable = new DynamicDrillTable(plugin, storageEngineName, schemaConfig.getUserName(), selection);
+          setMetadataProviderManager(drillTable, key.sig.getName());
 
           List<TableParamDef> commonParams = key.sig.getCommonParams();
           if (commonParams.isEmpty()) {
@@ -654,6 +626,7 @@ public class WorkspaceSchemaFactory {
           for (final FormatMatcher matcher : dirMatchers) {
             try {
               DrillTable table = matcher.isReadable(getFS(), fileSelection, plugin, storageEngineName, schemaConfig);
+              setMetadataProviderManager(table, key.sig.getName());
               if (table != null) {
                 return table;
               }
@@ -670,6 +643,7 @@ public class WorkspaceSchemaFactory {
 
         for (final FormatMatcher matcher : fileMatchers) {
           DrillTable table = matcher.isReadable(getFS(), newSelection, plugin, storageEngineName, schemaConfig);
+          setMetadataProviderManager(table, key.sig.getName());
           if (table != null) {
             return table;
           }
@@ -719,6 +693,42 @@ public class WorkspaceSchemaFactory {
         logger.debug("Failed to find format matcher for file: {}", file, e);
       }
       return null;
+    }
+
+    private void setMetadataProviderManager(DrillTable table, String tableName) {
+      if (table != null) {
+        MetadataProviderManager providerManager = null;
+
+        if (schemaConfig.getOption(ExecConstants.METASTORE_ENABLED).bool_val) {
+          try {
+            MetastoreRegistry metastoreRegistry = plugin.getContext().getMetastoreRegistry();
+            TableInfo tableInfo = TableInfo.builder()
+                .storagePlugin(plugin.getName())
+                .workspace(schemaName)
+                .name(tableName)
+                .build();
+
+            MetastoreTableInfo metastoreTableInfo = metastoreRegistry.get()
+                .tables()
+                .basicRequests()
+                .metastoreTableInfo(tableInfo);
+            if (metastoreTableInfo.isExists()) {
+              providerManager = new MetastoreMetadataProviderManager(metastoreRegistry, tableInfo,
+                  new MetastoreMetadataProviderConfig(schemaConfig.getOption(ExecConstants.METASTORE_USE_SCHEMA_METADATA).bool_val,
+                      schemaConfig.getOption(ExecConstants.METASTORE_USE_STATISTICS_METADATA).bool_val,
+                      schemaConfig.getOption(ExecConstants.METASTORE_FALLBACK_TO_FILE_METADATA).bool_val));
+            }
+          } catch (MetastoreException e) {
+            logger.warn("Exception happened during obtaining Metastore instance. File system metadata provider will be used.", e);
+          }
+        }
+        if (providerManager == null) {
+          providerManager = FileSystemMetadataProviderManager.init();
+        }
+        setMetadataTable(providerManager, table, tableName);
+        setSchema(providerManager, tableName);
+        table.setTableMetadataProviderManager(providerManager);
+      }
     }
 
     @Override

@@ -33,15 +33,10 @@ public class FormSecurityHandler extends DrillHttpConstraintSecurityHandler {
   @Override
   public void doSetup(DrillbitContext dbContext) throws DrillException {
 
-    // Check if PAMAuthenticator is available or not which is required for FORM authentication
-    if (!dbContext.getAuthProvider().containsFactory(PlainFactory.SIMPLE_NAME)) {
-      throw new DrillException("FORM mechanism was configured but PLAIN mechanism is not enabled to provide an " +
-          "authenticator. Please configure user authentication with PLAIN mechanism and authenticator to use " +
-          "FORM authentication");
-    }
+    requireAuthProvider(dbContext, PlainFactory.SIMPLE_NAME);
 
     setup(new FormAuthenticator(WebServerConstants.FORM_LOGIN_RESOURCE_PATH,
-        WebServerConstants.FORM_LOGIN_RESOURCE_PATH, true), new DrillRestLoginService(dbContext));
+      WebServerConstants.FORM_LOGIN_RESOURCE_PATH, true), new DrillRestLoginService(dbContext));
   }
 
 }
