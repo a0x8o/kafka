@@ -297,7 +297,8 @@ public class CryptoFunctions {
         keyByteArray = sha.digest(keyByteArray);
         keyByteArray = java.util.Arrays.copyOf(keyByteArray, 16);
         javax.crypto.spec.SecretKeySpec secretKey = new javax.crypto.spec.SecretKeySpec(keyByteArray, "AES");
-
+        
+        /** AES/ECB/PKCS5Padding is not secure, recommend AES/CFB/PKCS5Padding */
         cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
       } catch (Exception e) {
@@ -350,15 +351,18 @@ public class CryptoFunctions {
 
     @Override
     public void setup() {
+      /**For secure concern, key should be randomly generated*/
       String key = org.apache.drill.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(rawKey.start, rawKey.end, rawKey.buffer);
 
       try {
         byte[] keyByteArray = key.getBytes("UTF-8");
+        
+        /**SHA-1 is not secure, recommend SHA-512*/
         java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-1");
         keyByteArray = sha.digest(keyByteArray);
         keyByteArray = java.util.Arrays.copyOf(keyByteArray, 16);
         javax.crypto.spec.SecretKeySpec secretKey = new javax.crypto.spec.SecretKeySpec(keyByteArray, "AES");
-
+        /** AES/ECB/PKCS5Padding is not secure, recommend AES/CFB/PKCS5Padding */
         cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
       } catch (Exception e) {
