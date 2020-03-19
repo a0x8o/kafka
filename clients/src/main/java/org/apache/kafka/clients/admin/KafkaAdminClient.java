@@ -89,6 +89,11 @@ import org.apache.kafka.common.message.DeleteAclsResponseData;
 import org.apache.kafka.common.message.DeleteAclsResponseData.DeleteAclsFilterResult;
 import org.apache.kafka.common.message.DeleteAclsResponseData.DeleteAclsMatchingAcl;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
+import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition;
+import org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic;
+import org.apache.kafka.common.message.DeleteRecordsResponseData;
+import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResult;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData.DeletableTopicResult;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
@@ -124,8 +129,13 @@ import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.network.ChannelBuilder;
 import org.apache.kafka.common.network.Selector;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.quota.ClientQuotaAlteration;
+import org.apache.kafka.common.quota.ClientQuotaEntity;
+import org.apache.kafka.common.quota.ClientQuotaFilter;
 import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.AbstractResponse;
+import org.apache.kafka.common.requests.AlterClientQuotasRequest;
+import org.apache.kafka.common.requests.AlterClientQuotasResponse;
 import org.apache.kafka.common.requests.AlterConfigsRequest;
 import org.apache.kafka.common.requests.AlterConfigsResponse;
 import org.apache.kafka.common.requests.AlterPartitionReassignmentsRequest;
@@ -151,6 +161,8 @@ import org.apache.kafka.common.requests.DeleteTopicsRequest;
 import org.apache.kafka.common.requests.DeleteTopicsResponse;
 import org.apache.kafka.common.requests.DescribeAclsRequest;
 import org.apache.kafka.common.requests.DescribeAclsResponse;
+import org.apache.kafka.common.requests.DescribeClientQuotasRequest;
+import org.apache.kafka.common.requests.DescribeClientQuotasResponse;
 import org.apache.kafka.common.requests.DescribeConfigsRequest;
 import org.apache.kafka.common.requests.DescribeConfigsResponse;
 import org.apache.kafka.common.requests.DescribeDelegationTokenRequest;
@@ -799,7 +811,8 @@ public class KafkaAdminClient extends AdminClient {
 
         @Override
         public String toString() {
-            return "Call(callName=" + callName + ", deadlineMs=" + deadlineMs + ")";
+            return "Call(callName=" + callName + ", deadlineMs=" + deadlineMs +
+                ", tries=" + tries + ", nextAllowedTryMs=" + nextAllowedTryMs + ")";
         }
 
         public boolean isInternal() {
@@ -1294,6 +1307,11 @@ public class KafkaAdminClient extends AdminClient {
          * @param now       The current time in milliseconds.
          */
         void enqueue(Call call, long now) {
+            if (call.tries > maxRetries) {
+                log.debug("Max retries {} for {} reached", maxRetries, call);
+                call.fail(time.milliseconds(), new TimeoutException());
+                return;
+            }
             if (log.isDebugEnabled()) {
                 log.debug("Queueing {} with a timeout {} ms from now.", call, call.deadlineMs - now);
             }
@@ -2469,19 +2487,29 @@ public class KafkaAdminClient extends AdminClient {
                 Cluster cluster = response.cluster();
 
                 // Group topic partitions by leader
-                Map<Node, Map<TopicPartition, Long>> leaders = new HashMap<>();
+                Map<Node, Map<String, DeleteRecordsTopic>> leaders = new HashMap<>();
                 for (Map.Entry<TopicPartition, RecordsToDelete> entry: recordsToDelete.entrySet()) {
-                    KafkaFutureImpl<DeletedRecords> future = futures.get(entry.getKey());
+                    TopicPartition topicPartition = entry.getKey();
+                    KafkaFutureImpl<DeletedRecords> future = futures.get(topicPartition);
 
                     // Fail partitions with topic errors
-                    Errors topicError = errors.get(entry.getKey().topic());
-                    if (errors.containsKey(entry.getKey().topic())) {
+                    Errors topicError = errors.get(topicPartition.topic());
+                    if (errors.containsKey(topicPartition.topic())) {
                         future.completeExceptionally(topicError.exception());
                     } else {
-                        Node node = cluster.leaderFor(entry.getKey());
+                        Node node = cluster.leaderFor(topicPartition);
                         if (node != null) {
-                            leaders.computeIfAbsent(node, key -> new HashMap<>()).put(entry.getKey(),
-                                entry.getValue().beforeOffset());
+                            Map<String, DeleteRecordsTopic> deletionsForLeader = leaders.computeIfAbsent(
+                                    node, key -> new HashMap<>());
+                            DeleteRecordsTopic deleteRecords = deletionsForLeader.get(topicPartition.topic());
+                            if (deleteRecords == null) {
+                                deleteRecords = new DeleteRecordsTopic()
+                                        .setName(topicPartition.topic());
+                                deletionsForLeader.put(topicPartition.topic(), deleteRecords);
+                            }
+                            deleteRecords.partitions().add(new DeleteRecordsPartition()
+                                    .setPartitionIndex(topicPartition.partition())
+                                    .setOffset(entry.getValue().beforeOffset()));
                         } else {
                             future.completeExceptionally(Errors.LEADER_NOT_AVAILABLE.exception());
                         }
@@ -2490,8 +2518,8 @@ public class KafkaAdminClient extends AdminClient {
 
                 final long deleteRecordsCallTimeMs = time.milliseconds();
 
-                for (final Map.Entry<Node, Map<TopicPartition, Long>> entry : leaders.entrySet()) {
-                    final Map<TopicPartition, Long> partitionDeleteOffsets = entry.getValue();
+                for (final Map.Entry<Node, Map<String, DeleteRecordsTopic>> entry : leaders.entrySet()) {
+                    final Map<String, DeleteRecordsTopic> partitionDeleteOffsets = entry.getValue();
                     final int brokerId = entry.getKey().id();
 
                     runnable.call(new Call("deleteRecords", deadline,
@@ -2499,19 +2527,22 @@ public class KafkaAdminClient extends AdminClient {
 
                         @Override
                         DeleteRecordsRequest.Builder createRequest(int timeoutMs) {
-                            return new DeleteRecordsRequest.Builder(timeoutMs, partitionDeleteOffsets);
+                            return new DeleteRecordsRequest.Builder(new DeleteRecordsRequestData()
+                                    .setTimeoutMs(timeoutMs)
+                                    .setTopics(new ArrayList<>(partitionDeleteOffsets.values())));
                         }
 
                         @Override
                         void handleResponse(AbstractResponse abstractResponse) {
                             DeleteRecordsResponse response = (DeleteRecordsResponse) abstractResponse;
-                            for (Map.Entry<TopicPartition, DeleteRecordsResponse.PartitionResponse> result: response.responses().entrySet()) {
-
-                                KafkaFutureImpl<DeletedRecords> future = futures.get(result.getKey());
-                                if (result.getValue().error == Errors.NONE) {
-                                    future.complete(new DeletedRecords(result.getValue().lowWatermark));
-                                } else {
-                                    future.completeExceptionally(result.getValue().error.exception());
+                            for (DeleteRecordsTopicResult topicResult: response.data().topics()) {
+                                for (DeleteRecordsResponseData.DeleteRecordsPartitionResult partitionResult : topicResult.partitions()) {
+                                    KafkaFutureImpl<DeletedRecords> future = futures.get(new TopicPartition(topicResult.name(), partitionResult.partitionIndex()));
+                                    if (partitionResult.errorCode() == Errors.NONE.code()) {
+                                        future.complete(new DeletedRecords(partitionResult.lowWatermark()));
+                                    } else {
+                                        future.completeExceptionally(Errors.forCode(partitionResult.errorCode()).exception());
+                                    }
                                 }
                             }
                         }
@@ -2519,7 +2550,11 @@ public class KafkaAdminClient extends AdminClient {
                         @Override
                         void handleFailure(Throwable throwable) {
                             Stream<KafkaFutureImpl<DeletedRecords>> callFutures =
-                                    partitionDeleteOffsets.keySet().stream().map(futures::get);
+                                    partitionDeleteOffsets.values().stream().flatMap(
+                                        recordsToDelete ->
+                                                recordsToDelete.partitions().stream().map(partitionsToDelete ->
+                                                    new TopicPartition(recordsToDelete.name(), partitionsToDelete.partitionIndex()))
+                                    ).map(futures::get);
                             completeAllExceptionally(callFutures, throwable);
                         }
                     }, deleteRecordsCallTimeMs);
@@ -2678,11 +2713,16 @@ public class KafkaAdminClient extends AdminClient {
         return new DescribeDelegationTokenResult(tokensFuture);
     }
 
-    private void rescheduleFindCoordinatorTask(ConsumerGroupOperationContext<?, ?> context, Supplier<Call> nextCall) {
+    private void rescheduleFindCoordinatorTask(ConsumerGroupOperationContext<?, ?> context, Supplier<Call> nextCall, Call failedCall) {
         log.info("Node {} is no longer the Coordinator. Retrying with new coordinator.",
                 context.node().orElse(null));
         // Requeue the task so that we can try with new coordinator
         context.setNode(null);
+
+        Call call = nextCall.get();
+        call.tries = failedCall.tries + 1;
+        call.nextAllowedTryMs = calculateNextAllowedRetryMs();
+
         Call findCoordinatorCall = getFindCoordinatorCall(context, nextCall);
         runnable.call(findCoordinatorCall, time.milliseconds());
     }
@@ -2813,7 +2853,8 @@ public class KafkaAdminClient extends AdminClient {
 
                 // If coordinator changed since we fetched it, retry
                 if (ConsumerGroupOperationContext.hasCoordinatorMoved(response)) {
-                    rescheduleFindCoordinatorTask(context, () -> getDescribeConsumerGroupsCall(context));
+                    Call call = getDescribeConsumerGroupsCall(context);
+                    rescheduleFindCoordinatorTask(context, () -> call, this);
                     return;
                 }
 
@@ -3072,7 +3113,7 @@ public class KafkaAdminClient extends AdminClient {
             OffsetFetchRequest.Builder createRequest(int timeoutMs) {
                 // Set the flag to false as for admin client request,
                 // we don't need to wait for any pending offset state to clear.
-                return new OffsetFetchRequest.Builder(context.groupId(), false, context.options().topicPartitions());
+                return new OffsetFetchRequest.Builder(context.groupId(), false, context.options().topicPartitions(), false);
             }
 
             @Override
@@ -3082,7 +3123,8 @@ public class KafkaAdminClient extends AdminClient {
 
                 // If coordinator changed since we fetched it, retry
                 if (ConsumerGroupOperationContext.hasCoordinatorMoved(response)) {
-                    rescheduleFindCoordinatorTask(context, () -> getListConsumerGroupOffsetsCall(context));
+                    Call call = getListConsumerGroupOffsetsCall(context);
+                    rescheduleFindCoordinatorTask(context, () -> call, this);
                     return;
                 }
 
@@ -3161,7 +3203,8 @@ public class KafkaAdminClient extends AdminClient {
 
                 // If coordinator changed since we fetched it, retry
                 if (ConsumerGroupOperationContext.hasCoordinatorMoved(response)) {
-                    rescheduleFindCoordinatorTask(context, () -> getDeleteConsumerGroupsCall(context));
+                    Call call = getDeleteConsumerGroupsCall(context);
+                    rescheduleFindCoordinatorTask(context, () -> call, this);
                     return;
                 }
 
@@ -3237,7 +3280,8 @@ public class KafkaAdminClient extends AdminClient {
 
                 // If coordinator changed since we fetched it, retry
                 if (ConsumerGroupOperationContext.hasCoordinatorMoved(response)) {
-                    rescheduleFindCoordinatorTask(context, () -> getDeleteConsumerGroupOffsetsCall(context, partitions));
+                    Call call = getDeleteConsumerGroupOffsetsCall(context, partitions);
+                    rescheduleFindCoordinatorTask(context, () -> call, this);
                     return;
                 }
 
@@ -3535,6 +3579,10 @@ public class KafkaAdminClient extends AdminClient {
         return new ListPartitionReassignmentsResult(partitionReassignmentsFuture);
     }
 
+    private long calculateNextAllowedRetryMs() {
+        return time.milliseconds() + retryBackoffMs;
+    }
+
     private void handleNotControllerError(Errors error) throws ApiException {
         metadataManager.clearController();
         metadataManager.requestUpdate();
@@ -3584,7 +3632,8 @@ public class KafkaAdminClient extends AdminClient {
 
                 // If coordinator changed since we fetched it, retry
                 if (ConsumerGroupOperationContext.hasCoordinatorMoved(response)) {
-                    rescheduleFindCoordinatorTask(context, () -> getRemoveMembersFromGroupCall(context));
+                    Call call = getRemoveMembersFromGroupCall(context);
+                    rescheduleFindCoordinatorTask(context, () -> call, this);
                     return;
                 }
 
@@ -3673,8 +3722,8 @@ public class KafkaAdminClient extends AdminClient {
 
                 // If coordinator changed since we fetched it, retry
                 if (ConsumerGroupOperationContext.hasCoordinatorMoved(response)) {
-                    rescheduleFindCoordinatorTask(context,
-                        () -> getAlterConsumerGroupOffsetsCall(context, offsets));
+                    Call call = getAlterConsumerGroupOffsetsCall(context, offsets);
+                    rescheduleFindCoordinatorTask(context, () -> call, this);
                     return;
                 }
 
@@ -3683,8 +3732,8 @@ public class KafkaAdminClient extends AdminClient {
                     for (OffsetCommitResponsePartition partition : topic.partitions()) {
                         Errors error = Errors.forCode(partition.errorCode());
                         if (ConsumerGroupOperationContext.shouldRefreshCoordinator(error)) {
-                            rescheduleFindCoordinatorTask(context,
-                                () -> getAlterConsumerGroupOffsetsCall(context, offsets));
+                            Call call = getAlterConsumerGroupOffsetsCall(context, offsets);
+                            rescheduleFindCoordinatorTask(context, () -> call, this);
                             return;
                         }
                     }
@@ -3726,7 +3775,7 @@ public class KafkaAdminClient extends AdminClient {
         MetadataOperationContext<ListOffsetsResultInfo, ListOffsetsOptions> context =
                 new MetadataOperationContext<>(topics, options, deadline, futures);
 
-        Call metadataCall = getMetadataCall(context, 
+        Call metadataCall = getMetadataCall(context,
             () -> KafkaAdminClient.this.getListOffsetsCalls(context, topicPartitionOffsets, futures));
         runnable.call(metadataCall, nowMetadata);
 
@@ -3821,6 +3870,65 @@ public class KafkaAdminClient extends AdminClient {
             });
         }
         return calls;
+    }
+
+    @Override
+    public DescribeClientQuotasResult describeClientQuotas(ClientQuotaFilter filter, DescribeClientQuotasOptions options) {
+        KafkaFutureImpl<Map<ClientQuotaEntity, Map<String, Double>>> future = new KafkaFutureImpl<>();
+
+        final long now = time.milliseconds();
+        runnable.call(new Call("describeClientQuotas", calcDeadlineMs(now, options.timeoutMs()),
+                new LeastLoadedNodeProvider()) {
+
+                @Override
+                DescribeClientQuotasRequest.Builder createRequest(int timeoutMs) {
+                    return new DescribeClientQuotasRequest.Builder(filter);
+                }
+
+                @Override
+                void handleResponse(AbstractResponse abstractResponse) {
+                    DescribeClientQuotasResponse response = (DescribeClientQuotasResponse) abstractResponse;
+                    response.complete(future);
+                }
+
+                @Override
+                void handleFailure(Throwable throwable) {
+                    future.completeExceptionally(throwable);
+                }
+            }, now);
+
+        return new DescribeClientQuotasResult(future);
+    }
+
+    @Override
+    public AlterClientQuotasResult alterClientQuotas(Collection<ClientQuotaAlteration> entries, AlterClientQuotasOptions options) {
+        Map<ClientQuotaEntity, KafkaFutureImpl<Void>> futures = new HashMap<>(entries.size());
+        for (ClientQuotaAlteration entry : entries) {
+            futures.put(entry.entity(), new KafkaFutureImpl<>());
+        }
+
+        final long now = time.milliseconds();
+        runnable.call(new Call("alterClientQuotas", calcDeadlineMs(now, options.timeoutMs()),
+                new LeastLoadedNodeProvider()) {
+
+                @Override
+                AlterClientQuotasRequest.Builder createRequest(int timeoutMs) {
+                    return new AlterClientQuotasRequest.Builder(entries, options.validateOnly());
+                }
+
+                @Override
+                void handleResponse(AbstractResponse abstractResponse) {
+                    AlterClientQuotasResponse response = (AlterClientQuotasResponse) abstractResponse;
+                    response.complete(futures);
+                }
+
+                @Override
+                void handleFailure(Throwable throwable) {
+                    completeAllExceptionally(futures.values(), throwable);
+                }
+            }, now);
+
+        return new AlterClientQuotasResult(Collections.unmodifiableMap(futures));
     }
 
     /**

@@ -30,7 +30,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -90,8 +89,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.kafka.common.utils.Utils.getHost;
-import static org.apache.kafka.common.utils.Utils.getPort;
 import static org.apache.kafka.streams.StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG;
 import static org.apache.kafka.streams.internals.ApiUtils.prepareMillisCheckFailMsgPrefix;
 
@@ -716,11 +713,11 @@ public class KafkaStreams implements AutoCloseable {
         }
         final ProcessorTopology globalTaskTopology = internalTopologyBuilder.buildGlobalStateTopology();
         final long cacheSizePerThread = totalCacheSize / (threads.length + (globalTaskTopology == null ? 0 : 1));
-        final boolean createStateDirectory = taskTopology.hasPersistentLocalStore() ||
+        final boolean hasPersistentStores = taskTopology.hasPersistentLocalStore() ||
                 (globalTaskTopology != null && globalTaskTopology.hasPersistentGlobalStore());
 
         try {
-            stateDirectory = new StateDirectory(config, time, createStateDirectory);
+            stateDirectory = new StateDirectory(config, time, hasPersistentStores);
         } catch (final ProcessorStateException fatal) {
             throw new StreamsException(fatal);
         }
@@ -808,17 +805,12 @@ public class KafkaStreams implements AutoCloseable {
     }
 
     private static HostInfo parseHostInfo(final String endPoint) {
-        if (endPoint == null || endPoint.trim().isEmpty()) {
+        final HostInfo hostInfo = HostInfo.buildFromEndpoint(endPoint);
+        if (hostInfo == null) {
             return StreamsMetadataState.UNKNOWN_HOST;
+        } else {
+            return hostInfo;
         }
-        final String host = getHost(endPoint);
-        final Integer port = getPort(endPoint);
-
-        if (host == null || port == null) {
-            throw new ConfigException(String.format("Error parsing host address %s. Expected format host:port.", endPoint));
-        }
-
-        return new HostInfo(host, port);
     }
 
     /**
@@ -1083,7 +1075,8 @@ public class KafkaStreams implements AutoCloseable {
      * @param keySerializer serializer for the key
      * @param <K>           key type
      * @return {@link StreamsMetadata} for the {@code KafkaStreams} instance with the provided {@code storeName} and
-     * {@code key} of this application or {@link StreamsMetadata#NOT_AVAILABLE} if Kafka Streams is (re-)initializing
+     * {@code key} of this application or {@link StreamsMetadata#NOT_AVAILABLE} if Kafka Streams is (re-)initializing,
+     * or {@code null} if no matching metadata could be found.
      * @deprecated Since 2.5. Use {@link #queryMetadataForKey(String, Object, Serializer)} instead.
      */
     @Deprecated
@@ -1116,7 +1109,8 @@ public class KafkaStreams implements AutoCloseable {
      * @param partitioner the partitioner to be use to locate the host for the key
      * @param <K>         key type
      * @return {@link StreamsMetadata} for the {@code KafkaStreams} instance with the provided {@code storeName} and
-     * {@code key} of this application or {@link StreamsMetadata#NOT_AVAILABLE} if Kafka Streams is (re-)initializing
+     * {@code key} of this application or {@link StreamsMetadata#NOT_AVAILABLE} if Kafka Streams is (re-)initializing,
+     * or {@code null} if no matching metadata could be found.
      * @deprecated Since 2.5. Use {@link #queryMetadataForKey(String, Object, StreamPartitioner)} instead.
      */
     @Deprecated
@@ -1134,7 +1128,8 @@ public class KafkaStreams implements AutoCloseable {
      * @param key           the key to find metadata for
      * @param keySerializer serializer for the key
      * @param <K>           key type
-     * Returns {@link KeyQueryMetadata} containing all metadata about hosting the given key for the given store.
+     * Returns {@link KeyQueryMetadata} containing all metadata about hosting the given key for the given store,
+     * or {@code null} if no matching metadata could be found.
      */
     public <K> KeyQueryMetadata queryMetadataForKey(final String storeName,
                                                     final K key,
@@ -1151,7 +1146,7 @@ public class KafkaStreams implements AutoCloseable {
      * @param partitioner the partitioner to be use to locate the host for the key
      * @param <K>           key type
      * Returns {@link KeyQueryMetadata} containing all metadata about hosting the given key for the given store, using the
-     * the supplied partitioner
+     * the supplied partitioner, or {@code null} if no matching metadata could be found.
      */
     public <K> KeyQueryMetadata queryMetadataForKey(final String storeName,
                                                     final K key,
