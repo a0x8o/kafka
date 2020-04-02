@@ -28,6 +28,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.utils.LogContext;
+import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.streams.errors.LockException;
 import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.errors.TaskIdFormatException;
@@ -55,6 +56,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.kafka.streams.processor.internals.StreamThread.ProcessingMode.EXACTLY_ONCE_ALPHA;
+import static org.apache.kafka.streams.processor.internals.StreamThread.ProcessingMode.EXACTLY_ONCE_BETA;
 import static org.apache.kafka.streams.processor.internals.Task.State.CREATED;
 import static org.apache.kafka.streams.processor.internals.Task.State.RESTORING;
 import static org.apache.kafka.streams.processor.internals.Task.State.RUNNING;
@@ -474,6 +477,10 @@ public class TaskManager {
                 partitionToTask.remove(inputPartition);
             }
         }
+
+        if (processingMode == EXACTLY_ONCE_BETA) {
+            activeTaskCreator.reInitializeThreadProducer();
+        }
     }
 
     /**
@@ -780,7 +787,7 @@ public class TaskManager {
     }
 
     private void commitOffsetsOrTransaction(final Map<TaskId, Map<TopicPartition, OffsetAndMetadata>> offsetsPerTask) {
-        if (processingMode == StreamThread.ProcessingMode.EXACTLY_ONCE_ALPHA) {
+        if (processingMode == EXACTLY_ONCE_ALPHA) {
             for (final Map.Entry<TaskId, Map<TopicPartition, OffsetAndMetadata>> taskToCommit : offsetsPerTask.entrySet()) {
                 activeTaskCreator.streamsProducerForTask(taskToCommit.getKey())
                     .commitTransaction(taskToCommit.getValue(), mainConsumer.groupMetadata());
@@ -789,7 +796,7 @@ public class TaskManager {
             final Map<TopicPartition, OffsetAndMetadata> allOffsets = offsetsPerTask.values().stream()
                 .flatMap(e -> e.entrySet().stream()).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-            if (processingMode == StreamThread.ProcessingMode.EXACTLY_ONCE_BETA) {
+            if (processingMode == EXACTLY_ONCE_BETA) {
                 activeTaskCreator.threadProducer().commitTransaction(allOffsets, mainConsumer.groupMetadata());
             } else {
                 try {
@@ -810,14 +817,20 @@ public class TaskManager {
     /**
      * @throws TaskMigratedException if the task producer got fenced (EOS only)
      */
-    int process(final long now) {
-        int processed = 0;
+    int process(final int maxNumRecords, final Time time) {
+        int totalProcessed = 0;
 
+        long now = time.milliseconds();
         for (final Task task : activeTaskIterable()) {
             try {
-                if (task.process(now)) {
+                int processed = 0;
+                final long then = now;
+                while (processed < maxNumRecords && task.process(now)) {
                     processed++;
                 }
+                now = time.milliseconds();
+                totalProcessed += processed;
+                task.recordProcessBatchTime(then - now);
             } catch (final TaskMigratedException e) {
                 log.info("Failed to process stream task {} since it got migrated to another thread already. " +
                              "Will trigger a new rebalance and close all tasks as zombies together.", task.id());
@@ -828,7 +841,13 @@ public class TaskManager {
             }
         }
 
-        return processed;
+        return totalProcessed;
+    }
+
+    void recordTaskProcessRatio(final long totalProcessLatencyMs) {
+        for (final Task task : activeTaskIterable()) {
+            task.recordProcessTimeRatio(totalProcessLatencyMs);
+        }
     }
 
     /**
@@ -854,6 +873,7 @@ public class TaskManager {
                 throw e;
             }
         }
+
         return punctuated;
     }
 
