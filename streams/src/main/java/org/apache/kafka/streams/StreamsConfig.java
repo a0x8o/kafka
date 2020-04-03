@@ -331,7 +331,7 @@ public class StreamsConfig extends AbstractConfig {
 
     /** {@code balance.factor} */
     public static final String BALANCE_FACTOR_CONFIG = "balance.factor";
-    private static final String BALANCE_FACTOR_DOC = "Maximum difference in the number of active tasks assigned to the stream thread with the most tasks and the stream thread with the least in a steady-state assignment. Must be at least 1.";
+    private static final String BALANCE_FACTOR_DOC = "Maximum difference in the number of stateful (and total) active tasks assigned to the stream thread with the most tasks and the stream thread with the least in a steady-state assignment. Must be at least 1.";
 
     /** {@code bootstrap.servers} */
     @SuppressWarnings("WeakerAccess")
@@ -1267,9 +1267,17 @@ public class StreamsConfig extends AbstractConfig {
         props.putAll(getClientCustomProps());
         props.putAll(clientProvidedProps);
 
+        // When using EOS alpha, stream should auto-downgrade the transactional commit protocol to be compatible with older brokers.
+        if (StreamThread.eosAlphaEnabled(this)) {
+            props.put("internal.auto.downgrade.txn.commit", true);
+        }
+
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, originals().get(BOOTSTRAP_SERVERS_CONFIG));
         // add client id with stream client id prefix
         props.put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId);
+
+        // Reduce the transaction timeout for quicker pending offset expiration on broker side.
+        props.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 10000);
 
         return props;
     }
