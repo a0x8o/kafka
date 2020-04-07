@@ -95,8 +95,9 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
     private final Sensor processRatioSensor;
     private final Sensor processLatencySensor;
     private final Sensor punctuateLatencySensor;
+    private final Sensor bufferedRecordsSensor;
     private final Sensor enforcedProcessingSensor;
-    private final InternalProcessorContext processorContext;
+    private final InternalProcessorContext<Object, Object> processorContext;
 
     private long idleStartTimeMs;
     private boolean commitNeeded = false;
@@ -137,6 +138,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
         processRatioSensor = TaskMetrics.activeProcessRatioSensor(threadId, taskId, streamsMetrics);
         processLatencySensor = TaskMetrics.processLatencySensor(threadId, taskId, streamsMetrics);
         punctuateLatencySensor = TaskMetrics.punctuateSensor(threadId, taskId, streamsMetrics);
+        bufferedRecordsSensor = TaskMetrics.activeBufferedRecordsSensor(threadId, taskId, streamsMetrics);
 
         streamTimePunctuationQueue = new PunctuationQueue();
         systemTimePunctuationQueue = new PunctuationQueue();
@@ -151,7 +153,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
         final Map<TopicPartition, RecordQueue> partitionQueues = new HashMap<>();
 
         // initialize the topology with its own context
-        processorContext = new ProcessorContextImpl(id, this, config, this.recordCollector, stateMgr, streamsMetrics, cache);
+        processorContext = new ProcessorContextImpl<>(id, this, config, this.recordCollector, stateMgr, streamsMetrics, cache);
 
         final TimestampExtractor defaultTimestampExtractor = config.defaultTimestampExtractor();
         final DeserializationExceptionHandler defaultDeserializationExceptionHandler = config.defaultDeserializationExceptionHandler();
@@ -627,7 +629,8 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
     }
 
     @Override
-    public void recordProcessTimeRatio(final long allTaskProcessMs) {
+    public void recordProcessTimeRatioAndBufferSize(final long allTaskProcessMs) {
+        bufferedRecordsSensor.record(partitionGroup.numBuffered());
         processRatioSensor.record((double) processTimeMs / allTaskProcessMs);
         processTimeMs = 0L;
     }
@@ -937,7 +940,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
         }
     }
 
-    public ProcessorContext context() {
+    public ProcessorContext<Object, Object> context() {
         return processorContext;
     }
 
@@ -1008,7 +1011,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
         return recordCollector;
     }
 
-    InternalProcessorContext processorContext() {
+    InternalProcessorContext<Object, Object> processorContext() {
         return processorContext;
     }
 

@@ -226,8 +226,6 @@ public class TaskManager {
                     task.prepareCloseDirty();
                     dirtyTasks.add(task);
                 }
-
-                iterator.remove();
             }
         }
 
@@ -271,12 +269,14 @@ public class TaskManager {
                 task.closeDirty();
             } finally {
                 cleanUpTaskProducer(task, taskCloseExceptions);
+                tasks.remove(task.id());
             }
         }
 
         for (final Task task : dirtyTasks) {
             task.closeDirty();
             cleanUpTaskProducer(task, taskCloseExceptions);
+            tasks.remove(task.id());
         }
 
         if (!taskCloseExceptions.isEmpty()) {
@@ -848,7 +848,7 @@ public class TaskManager {
 
     void recordTaskProcessRatio(final long totalProcessLatencyMs) {
         for (final Task task : activeTaskIterable()) {
-            task.recordProcessTimeRatio(totalProcessLatencyMs);
+            task.recordProcessTimeRatioAndBufferSize(totalProcessLatencyMs);
         }
     }
 
