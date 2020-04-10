@@ -829,13 +829,7 @@ public class StreamsPartitionAssignorTest {
 
         final List<String> topics = asList("topic1", "topic2");
 
-        final TaskId task00 = new TaskId(0, 0);
-        final TaskId task01 = new TaskId(0, 1);
-        final TaskId task02 = new TaskId(0, 2);
-        final TaskId task10 = new TaskId(1, 0);
-        final TaskId task11 = new TaskId(1, 1);
-        final TaskId task12 = new TaskId(1, 2);
-        final List<TaskId> tasks = asList(task00, task01, task02, task10, task11, task12);
+        final List<TaskId> tasks = asList(TASK_0_0, TASK_0_1, TASK_0_2, TASK_1_0, TASK_1_1, TASK_1_2);
 
         createMockAdminClient(getTopicPartitionOffsetsMap(
             asList(APPLICATION_ID + "-store1-changelog",
@@ -876,9 +870,9 @@ public class StreamsPartitionAssignorTest {
         // check tasks for state topics
         final Map<Integer, InternalTopologyBuilder.TopicsInfo> topicGroups = builder.topicGroups();
 
-        assertEquals(mkSet(task00, task01, task02), tasksForState("store1", tasks, topicGroups));
-        assertEquals(mkSet(task10, task11, task12), tasksForState("store2", tasks, topicGroups));
-        assertEquals(mkSet(task10, task11, task12), tasksForState("store3", tasks, topicGroups));
+        assertEquals(mkSet(TASK_0_0, TASK_0_1, TASK_0_2), tasksForState("store1", tasks, topicGroups));
+        assertEquals(mkSet(TASK_1_0, TASK_1_1, TASK_1_2), tasksForState("store2", tasks, topicGroups));
+        assertEquals(mkSet(TASK_1_0, TASK_1_1, TASK_1_2), tasksForState("store3", tasks, topicGroups));
     }
 
     private static Set<TaskId> tasksForState(final String storeName,
@@ -1095,7 +1089,7 @@ public class StreamsPartitionAssignorTest {
 
     @Test
     public void testAssignWithInternalTopics() {
-        builder.addInternalTopic("topicX");
+        builder.addInternalTopic("topicX", InternalTopicProperties.empty());
         builder.addSource(null, "source1", null, null, null, "topic1");
         builder.addProcessor("processor1", new MockProcessorSupplier(), "source1");
         builder.addSink("sink1", "topicX", null, null, null, "processor1");
@@ -1120,12 +1114,12 @@ public class StreamsPartitionAssignorTest {
 
     @Test
     public void testAssignWithInternalTopicThatsSourceIsAnotherInternalTopic() {
-        builder.addInternalTopic("topicX");
+        builder.addInternalTopic("topicX", InternalTopicProperties.empty());
         builder.addSource(null, "source1", null, null, null, "topic1");
         builder.addProcessor("processor1", new MockProcessorSupplier(), "source1");
         builder.addSink("sink1", "topicX", null, null, null, "processor1");
         builder.addSource(null, "source2", null, null, null, "topicX");
-        builder.addInternalTopic("topicZ");
+        builder.addInternalTopic("topicZ", InternalTopicProperties.empty());
         builder.addProcessor("processor2", new MockProcessorSupplier(), "source2");
         builder.addSink("sink2", "topicZ", null, null, null, "processor2");
         builder.addSource(null, "source3", null, null, null, "topicZ");
@@ -1758,7 +1752,7 @@ public class StreamsPartitionAssignorTest {
         builder.addProcessor("KSTREAM-BRANCHCHILD-0000000004", new MockProcessorSupplier(), "KSTREAM-BRANCH-0000000002");
         builder.addProcessor("KSTREAM-MAP-0000000005", new MockProcessorSupplier(), "KSTREAM-BRANCHCHILD-0000000003");
 
-        builder.addInternalTopic("odd_store-repartition");
+        builder.addInternalTopic("odd_store-repartition", InternalTopicProperties.empty());
         builder.addProcessor("odd_store-repartition-filter", new MockProcessorSupplier(), "KSTREAM-MAP-0000000005");
         builder.addSink("odd_store-repartition-sink", "odd_store-repartition", null, null, null, "odd_store-repartition-filter");
         builder.addSource(null, "odd_store-repartition-source", null, null, null, "odd_store-repartition");
@@ -1767,14 +1761,14 @@ public class StreamsPartitionAssignorTest {
         builder.addProcessor("KSTREAM-PEEK-0000000011", new MockProcessorSupplier(), "KTABLE-TOSTREAM-0000000010");
         builder.addProcessor("KSTREAM-MAP-0000000012", new MockProcessorSupplier(), "KSTREAM-PEEK-0000000011");
 
-        builder.addInternalTopic("odd_store_2-repartition");
+        builder.addInternalTopic("odd_store_2-repartition", InternalTopicProperties.empty());
         builder.addProcessor("odd_store_2-repartition-filter", new MockProcessorSupplier(), "KSTREAM-MAP-0000000012");
         builder.addSink("odd_store_2-repartition-sink", "odd_store_2-repartition", null, null, null, "odd_store_2-repartition-filter");
         builder.addSource(null, "odd_store_2-repartition-source", null, null, null, "odd_store_2-repartition");
         builder.addProcessor("KSTREAM-REDUCE-0000000013", new MockProcessorSupplier(), "odd_store_2-repartition-source");
         builder.addProcessor("KSTREAM-MAP-0000000017", new MockProcessorSupplier(), "KSTREAM-BRANCHCHILD-0000000004");
 
-        builder.addInternalTopic("even_store-repartition");
+        builder.addInternalTopic("even_store-repartition", InternalTopicProperties.empty());
         builder.addProcessor("even_store-repartition-filter", new MockProcessorSupplier(), "KSTREAM-MAP-0000000017");
         builder.addSink("even_store-repartition-sink", "even_store-repartition", null, null, null, "even_store-repartition-filter");
         builder.addSource(null, "even_store-repartition-source", null, null, null, "even_store-repartition");
@@ -1783,7 +1777,7 @@ public class StreamsPartitionAssignorTest {
         builder.addProcessor("KSTREAM-PEEK-0000000023", new MockProcessorSupplier(), "KTABLE-TOSTREAM-0000000022");
         builder.addProcessor("KSTREAM-MAP-0000000024", new MockProcessorSupplier(), "KSTREAM-PEEK-0000000023");
 
-        builder.addInternalTopic("even_store_2-repartition");
+        builder.addInternalTopic("even_store_2-repartition", InternalTopicProperties.empty());
         builder.addProcessor("even_store_2-repartition-filter", new MockProcessorSupplier(), "KSTREAM-MAP-0000000024");
         builder.addSink("even_store_2-repartition-sink", "even_store_2-repartition", null, null, null, "even_store_2-repartition-filter");
         builder.addSource(null, "even_store_2-repartition-source", null, null, null, "even_store_2-repartition");

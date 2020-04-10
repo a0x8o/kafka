@@ -14,22 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.streams.processor.internals.assignment;
+package org.apache.kafka.streams.processor.internals;
 
-import java.util.UUID;
-import org.apache.kafka.streams.processor.TaskId;
+import java.util.Optional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
+public class InternalTopicProperties {
+    private final Integer numberOfPartitions;
 
-public interface StateConstrainedBalancedAssignor {
+    public InternalTopicProperties(final Integer numberOfPartitions) {
+        this.numberOfPartitions = numberOfPartitions;
+    }
 
-    Map<UUID, List<TaskId>> assign(final SortedMap<TaskId, SortedSet<RankedClient>> statefulTasksToRankedClients,
-                                   final int balanceFactor,
-                                   final Set<UUID> clients,
-                                   final Map<UUID, Integer> clientsToNumberOfStreamThread,
-                                   final Map<TaskId, SortedSet<UUID>> tasksToCaughtUpClients);
+    public Optional<Integer> getNumberOfPartitions() {
+        return Optional.ofNullable(numberOfPartitions);
+    }
+
+    public static InternalTopicProperties empty() {
+        return new InternalTopicProperties(null);
+    }
+
+    @Override
+    public String toString() {
+        return "InternalTopicProperties{" +
+               "numberOfPartitions=" + numberOfPartitions +
+               '}';
+    }
 }
