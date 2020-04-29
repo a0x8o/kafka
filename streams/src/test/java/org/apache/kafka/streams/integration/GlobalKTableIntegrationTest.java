@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.integration;
 
+import java.time.Duration;
 import kafka.utils.MockTime;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.LongSerializer;
@@ -23,10 +24,10 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.KafkaStreams.State;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.StoreQueryParameters;
 import org.apache.kafka.streams.integration.utils.EmbeddedKafkaCluster;
 import org.apache.kafka.streams.integration.utils.IntegrationTestUtils;
 import org.apache.kafka.streams.kstream.Consumed;
@@ -56,8 +57,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import static java.util.Collections.singletonList;
+import static org.apache.kafka.streams.integration.utils.IntegrationTestUtils.waitForApplicationState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.Assert.assertNotNull;
 
 @Category({IntegrationTest.class})
 public class GlobalKTableIntegrationTest {
@@ -144,16 +148,18 @@ public class GlobalKTableIntegrationTest {
         firstTimestamp = mockTime.milliseconds();
         produceGlobalTableValues();
 
-        final ReadOnlyKeyValueStore<Long, String> replicatedStore =
-            kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.keyValueStore()));
+        final ReadOnlyKeyValueStore<Long, String> replicatedStore = IntegrationTestUtils
+            .getStore(globalStore, kafkaStreams, QueryableStoreTypes.keyValueStore());
+        assertNotNull(replicatedStore);
 
         TestUtils.waitForCondition(
             () -> "J".equals(replicatedStore.get(5L)),
             30000,
             "waiting for data in replicated store");
 
-        final ReadOnlyKeyValueStore<Long, ValueAndTimestamp<String>> replicatedStoreWithTimestamp =
-            kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.timestampedKeyValueStore()));
+        final ReadOnlyKeyValueStore<Long, ValueAndTimestamp<String>> replicatedStoreWithTimestamp = IntegrationTestUtils
+            .getStore(globalStore, kafkaStreams, QueryableStoreTypes.timestampedKeyValueStore());
+        assertNotNull(replicatedStoreWithTimestamp);
         assertThat(replicatedStoreWithTimestamp.get(5L), equalTo(ValueAndTimestamp.make("J", firstTimestamp + 4L)));
 
         firstTimestamp = mockTime.milliseconds();
@@ -211,16 +217,18 @@ public class GlobalKTableIntegrationTest {
         firstTimestamp = mockTime.milliseconds();
         produceGlobalTableValues();
 
-        final ReadOnlyKeyValueStore<Long, String> replicatedStore =
-            kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.keyValueStore()));
+        final ReadOnlyKeyValueStore<Long, String> replicatedStore = IntegrationTestUtils
+            .getStore(globalStore, kafkaStreams, QueryableStoreTypes.keyValueStore());
+        assertNotNull(replicatedStore);
 
         TestUtils.waitForCondition(
             () -> "J".equals(replicatedStore.get(5L)),
             30000,
             "waiting for data in replicated store");
 
-        final ReadOnlyKeyValueStore<Long, ValueAndTimestamp<String>> replicatedStoreWithTimestamp =
-            kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.timestampedKeyValueStore()));
+        final ReadOnlyKeyValueStore<Long, ValueAndTimestamp<String>> replicatedStoreWithTimestamp = IntegrationTestUtils
+            .getStore(globalStore, kafkaStreams, QueryableStoreTypes.timestampedKeyValueStore());
+        assertNotNull(replicatedStoreWithTimestamp);
         assertThat(replicatedStoreWithTimestamp.get(5L), equalTo(ValueAndTimestamp.make("J", firstTimestamp + 4L)));
 
         firstTimestamp = mockTime.milliseconds();
@@ -257,18 +265,38 @@ public class GlobalKTableIntegrationTest {
         produceInitialGlobalTableValues();
 
         startStreams();
-        ReadOnlyKeyValueStore<Long, String> store = kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.keyValueStore()));
+        ReadOnlyKeyValueStore<Long, String> store = IntegrationTestUtils
+            .getStore(globalStore, kafkaStreams, QueryableStoreTypes.keyValueStore());
+        assertNotNull(store);
+
         assertThat(store.approximateNumEntries(), equalTo(4L));
-        ReadOnlyKeyValueStore<Long, ValueAndTimestamp<String>> timestampedStore =
-            kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.timestampedKeyValueStore()));
+
+        ReadOnlyKeyValueStore<Long, ValueAndTimestamp<String>> timestampedStore = IntegrationTestUtils
+            .getStore(globalStore, kafkaStreams, QueryableStoreTypes.timestampedKeyValueStore());
+        assertNotNull(timestampedStore);
+
         assertThat(timestampedStore.approximateNumEntries(), equalTo(4L));
         kafkaStreams.close();
 
         startStreams();
-        store = kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.keyValueStore()));
+        store = IntegrationTestUtils.getStore(globalStore, kafkaStreams, QueryableStoreTypes.keyValueStore());
         assertThat(store.approximateNumEntries(), equalTo(4L));
-        timestampedStore = kafkaStreams.store(StoreQueryParameters.fromNameAndType(globalStore, QueryableStoreTypes.timestampedKeyValueStore()));
+        timestampedStore = IntegrationTestUtils.getStore(globalStore, kafkaStreams, QueryableStoreTypes.timestampedKeyValueStore());
         assertThat(timestampedStore.approximateNumEntries(), equalTo(4L));
+    }
+
+    @Test
+    public void shouldGetToRunningWithOnlyGlobalTopology() throws Exception {
+        builder = new StreamsBuilder();
+        globalTable = builder.globalTable(
+            globalTableTopic,
+            Consumed.with(Serdes.Long(), Serdes.String()),
+            Materialized.as(Stores.inMemoryKeyValueStore(globalStore)));
+
+        startStreams();
+        waitForApplicationState(singletonList(kafkaStreams), State.RUNNING, Duration.ofSeconds(30));
+
+        kafkaStreams.close();
     }
 
     private void createTopics() throws Exception {
