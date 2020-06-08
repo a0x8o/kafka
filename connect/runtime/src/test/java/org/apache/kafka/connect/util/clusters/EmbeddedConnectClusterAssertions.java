@@ -46,7 +46,7 @@ public class EmbeddedConnectClusterAssertions {
     private static final Logger log = LoggerFactory.getLogger(EmbeddedConnectClusterAssertions.class);
     public static final long WORKER_SETUP_DURATION_MS = TimeUnit.SECONDS.toMillis(60);
     public static final long VALIDATION_DURATION_MS = TimeUnit.SECONDS.toMillis(30);
-    private static final long CONNECTOR_SETUP_DURATION_MS = TimeUnit.SECONDS.toMillis(30);
+    public static final long CONNECTOR_SETUP_DURATION_MS = TimeUnit.SECONDS.toMillis(30);
     private static final long CONNECT_INTERNAL_TOPIC_UPDATES_DURATION_MS = TimeUnit.SECONDS.toMillis(60);
 
     private final EmbeddedConnectCluster connect;
@@ -181,7 +181,7 @@ public class EmbeddedConnectClusterAssertions {
                                                      .collect(Collectors.toSet());
             return Optional.of(comp.apply(actualExistingTopics, topicNames));
         } catch (Exception e) {
-            log.error("Could not check config validation error count.", e);
+            log.error("Failed to describe the topic(s): {}.", topicNames, e);
             return Optional.empty();
         }
     }
@@ -223,7 +223,7 @@ public class EmbeddedConnectClusterAssertions {
                     && topicDesc.partitions().stream().allMatch(p -> p.replicas().size() >= replicas);
             return Optional.of(result);
         } catch (Exception e) {
-            log.error("Could not check config validation error count.", e);
+            log.error("Failed to describe the topic: {}.", topicName, e);
             return Optional.empty();
         }
     }
@@ -363,7 +363,7 @@ public class EmbeddedConnectClusterAssertions {
             waitForCondition(
                 () -> checkConnectorAndTasksAreStopped(connectorName),
                 CONNECTOR_SETUP_DURATION_MS,
-                "At least the connector or one of its tasks is still");
+                "At least the connector or one of its tasks is still running");
         } catch (AssertionError e) {
             throw new AssertionError(detailMessage, e);
         }
