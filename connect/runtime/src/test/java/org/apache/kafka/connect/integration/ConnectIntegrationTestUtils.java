@@ -14,32 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.kafka.connect.integration;
 
-package org.apache.kafka.streams.processor;
-
-
-import org.apache.kafka.streams.KeyValue;
-
-import java.util.Collection;
+import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
+import org.slf4j.Logger;
 
 /**
- * Interface for batching restoration of a {@link StateStore}
- *
- * It is expected that implementations of this class will not call the {@link StateRestoreCallback#restore(byte[],
- * byte[])} method.
+ * A utility class for Connect's integration tests
  */
-public interface BatchingStateRestoreCallback extends StateRestoreCallback {
+public class ConnectIntegrationTestUtils {
+    public static TestRule newTestWatcher(Logger log) {
+        return new TestWatcher() {
+            @Override
+            protected void starting(Description description) {
+                super.starting(description);
+                log.info("Starting test {}", description.getMethodName());
+            }
 
-    /**
-     * Called to restore a number of records.  This method is called repeatedly until the {@link StateStore} is fulled
-     * restored.
-     *
-     * @param records the records to restore.
-     */
-    void restoreAll(Collection<KeyValue<byte[], byte[]>> records);
-
-    @Override
-    default void restore(byte[] key, byte[] value) {
-        throw new UnsupportedOperationException();
+            @Override
+            protected void finished(Description description) {
+                super.finished(description);
+                log.info("Finished test {}", description.getMethodName());
+            }
+        };
     }
 }

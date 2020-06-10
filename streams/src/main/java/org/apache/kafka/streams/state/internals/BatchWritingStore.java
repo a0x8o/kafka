@@ -14,19 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.streams.processor.internals;
+package org.apache.kafka.streams.state.internals;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.processor.BatchingStateRestoreCallback;
+import org.rocksdb.RocksDBException;
+import org.rocksdb.WriteBatch;
 
-import java.util.Collection;
-
-public interface RecordBatchingStateRestoreCallback extends BatchingStateRestoreCallback {
-    void restoreBatch(final Collection<ConsumerRecord<byte[], byte[]>> records);
-
-    @Override
-    default void restoreAll(final Collection<KeyValue<byte[], byte[]>> records) {
-        throw new UnsupportedOperationException();
-    }
+public interface BatchWritingStore {
+    void addToBatch(final KeyValue<byte[], byte[]> record,
+                    final WriteBatch batch) throws RocksDBException;
+    void write(final WriteBatch batch) throws RocksDBException;
 }
