@@ -14,31 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.common.errors;
+package org.apache.kafka.streams.errors;
 
 /**
- * This server is not the leader for the given partition.
- * @deprecated since 2.6. Use {@link NotLeaderOrFollowerException}.
+ * Indicates that the state store being queried is unknown, i.e., the state store does either not exist in your topology
+ * or it is not queryable.
  */
-@Deprecated
-public class NotLeaderForPartitionException extends InvalidMetadataException {
+public class UnknownStateStoreException extends InvalidStateStoreException {
 
     private static final long serialVersionUID = 1L;
 
-    public NotLeaderForPartitionException() {
-        super();
-    }
-
-    public NotLeaderForPartitionException(String message) {
+    public UnknownStateStoreException(final String message) {
         super(message);
     }
 
-    public NotLeaderForPartitionException(Throwable cause) {
-        super(cause);
-    }
-
-    public NotLeaderForPartitionException(String message, Throwable cause) {
-        super(message, cause);
+    public UnknownStateStoreException(final String message, final Throwable throwable) {
+        super(message, throwable);
     }
 
 }

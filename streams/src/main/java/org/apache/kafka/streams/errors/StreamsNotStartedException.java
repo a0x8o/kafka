@@ -14,31 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.common.errors;
+package org.apache.kafka.streams.errors;
+
+import org.apache.kafka.streams.KafkaStreams;
 
 /**
- * This server is not the leader for the given partition.
- * @deprecated since 2.6. Use {@link NotLeaderOrFollowerException}.
+ * Indicates that Kafka Streams is in state {@link KafkaStreams.State#CREATED CREATED} and thus state stores cannot be queries yet.
+ * To query state stores, it's required to first start Kafka Streams via {@link KafkaStreams#start()}.
+ * You can retry to query the state after the state transitioned to {@link KafkaStreams.State#RUNNING RUNNING}.
  */
-@Deprecated
-public class NotLeaderForPartitionException extends InvalidMetadataException {
+public class StreamsNotStartedException extends InvalidStateStoreException {
 
     private static final long serialVersionUID = 1L;
 
-    public NotLeaderForPartitionException() {
-        super();
-    }
-
-    public NotLeaderForPartitionException(String message) {
+    public StreamsNotStartedException(final String message) {
         super(message);
     }
 
-    public NotLeaderForPartitionException(Throwable cause) {
-        super(cause);
+    public StreamsNotStartedException(final String message, final Throwable throwable) {
+        super(message, throwable);
     }
-
-    public NotLeaderForPartitionException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
 }

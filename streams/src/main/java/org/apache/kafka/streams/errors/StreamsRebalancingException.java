@@ -14,31 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.common.errors;
+package org.apache.kafka.streams.errors;
 
 /**
- * This server is not the leader for the given partition.
- * @deprecated since 2.6. Use {@link NotLeaderOrFollowerException}.
+ * Indicates that Kafka Streams is in state {@link org.apache.kafka.streams.KafkaStreams.State#REBALANCING REBALANCING} and thus
+ * cannot be queried by default. You can retry to query after the rebalance finished. As an alternative, you can also query
+ * (potentially stale) state stores during a rebalance via {@link org.apache.kafka.streams.StoreQueryParameters#enableStaleStores()}.
  */
-@Deprecated
-public class NotLeaderForPartitionException extends InvalidMetadataException {
+public class StreamsRebalancingException extends InvalidStateStoreException {
 
     private static final long serialVersionUID = 1L;
 
-    public NotLeaderForPartitionException() {
-        super();
-    }
-
-    public NotLeaderForPartitionException(String message) {
+    public StreamsRebalancingException(final String message) {
         super(message);
     }
 
-    public NotLeaderForPartitionException(Throwable cause) {
-        super(cause);
+    public StreamsRebalancingException(final String message, final Throwable throwable) {
+        super(message, throwable);
     }
-
-    public NotLeaderForPartitionException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
 }

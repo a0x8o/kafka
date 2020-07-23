@@ -14,31 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.common.errors;
+package org.apache.kafka.streams.errors;
 
 /**
- * This server is not the leader for the given partition.
- * @deprecated since 2.6. Use {@link NotLeaderOrFollowerException}.
+ * Indicates that the state store being queried is closed although the Kafka Streams state is
+ * {@link org.apache.kafka.streams.KafkaStreams.State#RUNNING RUNNING} or
+ * {@link org.apache.kafka.streams.KafkaStreams.State#REBALANCING REBALANCING}.
+ * This could happen because the store moved to some other instance during a rebalance so
+ * rediscovery of the state store is required before retrying.
  */
-@Deprecated
-public class NotLeaderForPartitionException extends InvalidMetadataException {
+public class StateStoreMigratedException extends InvalidStateStoreException {
 
     private static final long serialVersionUID = 1L;
 
-    public NotLeaderForPartitionException() {
-        super();
-    }
-
-    public NotLeaderForPartitionException(String message) {
+    public StateStoreMigratedException(final String message) {
         super(message);
     }
 
-    public NotLeaderForPartitionException(Throwable cause) {
-        super(cause);
+    public StateStoreMigratedException(final String message, final Throwable throwable) {
+        super(message, throwable);
     }
-
-    public NotLeaderForPartitionException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
 }

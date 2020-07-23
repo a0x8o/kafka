@@ -14,31 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.common.errors;
+package org.apache.kafka.streams.errors;
+
+import org.apache.kafka.streams.KafkaStreams;
 
 /**
- * This server is not the leader for the given partition.
- * @deprecated since 2.6. Use {@link NotLeaderOrFollowerException}.
+ * Indicates that the specific state store being queried via
+ * {@link org.apache.kafka.streams.StoreQueryParameters} used a partitioning that is not assigned to this instance.
+ * You can use {@link KafkaStreams#allMetadata()} to discover the correct instance that hosts the requested partition.
  */
-@Deprecated
-public class NotLeaderForPartitionException extends InvalidMetadataException {
+public class InvalidStateStorePartitionException extends InvalidStateStoreException {
 
     private static final long serialVersionUID = 1L;
 
-    public NotLeaderForPartitionException() {
-        super();
-    }
-
-    public NotLeaderForPartitionException(String message) {
+    public InvalidStateStorePartitionException(final String message) {
         super(message);
     }
 
-    public NotLeaderForPartitionException(Throwable cause) {
-        super(cause);
-    }
-
-    public NotLeaderForPartitionException(String message, Throwable cause) {
-        super(message, cause);
+    public InvalidStateStorePartitionException(final String message, final Throwable throwable) {
+        super(message, throwable);
     }
 
 }
