@@ -32,7 +32,7 @@ import org.junit.Assert._
 import org.junit.Test
 import org.scalatest.Assertions.fail
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Subclasses of `BaseProduceSendRequestTest` exercise the producer and produce request/response. This class
@@ -125,7 +125,7 @@ class ProduceRequestTest extends BaseRequestTest {
 
     val produceResponse = sendProduceRequest(nonReplicaId, produceRequest)
     assertEquals(1, produceResponse.responses.size)
-    assertEquals(Errors.NOT_LEADER_FOR_PARTITION, produceResponse.responses.asScala.head._2.error)
+    assertEquals(Errors.NOT_LEADER_OR_FOLLOWER, produceResponse.responses.asScala.head._2.error)
   }
 
   /* returns a pair of partition id and leader id */

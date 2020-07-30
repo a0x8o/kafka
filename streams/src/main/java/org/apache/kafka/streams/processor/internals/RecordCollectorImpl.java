@@ -16,9 +16,7 @@
  */
 package org.apache.kafka.streams.processor.internals;
 
-import org.apache.kafka.clients.consumer.CommitFailedException;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
@@ -33,7 +31,6 @@ import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.errors.SerializationException;
-import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.metrics.Sensor;
@@ -59,31 +56,27 @@ public class RecordCollectorImpl implements RecordCollector {
 
     private final Logger log;
     private final TaskId taskId;
-    private final Consumer<byte[], byte[]> mainConsumer;
     private final StreamsProducer streamsProducer;
     private final ProductionExceptionHandler productionExceptionHandler;
     private final Sensor droppedRecordsSensor;
     private final boolean eosEnabled;
     private final Map<TopicPartition, Long> offsets;
 
-    private volatile KafkaException sendException;
+    private final AtomicReference<KafkaException> sendException = new AtomicReference<>(null);
 
     /**
      * @throws StreamsException fatal error that should cause the thread to die (from producer.initTxn)
      */
     public RecordCollectorImpl(final LogContext logContext,
                                final TaskId taskId,
-                               final Consumer<byte[], byte[]> mainConsumer,
                                final StreamsProducer streamsProducer,
                                final ProductionExceptionHandler productionExceptionHandler,
-                               final boolean eosEnabled,
                                final StreamsMetricsImpl streamsMetrics) {
         this.log = logContext.logger(getClass());
         this.taskId = taskId;
-        this.mainConsumer = mainConsumer;
         this.streamsProducer = streamsProducer;
         this.productionExceptionHandler = productionExceptionHandler;
-        this.eosEnabled = eosEnabled;
+        this.eosEnabled = streamsProducer.eosEnabled();
 
         final String threadId = Thread.currentThread().getName();
         this.droppedRecordsSensor = TaskMetrics.droppedRecordsSensorOrSkippedRecordsSensor(threadId, taskId.toString(), streamsMetrics);
@@ -178,7 +171,7 @@ public class RecordCollectorImpl implements RecordCollector {
 
         streamsProducer.send(serializedRecord, (metadata, exception) -> {
             // if there's already an exception record, skip logging offsets or new exceptions
-            if (sendException != null) {
+            if (sendException.get() != null) {
                 return;
             }
 
@@ -203,11 +196,11 @@ public class RecordCollectorImpl implements RecordCollector {
 
         if (isFatalException(exception)) {
             errorMessage += "\nWritten offsets would not be recorded and no more records would be sent since this is a fatal error.";
-            sendException = new StreamsException(errorMessage, exception);
+            sendException.set(new StreamsException(errorMessage, exception));
         } else if (exception instanceof ProducerFencedException || exception instanceof OutOfOrderSequenceException) {
             errorMessage += "\nWritten offsets would not be recorded and no more records would be sent since the producer is fenced, " +
                 "indicating the task may be migrated out";
-            sendException = new TaskMigratedException(errorMessage, exception);
+            sendException.set(new TaskMigratedException(errorMessage, exception));
         } else {
             if (exception instanceof RetriableException) {
                 errorMessage += "\nThe broker is either slow or in bad state (like not having enough replicas) in responding the request, " +
@@ -218,7 +211,7 @@ public class RecordCollectorImpl implements RecordCollector {
 
             if (productionExceptionHandler.handle(serializedRecord, exception) == ProductionExceptionHandlerResponse.FAIL) {
                 errorMessage += "\nException handler choose to FAIL the processing, no more records would be sent.";
-                sendException = new StreamsException(errorMessage, exception);
+                sendException.set(new StreamsException(errorMessage, exception));
             } else {
                 errorMessage += "\nException handler choose to CONTINUE processing in spite of this error but written offsets would not be recorded.";
                 droppedRecordsSensor.record();
@@ -242,25 +235,6 @@ public class RecordCollectorImpl implements RecordCollector {
         return securityException || communicationException;
     }
 
-    public void commit(final Map<TopicPartition, OffsetAndMetadata> offsets) {
-        if (eosEnabled) {
-            streamsProducer.commitTransaction(offsets);
-        } else {
-            try {
-                mainConsumer.commitSync(offsets);
-            } catch (final CommitFailedException error) {
-                throw new TaskMigratedException("Consumer committing offsets failed, " +
-                    "indicating the corresponding thread is no longer part of the group", error);
-            } catch (final TimeoutException error) {
-                // TODO KIP-447: we can consider treating it as non-fatal and retry on the thread level
-                throw new StreamsException("Timed out while committing offsets via consumer for task " + taskId, error);
-            } catch (final KafkaException error) {
-                throw new StreamsException("Error encountered committing offsets via consumer for task " + taskId, error);
-            }
-        }
-
-    }
-
     /**
      * @throws StreamsException fatal error that should cause the thread to die
      * @throws TaskMigratedException recoverable error that would cause the task to be removed
@@ -277,10 +251,26 @@ public class RecordCollectorImpl implements RecordCollector {
      * @throws TaskMigratedException recoverable error that would cause the task to be removed
      */
     @Override
-    public void close() {
-        log.debug("Closing record collector");
+    public void closeClean() {
+        log.info("Closing record collector clean");
+
+        // No need to abort transaction during a clean close: either we have successfully committed the ongoing
+        // transaction during handleRevocation and thus there is no transaction in flight, or else none of the revoked
+        // tasks had any data in the current transaction and therefore there is no need to commit or abort it.
+
+        checkForException();
+    }
+
+    /**
+     * @throws StreamsException fatal error that should cause the thread to die
+     * @throws TaskMigratedException recoverable error that would cause the task to be removed
+     */
+    @Override
+    public void closeDirty() {
+        log.info("Closing record collector dirty");
 
         if (eosEnabled) {
+            // We may be closing dirty because the commit failed, so we must abort the transaction to be safe
             streamsProducer.abortTransaction();
         }
 
@@ -293,8 +283,11 @@ public class RecordCollectorImpl implements RecordCollector {
     }
 
     private void checkForException() {
-        if (sendException != null) {
-            throw sendException;
+        final KafkaException exception = sendException.get();
+
+        if (exception != null) {
+            sendException.set(null);
+            throw exception;
         }
     }
 

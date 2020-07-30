@@ -23,10 +23,11 @@ import org.apache.kafka.common.quota.{ClientQuotaAlteration, ClientQuotaEntity, 
 import org.apache.kafka.common.requests.{AlterClientQuotasRequest, AlterClientQuotasResponse, DescribeClientQuotasRequest, DescribeClientQuotasResponse}
 import org.junit.Assert._
 import org.junit.Test
-
 import java.util.concurrent.{ExecutionException, TimeUnit}
 
-import scala.collection.JavaConverters._
+import org.apache.kafka.common.security.scram.internals.{ScramCredentialUtils, ScramFormatter, ScramMechanism}
+
+import scala.jdk.CollectionConverters._
 
 class ClientQuotasRequestTest extends BaseRequestTest {
   private val ConsumerByteRateProp = DynamicConfig.Client.ConsumerByteRateOverrideProp
@@ -37,6 +38,7 @@ class ClientQuotasRequestTest extends BaseRequestTest {
 
   @Test
   def testAlterClientQuotasRequest(): Unit = {
+
     val entity = new ClientQuotaEntity(Map((ClientQuotaEntity.USER -> "user"), (ClientQuotaEntity.CLIENT_ID -> "client-id")).asJava)
 
     // Expect an empty configuration.
@@ -162,6 +164,32 @@ class ClientQuotasRequestTest extends BaseRequestTest {
     ))
   }
 
+  @Test
+  def testClientQuotasForScramUsers(): Unit = {
+    val entityType = ConfigType.User
+    val userName = "user"
+
+    val mechanism = ScramMechanism.SCRAM_SHA_256
+    val credential = new ScramFormatter(mechanism).generateCredential("password", 4096)
+    val configs = adminZkClient.fetchEntityConfig(entityType, userName)
+    configs.setProperty(mechanism.mechanismName, ScramCredentialUtils.credentialToString(credential))
+    adminZkClient.changeConfigs(entityType, userName, configs)
+
+    val entity = new ClientQuotaEntity(Map(ClientQuotaEntity.USER -> userName).asJava)
+
+    verifyDescribeEntityQuotas(entity, Map.empty)
+
+    alterEntityQuotas(entity, Map(
+      (ProducerByteRateProp -> Some(10000.0)),
+      (ConsumerByteRateProp -> Some(20000.0))
+    ), validateOnly = false)
+
+    verifyDescribeEntityQuotas(entity, Map(
+      (ProducerByteRateProp -> 10000.0),
+      (ConsumerByteRateProp -> 20000.0)
+    ))
+  }
+
   @Test(expected = classOf[InvalidRequestException])
   def testAlterClientQuotasBadUser(): Unit = {
     val entity = new ClientQuotaEntity(Map((ClientQuotaEntity.USER -> "")).asJava)
@@ -272,7 +300,7 @@ class ClientQuotasRequestTest extends BaseRequestTest {
   def testDescribeClientQuotasMatchPartial(): Unit = {
     setupDescribeClientQuotasMatchTest()
 
-    def testMatchEntities(filter: ClientQuotaFilter, expectedMatchSize: Int, partition: ClientQuotaEntity => Boolean) {
+    def testMatchEntities(filter: ClientQuotaFilter, expectedMatchSize: Int, partition: ClientQuotaEntity => Boolean): Unit = {
       val result = describeClientQuotas(filter)
       val (expectedMatches, expectedNonMatches) = matchEntities.partition(e => partition(e._1))
       assertEquals(expectedMatchSize, expectedMatches.size)  // for test verification
@@ -359,7 +387,7 @@ class ClientQuotasRequestTest extends BaseRequestTest {
   }
 
   @Test
-  def testClientQuotasUnsupportedEntityTypes() {
+  def testClientQuotasUnsupportedEntityTypes(): Unit = {
     val entity = new ClientQuotaEntity(Map(("other" -> "name")).asJava)
     try {
       verifyDescribeEntityQuotas(entity, Map())
@@ -380,6 +408,20 @@ class ClientQuotasRequestTest extends BaseRequestTest {
     verifyDescribeEntityQuotas(entity, Map(
       (ProducerByteRateProp -> 20000.0),
     ))
+  }
+
+  @Test
+  def testClientQuotasWithDefaultName(): Unit = {
+    // An entity using the name associated with the default entity name. The entity's name should be sanitized so
+    // that it does not conflict with the default entity name.
+    val entity = new ClientQuotaEntity(Map((ClientQuotaEntity.CLIENT_ID -> ConfigEntityName.Default)).asJava)
+    alterEntityQuotas(entity, Map((ProducerByteRateProp -> Some(20000.0))), validateOnly = false)
+    verifyDescribeEntityQuotas(entity, Map((ProducerByteRateProp -> 20000.0)))
+
+    // This should not match.
+    val result = describeClientQuotas(
+      ClientQuotaFilter.containsOnly(List(ClientQuotaFilterComponent.ofDefaultEntity(ClientQuotaEntity.CLIENT_ID)).asJava))
+    assert(result.isEmpty)
   }
 
   private def verifyDescribeEntityQuotas(entity: ClientQuotaEntity, quotas: Map[String, Double]) = {

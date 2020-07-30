@@ -35,7 +35,8 @@ import org.junit.{After, Before, Test}
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito.{mock, when}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+import scala.concurrent.duration._
 
 /**
  * Verifies that slow appends to log don't block request threads processing replica fetch requests.
@@ -114,6 +115,56 @@ class PartitionLockTest extends Logging {
     concurrentProduceFetchWithWriteLock()
     active.set(false)
     future.get(15, TimeUnit.SECONDS)
+  }
+
+  /**
+   * Concurrently calling updateAssignmentAndIsr should always ensure that non-lock access
+   * to the inner remoteReplicaMap (accessed by getReplica) cannot see an intermediate state
+   * where replicas present both in the old and new assignment are missing
+   */
+  @Test
+  def testGetReplicaWithUpdateAssignmentAndIsr(): Unit = {
+    val active = new AtomicBoolean(true)
+    val replicaToCheck = 3
+    val firstReplicaSet = Seq[Integer](3, 4, 5).asJava
+    val secondReplicaSet = Seq[Integer](1, 2, 3).asJava
+    def partitionState(replicas: java.util.List[Integer]) = new LeaderAndIsrPartitionState()
+      .setControllerEpoch(1)
+      .setLeader(replicas.get(0))
+      .setLeaderEpoch(1)
+      .setIsr(replicas)
+      .setZkVersion(1)
+      .setReplicas(replicas)
+      .setIsNew(true)
+    val offsetCheckpoints: OffsetCheckpoints = mock(classOf[OffsetCheckpoints])
+    // Update replica set synchronously first to avoid race conditions
+    partition.makeLeader(partitionState(secondReplicaSet), offsetCheckpoints)
+    assertTrue(s"Expected replica $replicaToCheck to be defined", partition.getReplica(replicaToCheck).isDefined)
+
+    val future = executorService.submit((() => {
+      var i = 0
+      // Flip assignment between two replica sets
+      while (active.get) {
+        val replicas = if (i % 2 == 0) {
+          firstReplicaSet
+        } else {
+          secondReplicaSet
+        }
+
+        partition.makeLeader(partitionState(replicas), offsetCheckpoints)
+
+        i += 1
+        Thread.sleep(1) // just to avoid tight loop
+      }
+    }): Runnable)
+
+    val deadline = 1.seconds.fromNow
+    while (deadline.hasTimeLeft()) {
+      assertTrue(s"Expected replica $replicaToCheck to be defined", partition.getReplica(replicaToCheck).isDefined)
+    }
+    active.set(false)
+    future.get(5, TimeUnit.SECONDS)
+    assertTrue(s"Expected replica $replicaToCheck to be defined", partition.getReplica(replicaToCheck).isDefined)
   }
 
   /**
@@ -222,8 +273,8 @@ class PartitionLockTest extends Logging {
         }
       }
 
-      override def createLog(replicaId: Int, isNew: Boolean, isFutureReplica: Boolean, offsetCheckpoints: OffsetCheckpoints): Log = {
-        val log = super.createLog(replicaId, isNew, isFutureReplica, offsetCheckpoints)
+      override def createLog(isNew: Boolean, isFutureReplica: Boolean, offsetCheckpoints: OffsetCheckpoints): Log = {
+        val log = super.createLog(isNew, isFutureReplica, offsetCheckpoints)
         new SlowLog(log, mockTime, appendSemaphore)
       }
     }
@@ -235,21 +286,20 @@ class PartitionLockTest extends Logging {
     when(stateStore.expandIsr(ArgumentMatchers.anyInt, ArgumentMatchers.any[LeaderAndIsr]))
       .thenReturn(Some(2))
 
-    partition.createLogIfNotExists(brokerId, isNew = false, isFutureReplica = false, offsetCheckpoints)
+    partition.createLogIfNotExists(isNew = false, isFutureReplica = false, offsetCheckpoints)
 
-    val controllerId = 0
     val controllerEpoch = 0
     val replicas = (0 to numReplicaFetchers).map(i => Integer.valueOf(brokerId + i)).toList.asJava
     val isr = replicas
 
-    assertTrue("Expected become leader transition to succeed", partition.makeLeader(controllerId, new LeaderAndIsrPartitionState()
+    assertTrue("Expected become leader transition to succeed", partition.makeLeader(new LeaderAndIsrPartitionState()
       .setControllerEpoch(controllerEpoch)
       .setLeader(brokerId)
       .setLeaderEpoch(leaderEpoch)
       .setIsr(isr)
       .setZkVersion(1)
       .setReplicas(replicas)
-      .setIsNew(true), 0, offsetCheckpoints))
+      .setIsNew(true), offsetCheckpoints))
 
     partition
   }
@@ -285,8 +335,7 @@ class PartitionLockTest extends Logging {
         followerFetchOffsetMetadata = LogOffsetMetadata(recordBatch.lastOffset + 1),
         followerStartOffset = 0L,
         followerFetchTimeMs = mockTime.milliseconds(),
-        leaderEndOffset = partition.localLogOrException.logEndOffset,
-        lastSentHighwatermark = partition.localLogOrException.highWatermark)
+        leaderEndOffset = partition.localLogOrException.logEndOffset)
     }
   }
 

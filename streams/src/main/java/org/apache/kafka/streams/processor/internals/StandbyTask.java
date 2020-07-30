@@ -17,22 +17,23 @@
 package org.apache.kafka.streams.processor.internals;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.errors.StreamsException;
-import org.apache.kafka.streams.errors.TaskMigratedException;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.processor.internals.metrics.ThreadMetrics;
+import org.apache.kafka.streams.state.internals.ThreadCache;
+import org.slf4j.Logger;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.slf4j.Logger;
 
 /**
  * A StandbyTask
@@ -41,16 +42,19 @@ public class StandbyTask extends AbstractTask implements Task {
     private final Logger log;
     private final String logPrefix;
     private final Sensor closeTaskSensor;
+    private final boolean eosEnabled;
     private final InternalProcessorContext processorContext;
+    private final StreamsMetricsImpl streamsMetrics;
 
-    private Map<TopicPartition, Long> offsetSnapshotSinceLastCommit;
+    private boolean checkpointNeededForSuspended = false;
+    private Map<TopicPartition, Long> offsetSnapshotSinceLastCommit = new HashMap<>();
 
     /**
      * @param id             the ID of this task
      * @param partitions     input topic partitions, used for thread metadata only
      * @param topology       the instance of {@link ProcessorTopology}
      * @param config         the {@link StreamsConfig} specified by the user
-     * @param metrics        the {@link StreamsMetrics} created by the thread
+     * @param streamsMetrics the {@link StreamsMetrics} created by the thread
      * @param stateMgr       the {@link ProcessorStateManager} for this task
      * @param stateDirectory the {@link StateDirectory} created by the thread
      */
@@ -58,18 +62,23 @@ public class StandbyTask extends AbstractTask implements Task {
                 final Set<TopicPartition> partitions,
                 final ProcessorTopology topology,
                 final StreamsConfig config,
-                final StreamsMetricsImpl metrics,
+                final StreamsMetricsImpl streamsMetrics,
                 final ProcessorStateManager stateMgr,
-                final StateDirectory stateDirectory) {
+                final StateDirectory stateDirectory,
+                final ThreadCache cache,
+                final InternalProcessorContext processorContext) {
         super(id, topology, stateDirectory, stateMgr, partitions);
+        this.processorContext = processorContext;
+        this.streamsMetrics = streamsMetrics;
+        processorContext.transitionToStandby(cache);
 
         final String threadIdPrefix = String.format("stream-thread [%s] ", Thread.currentThread().getName());
         logPrefix = threadIdPrefix + String.format("%s [%s] ", "standby-task", id);
         final LogContext logContext = new LogContext(logPrefix);
         log = logContext.logger(getClass());
 
-        processorContext = new StandbyContextImpl(id, config, stateMgr, metrics);
-        closeTaskSensor = ThreadMetrics.closeTaskSensor(Thread.currentThread().getName(), metrics);
+        closeTaskSensor = ThreadMetrics.closeTaskSensor(Thread.currentThread().getName(), streamsMetrics);
+        eosEnabled = StreamThread.eosEnabled(config);
     }
 
     @Override
@@ -85,6 +94,9 @@ public class StandbyTask extends AbstractTask implements Task {
         if (state() == State.CREATED) {
             StateManagerUtil.registerStateStores(log, logPrefix, topology, stateMgr, stateDirectory, processorContext);
 
+            // initialize the snapshot with the current offsets as we don't need to commit then until they change
+            offsetSnapshotSinceLastCommit = new HashMap<>(stateMgr.changelogOffsets());
+
             // no topology needs initialized, we can transit to RUNNING
             // right after registered the stores
             transitionTo(State.RESTORING);
@@ -93,6 +105,8 @@ public class StandbyTask extends AbstractTask implements Task {
             processorContext.initialize();
 
             log.info("Initialized");
+        } else if (state() == State.RESTORING) {
+            throw new IllegalStateException("Illegal state " + state() + " while initializing standby task " + id);
         }
     }
 
@@ -103,92 +117,172 @@ public class StandbyTask extends AbstractTask implements Task {
 
     @Override
     public void suspend() {
-        log.trace("No-op suspend with state {}", state());
+        switch (state()) {
+            case CREATED:
+                log.info("Suspended created");
+                checkpointNeededForSuspended = false;
+                transitionTo(State.SUSPENDED);
+
+                break;
+
+            case RUNNING:
+                log.info("Suspended running");
+                checkpointNeededForSuspended = true;
+                transitionTo(State.SUSPENDED);
+
+                break;
+
+            case SUSPENDED:
+                log.info("Skip suspending since state is {}", state());
+
+                break;
+
+            case RESTORING:
+            case CLOSED:
+                throw new IllegalStateException("Illegal state " + state() + " while suspending standby task " + id);
+
+            default:
+                throw new IllegalStateException("Unknown state " + state() + " while suspending standby task " + id);
+        }
     }
 
     @Override
     public void resume() {
+        if (state() == State.RESTORING) {
+            throw new IllegalStateException("Illegal state " + state() + " while resuming standby task " + id);
+        }
         log.trace("No-op resume with state {}", state());
     }
 
     /**
-     * 1. flush store
-     * 2. write checkpoint file
+     * Flush stores before a commit
      *
-     * @throws TaskMigratedException all the task has been migrated
      * @throws StreamsException fatal error, should close the thread
      */
     @Override
-    public void commit() {
+    public Map<TopicPartition, OffsetAndMetadata> prepareCommit() {
         switch (state()) {
-            case RUNNING:
-                stateMgr.flush();
+            case CREATED:
+                log.debug("Skipped preparing created task for commit");
 
-                // since there's no written offsets we can checkpoint with empty map,
-                // and the state current offset would be used to checkpoint
-                stateMgr.checkpoint(Collections.emptyMap());
-
-                offsetSnapshotSinceLastCommit = new HashMap<>(stateMgr.changelogOffsets());
-
-                log.info("Committed");
                 break;
 
-            case CLOSING:
-                // do nothing and also not throw
-                log.trace("Skip committing since task is closing");
+            case RUNNING:
+            case SUSPENDED:
+                stateMgr.flush();
+                log.debug("Prepared {} task for committing", state());
 
                 break;
 
             default:
-                throw new IllegalStateException("Illegal state " + state() + " while committing standby task " + id);
+                throw new IllegalStateException("Illegal state " + state() + " while preparing standby task " + id + " for committing ");
+        }
 
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public void postCommit() {
+        switch (state()) {
+            case CREATED:
+                // We should never write a checkpoint for a CREATED task as we may overwrite an existing checkpoint
+                // with empty uninitialized offsets
+                log.debug("Skipped writing checkpoint for created task");
+
+                break;
+
+            case RUNNING:
+                if (commitNeeded()) {
+                    writeCheckpoint();
+                }
+                log.debug("Finalized commit for running task");
+
+                break;
+
+            case SUSPENDED:
+                // don't overwrite the existing checkpoint file if we haven't actually initialized the offsets yet
+                if (checkpointNeededForSuspended) {
+                    writeCheckpoint();
+                    log.debug("Finalized commit for suspended task");
+                    checkpointNeededForSuspended = false;
+                } else {
+                    log.debug("Skipped writing checkpoint for uninitialized suspended task");
+                }
+
+                break;
+
+            default:
+                throw new IllegalStateException("Illegal state " + state() + " while post committing standby task " + id);
         }
     }
 
     @Override
     public void closeClean() {
+        streamsMetrics.removeAllTaskLevelSensors(Thread.currentThread().getName(), id.toString());
         close(true);
-
         log.info("Closed clean");
     }
 
     @Override
     public void closeDirty() {
+        streamsMetrics.removeAllTaskLevelSensors(Thread.currentThread().getName(), id.toString());
         close(false);
-
         log.info("Closed dirty");
     }
 
-    /**
-     * 1. commit if we are running and clean close;
-     * 2. close the state manager.
-     *
-     * @throws TaskMigratedException all the task has been migrated
-     * @throws StreamsException fatal error, should close the thread
-     */
-    private void close(final boolean clean) {
-        if (state() == State.CREATED) {
-            // the task is created and not initialized, do nothing
-            transitionTo(State.CLOSING);
+    @Override
+    public void closeCleanAndRecycleState() {
+        streamsMetrics.removeAllTaskLevelSensors(Thread.currentThread().getName(), id.toString());
+        if (state() == State.SUSPENDED) {
+            stateMgr.recycle();
         } else {
-            if (state() == State.RUNNING) {
-                if (clean) {
-                    commit();
-                }
+            throw new IllegalStateException("Illegal state " + state() + " while closing standby task " + id);
+        }
 
-                transitionTo(State.CLOSING);
-            }
+        closeTaskSensor.record();
+        transitionTo(State.CLOSED);
 
-            if (state() == State.CLOSING) {
-                executeAndMaybeSwallow(clean, () -> {
-                    StateManagerUtil.closeStateManager(log, logPrefix, clean,
-                        false, stateMgr, stateDirectory, TaskType.STANDBY);
-                }, "state manager close", log);
+        log.info("Closed clean and recycled state");
+    }
 
-                // TODO: if EOS is enabled, we should wipe out the state stores like we did for StreamTask too
-            } else {
+    private void writeCheckpoint() {
+        // since there's no written offsets we can checkpoint with empty map,
+        // and the state's current offset would be used to checkpoint
+        stateMgr.checkpoint(Collections.emptyMap());
+        offsetSnapshotSinceLastCommit = new HashMap<>(stateMgr.changelogOffsets());
+    }
+
+    private void close(final boolean clean) {
+        switch (state()) {
+            case SUSPENDED:
+                TaskManager.executeAndMaybeSwallow(
+                    clean,
+                    () -> StateManagerUtil.closeStateManager(
+                        log,
+                        logPrefix,
+                        clean,
+                        eosEnabled,
+                        stateMgr,
+                        stateDirectory,
+                        TaskType.STANDBY
+                    ),
+                    "state manager close",
+                    log
+                );
+
+                break;
+
+            case CLOSED:
+                log.trace("Skip closing since state is {}", state());
+                return;
+
+            case CREATED:
+            case RESTORING: // a StandbyTask is never in RESTORING state
+            case RUNNING:
                 throw new IllegalStateException("Illegal state " + state() + " while closing standby task " + id);
-            }
+
+            default:
+                throw new IllegalStateException("Unknown state " + state() + " while closing standby task " + id);
         }
 
         closeTaskSensor.record();
@@ -198,7 +292,7 @@ public class StandbyTask extends AbstractTask implements Task {
     @Override
     public boolean commitNeeded() {
         // we can commit if the store's offset has changed since last commit
-        return offsetSnapshotSinceLastCommit == null || !offsetSnapshotSinceLastCommit.equals(stateMgr.changelogOffsets());
+        return !offsetSnapshotSinceLastCommit.equals(stateMgr.changelogOffsets());
     }
 
     @Override
@@ -209,6 +303,10 @@ public class StandbyTask extends AbstractTask implements Task {
     @Override
     public void addRecords(final TopicPartition partition, final Iterable<ConsumerRecord<byte[], byte[]>> records) {
         throw new IllegalStateException("Attempted to add records to task " + id() + " for invalid input partition " + partition);
+    }
+
+    InternalProcessorContext processorContext() {
+        return processorContext;
     }
 
     /**

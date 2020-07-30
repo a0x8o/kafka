@@ -20,6 +20,7 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.To;
+import org.apache.kafka.streams.processor.internals.Task.TaskType;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.SessionStore;
 import org.apache.kafka.streams.state.TimestampedKeyValueStore;
@@ -64,7 +65,7 @@ public class GlobalProcessorContextImplTest {
         expect(streamsConfig.defaultKeySerde()).andReturn(Serdes.ByteArray());
         replay(streamsConfig);
 
-        final StateManager stateManager = mock(StateManager.class);
+        final GlobalStateManager stateManager = mock(GlobalStateManager.class);
         expect(stateManager.getGlobalStore(GLOBAL_STORE_NAME)).andReturn(mock(StateStore.class));
         expect(stateManager.getGlobalStore(GLOBAL_KEY_VALUE_STORE_NAME)).andReturn(mock(KeyValueStore.class));
         expect(stateManager.getGlobalStore(GLOBAL_TIMESTAMPED_KEY_VALUE_STORE_NAME)).andReturn(mock(TimestampedKeyValueStore.class));
@@ -72,6 +73,7 @@ public class GlobalProcessorContextImplTest {
         expect(stateManager.getGlobalStore(GLOBAL_TIMESTAMPED_WINDOW_STORE_NAME)).andReturn(mock(TimestampedWindowStore.class));
         expect(stateManager.getGlobalStore(GLOBAL_SESSION_STORE_NAME)).andReturn(mock(SessionStore.class));
         expect(stateManager.getGlobalStore(UNKNOWN_STORE)).andReturn(null);
+        expect(stateManager.taskType()).andStubReturn(TaskType.GLOBAL);
         replay(stateManager);
 
         globalContext = new GlobalProcessorContextImpl(

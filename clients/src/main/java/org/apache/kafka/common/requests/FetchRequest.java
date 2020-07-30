@@ -146,7 +146,7 @@ public class FetchRequest extends AbstractRequest {
             TOPICS_V5);
 
     // V6 bumped up to indicate that the client supports KafkaStorageException. The KafkaStorageException will be
-    // translated to NotLeaderForPartitionException in the response if version <= 5
+    // translated to NotLeaderOrFollowerException in the response if version <= 5
     private static final Schema FETCH_REQUEST_V6 = FETCH_REQUEST_V5;
 
     // V7 added incremental fetch requests.
@@ -266,10 +266,10 @@ public class FetchRequest extends AbstractRequest {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             PartitionData that = (PartitionData) o;
-            return Objects.equals(fetchOffset, that.fetchOffset) &&
-                Objects.equals(logStartOffset, that.logStartOffset) &&
-                Objects.equals(maxBytes, that.maxBytes) &&
-                Objects.equals(currentLeaderEpoch, that.currentLeaderEpoch);
+            return fetchOffset == that.fetchOffset &&
+                    logStartOffset == that.logStartOffset &&
+                    maxBytes == that.maxBytes &&
+                    currentLeaderEpoch.equals(that.currentLeaderEpoch);
         }
     }
 

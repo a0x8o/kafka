@@ -31,6 +31,7 @@ import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.TopicExistsException;
+import org.apache.kafka.common.errors.LeaderNotAvailableException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.internals.KafkaFutureImpl;
 import org.apache.kafka.common.utils.Utils;
@@ -49,13 +50,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
 public class InternalTopicManagerTest {
-
     private final Node broker1 = new Node(0, "dummyHost-1", 1234);
     private final Node broker2 = new Node(1, "dummyHost-2", 1234);
     private final List<Node> cluster = new ArrayList<Node>(2) {
@@ -68,22 +71,28 @@ public class InternalTopicManagerTest {
     private final String topic2 = "test_topic_2";
     private final String topic3 = "test_topic_3";
     private final List<Node> singleReplica = Collections.singletonList(broker1);
+    private final int numRetries = 1;
+
+    private String threadName;
 
     private MockAdminClient mockAdminClient;
     private InternalTopicManager internalTopicManager;
 
+    @SuppressWarnings("deprecation") // TODO revisit in follow up PR
     private final Map<String, Object> config = new HashMap<String, Object>() {
         {
             put(StreamsConfig.APPLICATION_ID_CONFIG, "app-id");
             put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, broker1.host() + ":" + broker1.port());
             put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 1);
-            put(StreamsConfig.adminClientPrefix(StreamsConfig.RETRIES_CONFIG), 1);
             put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), 16384);
+            put(StreamsConfig.adminClientPrefix(StreamsConfig.RETRIES_CONFIG), numRetries);
         }
     };
 
     @Before
     public void init() {
+        threadName = Thread.currentThread().getName();
+
         mockAdminClient = new MockAdminClient(cluster, broker1);
         internalTopicManager = new InternalTopicManager(
             mockAdminClient,
@@ -102,7 +111,8 @@ public class InternalTopicManagerTest {
             topic,
             Collections.singletonList(new TopicPartitionInfo(0, broker1, singleReplica, Collections.emptyList())),
             null);
-        assertEquals(Collections.singletonMap(topic, 1), internalTopicManager.getNumPartitions(Collections.singleton(topic)));
+        assertEquals(Collections.singletonMap(topic, 1),
+            internalTopicManager.getNumPartitions(Collections.singleton(topic), Collections.emptySet(), true));
     }
 
     @Test
@@ -139,9 +149,18 @@ public class InternalTopicManagerTest {
         final ConfigResource resource2 = new ConfigResource(ConfigResource.Type.TOPIC, topic2);
         final ConfigResource resource3 = new ConfigResource(ConfigResource.Type.TOPIC, topic3);
 
-        assertEquals(new ConfigEntry(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE), mockAdminClient.describeConfigs(Collections.singleton(resource)).values().get(resource).get().get(TopicConfig.CLEANUP_POLICY_CONFIG));
-        assertEquals(new ConfigEntry(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT), mockAdminClient.describeConfigs(Collections.singleton(resource2)).values().get(resource2).get().get(TopicConfig.CLEANUP_POLICY_CONFIG));
-        assertEquals(new ConfigEntry(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT + "," + TopicConfig.CLEANUP_POLICY_DELETE), mockAdminClient.describeConfigs(Collections.singleton(resource3)).values().get(resource3).get().get(TopicConfig.CLEANUP_POLICY_CONFIG));
+        assertEquals(
+            new ConfigEntry(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE),
+            mockAdminClient.describeConfigs(Collections.singleton(resource)).values().get(resource).get().get(TopicConfig.CLEANUP_POLICY_CONFIG)
+        );
+        assertEquals(
+            new ConfigEntry(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT),
+            mockAdminClient.describeConfigs(Collections.singleton(resource2)).values().get(resource2).get().get(TopicConfig.CLEANUP_POLICY_CONFIG)
+        );
+        assertEquals(
+            new ConfigEntry(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT + "," + TopicConfig.CLEANUP_POLICY_DELETE),
+            mockAdminClient.describeConfigs(Collections.singleton(resource3)).values().get(resource3).get().get(TopicConfig.CLEANUP_POLICY_CONFIG)
+        );
     }
 
     @Test
@@ -153,7 +172,9 @@ public class InternalTopicManagerTest {
 
         final KafkaFutureImpl<TopicDescription> topicDescriptionSuccessFuture = new KafkaFutureImpl<>();
         final KafkaFutureImpl<TopicDescription> topicDescriptionFailFuture = new KafkaFutureImpl<>();
-        topicDescriptionSuccessFuture.complete(new TopicDescription(topic, false, Collections.singletonList(partitionInfo), Collections.emptySet()));
+        topicDescriptionSuccessFuture.complete(
+            new TopicDescription(topic, false, Collections.singletonList(partitionInfo), Collections.emptySet())
+        );
         topicDescriptionFailFuture.completeExceptionally(new UnknownTopicOrPartitionException("KABOOM!"));
 
         final KafkaFutureImpl<CreateTopicsResult.TopicMetadataAndConfig> topicCreationFuture = new KafkaFutureImpl<>();
@@ -247,8 +268,6 @@ public class InternalTopicManagerTest {
 
     @Test
     public void shouldLogWhenTopicNotFoundAndNotThrowException() {
-        LogCaptureAppender.setClassLoggerToDebug(InternalTopicManager.class);
-        final LogCaptureAppender appender = LogCaptureAppender.createAndRegister();
         mockAdminClient.addTopic(
             false,
             topic,
@@ -258,20 +277,126 @@ public class InternalTopicManagerTest {
         final InternalTopicConfig internalTopicConfig = new RepartitionTopicConfig(topic, Collections.emptyMap());
         internalTopicConfig.setNumberOfPartitions(1);
 
-        final InternalTopicConfig internalTopicConfigII = new RepartitionTopicConfig("internal-topic", Collections.emptyMap());
+        final InternalTopicConfig internalTopicConfigII =
+            new RepartitionTopicConfig("internal-topic", Collections.emptyMap());
         internalTopicConfigII.setNumberOfPartitions(1);
 
         final Map<String, InternalTopicConfig> topicConfigMap = new HashMap<>();
         topicConfigMap.put(topic, internalTopicConfig);
         topicConfigMap.put("internal-topic", internalTopicConfigII);
 
-        internalTopicManager.makeReady(topicConfigMap);
-        boolean foundExpectedMessage = false;
-        for (final String message : appender.getMessages()) {
-            foundExpectedMessage |= message.contains("Topic internal-topic is unknown or not found, hence not existed yet");
-        }
-        assertTrue(foundExpectedMessage);
+        LogCaptureAppender.setClassLoggerToDebug(InternalTopicManager.class);
+        try (final LogCaptureAppender appender = LogCaptureAppender.createAndRegister(InternalTopicManager.class)) {
+            internalTopicManager.makeReady(topicConfigMap);
 
+            assertThat(
+                appender.getMessages(),
+                hasItem("stream-thread [" + threadName + "] Topic internal-topic is unknown or not found, hence not existed yet.\n" +
+                    "Error message was: org.apache.kafka.common.errors.UnknownTopicOrPartitionException: Topic internal-topic not found.")
+            );
+        }
+    }
+
+    @Test
+    public void shouldCreateTopicWhenTopicLeaderNotAvailableAndThenTopicNotFound() {
+        final AdminClient admin = EasyMock.createNiceMock(AdminClient.class);
+        final InternalTopicManager topicManager = new InternalTopicManager(admin, new StreamsConfig(config));
+
+        final KafkaFutureImpl<TopicDescription> topicDescriptionLeaderNotAvailableFuture = new KafkaFutureImpl<>();
+        topicDescriptionLeaderNotAvailableFuture.completeExceptionally(new LeaderNotAvailableException("Leader Not Available!"));
+        final KafkaFutureImpl<TopicDescription> topicDescriptionUnknownTopicFuture = new KafkaFutureImpl<>();
+        topicDescriptionUnknownTopicFuture.completeExceptionally(new UnknownTopicOrPartitionException("Unknown Topic!"));
+        final KafkaFutureImpl<CreateTopicsResult.TopicMetadataAndConfig> topicCreationFuture = new KafkaFutureImpl<>();
+        topicCreationFuture.complete(EasyMock.createNiceMock(CreateTopicsResult.TopicMetadataAndConfig.class));
+
+        EasyMock.expect(admin.describeTopics(Collections.singleton(topic)))
+            .andReturn(new MockDescribeTopicsResult(
+                Collections.singletonMap(topic, topicDescriptionLeaderNotAvailableFuture)))
+            .once();
+        // return empty set for 1st time
+        EasyMock.expect(admin.createTopics(Collections.emptySet()))
+            .andReturn(new MockCreateTopicsResult(Collections.emptyMap())).once();
+        EasyMock.expect(admin.describeTopics(Collections.singleton(topic)))
+            .andReturn(new MockDescribeTopicsResult(
+                Collections.singletonMap(topic, topicDescriptionUnknownTopicFuture)))
+            .once();
+        EasyMock.expect(admin.createTopics(Collections.singleton(
+                new NewTopic(topic, Optional.of(1), Optional.of((short) 1))
+            .configs(Utils.mkMap(Utils.mkEntry(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE),
+                Utils.mkEntry(TopicConfig.MESSAGE_TIMESTAMP_TYPE_CONFIG, "CreateTime"),
+                Utils.mkEntry(TopicConfig.SEGMENT_BYTES_CONFIG, "52428800"),
+                Utils.mkEntry(TopicConfig.RETENTION_MS_CONFIG, "-1"))))))
+            .andReturn(new MockCreateTopicsResult(Collections.singletonMap(topic, topicCreationFuture))).once();
+
+        EasyMock.replay(admin);
+
+        final InternalTopicConfig internalTopicConfig = new RepartitionTopicConfig(topic, Collections.emptyMap());
+        internalTopicConfig.setNumberOfPartitions(1);
+        topicManager.makeReady(Collections.singletonMap(topic, internalTopicConfig));
+
+        EasyMock.verify(admin);
+    }
+
+    @Test
+    public void shouldCompleteValidateWhenTopicLeaderNotAvailableAndThenDescribeSuccess() {
+        final AdminClient admin = EasyMock.createNiceMock(AdminClient.class);
+        final InternalTopicManager topicManager = new InternalTopicManager(admin, new StreamsConfig(config));
+        final TopicPartitionInfo partitionInfo = new TopicPartitionInfo(0, broker1,
+                Collections.singletonList(broker1), Collections.singletonList(broker1));
+
+        final KafkaFutureImpl<TopicDescription> topicDescriptionFailFuture = new KafkaFutureImpl<>();
+        topicDescriptionFailFuture.completeExceptionally(new LeaderNotAvailableException("Leader Not Available!"));
+        final KafkaFutureImpl<TopicDescription> topicDescriptionSuccessFuture = new KafkaFutureImpl<>();
+        topicDescriptionSuccessFuture.complete(
+            new TopicDescription(topic, false, Collections.singletonList(partitionInfo), Collections.emptySet())
+        );
+
+        EasyMock.expect(admin.describeTopics(Collections.singleton(topic)))
+            .andReturn(new MockDescribeTopicsResult(
+                Collections.singletonMap(topic, topicDescriptionFailFuture)))
+            .once();
+        EasyMock.expect(admin.createTopics(Collections.emptySet()))
+            .andReturn(new MockCreateTopicsResult(Collections.emptyMap())).once();
+        EasyMock.expect(admin.describeTopics(Collections.singleton(topic)))
+            .andReturn(new MockDescribeTopicsResult(
+                Collections.singletonMap(topic, topicDescriptionSuccessFuture)))
+            .once();
+
+        EasyMock.replay(admin);
+
+        final InternalTopicConfig internalTopicConfig = new RepartitionTopicConfig(topic, Collections.emptyMap());
+        internalTopicConfig.setNumberOfPartitions(1);
+        topicManager.makeReady(Collections.singletonMap(topic, internalTopicConfig));
+
+        EasyMock.verify(admin);
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenKeepsTopicLeaderNotAvailable() {
+        final AdminClient admin = EasyMock.createNiceMock(AdminClient.class);
+        final InternalTopicManager topicManager = new InternalTopicManager(admin, new StreamsConfig(config));
+
+        final KafkaFutureImpl<TopicDescription> topicDescriptionFailFuture = new KafkaFutureImpl<>();
+        topicDescriptionFailFuture.completeExceptionally(new LeaderNotAvailableException("Leader Not Available!"));
+
+        // simulate describeTopics got LeaderNotAvailableException
+        EasyMock.expect(admin.describeTopics(Collections.singleton(topic)))
+            .andReturn(new MockDescribeTopicsResult(
+                Collections.singletonMap(topic, topicDescriptionFailFuture)))
+            .times(numRetries + 1);
+        EasyMock.expect(admin.createTopics(Collections.emptySet()))
+            .andReturn(new MockCreateTopicsResult(Collections.emptyMap())).once();
+
+        EasyMock.replay(admin);
+
+        final InternalTopicConfig internalTopicConfig = new RepartitionTopicConfig(topic, Collections.emptyMap());
+        internalTopicConfig.setNumberOfPartitions(1);
+
+        assertThrows(
+            StreamsException.class,
+            () -> topicManager.makeReady(Collections.singletonMap(topic, internalTopicConfig)));
+
+        EasyMock.verify(admin);
     }
 
     @Test
@@ -294,14 +419,14 @@ public class InternalTopicManagerTest {
         }
     }
 
-    private class MockCreateTopicsResult extends CreateTopicsResult {
+    private static class MockCreateTopicsResult extends CreateTopicsResult {
 
         MockCreateTopicsResult(final Map<String, KafkaFuture<TopicMetadataAndConfig>> futures) {
             super(futures);
         }
     }
 
-    private class MockDescribeTopicsResult extends DescribeTopicsResult {
+    private static class MockDescribeTopicsResult extends DescribeTopicsResult {
 
         MockDescribeTopicsResult(final Map<String, KafkaFuture<TopicDescription>> futures) {
             super(futures);

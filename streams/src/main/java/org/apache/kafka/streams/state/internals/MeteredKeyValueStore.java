@@ -24,6 +24,7 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.errors.ProcessorStateException;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
+import org.apache.kafka.streams.processor.internals.ProcessorContextUtils;
 import org.apache.kafka.streams.processor.internals.ProcessorStateManager;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.state.KeyValueIterator;
@@ -54,9 +55,9 @@ public class MeteredKeyValueStore<K, V>
 
     private final String metricsScope;
     protected final Time time;
-    private Sensor putSensor;
+    protected Sensor putSensor;
     private Sensor putIfAbsentSensor;
-    private Sensor getSensor;
+    protected Sensor getSensor;
     private Sensor deleteSensor;
     private Sensor putAllSensor;
     private Sensor allSensor;
@@ -103,8 +104,12 @@ public class MeteredKeyValueStore<K, V>
 
     @SuppressWarnings("unchecked")
     void initStoreSerde(final ProcessorContext context) {
+        final String storeName = name();
+        final String changelogTopic = ProcessorContextUtils.changelogFor(context, storeName);
         serdes = new StateSerdes<>(
-            ProcessorStateManager.storeChangelogTopic(context.applicationId(), name()),
+             changelogTopic != null ?
+                changelogTopic :
+                ProcessorStateManager.storeChangelogTopic(context.applicationId(), storeName),
             keySerde == null ? (Serde<K>) context.keySerde() : keySerde,
             valueSerde == null ? (Serde<V>) context.valueSerde() : valueSerde);
     }
@@ -199,15 +204,18 @@ public class MeteredKeyValueStore<K, V>
 
     @Override
     public void close() {
-        super.close();
-        streamsMetrics.removeAllStoreLevelSensors(threadId, taskId, name());
+        try {
+            wrapped().close();
+        } finally {
+            streamsMetrics.removeAllStoreLevelSensors(threadId, taskId, name());
+        }
     }
 
-    private V outerValue(final byte[] value) {
+    protected V outerValue(final byte[] value) {
         return value != null ? serdes.valueFrom(value) : null;
     }
 
-    private Bytes keyBytes(final K key) {
+    protected Bytes keyBytes(final K key) {
         return Bytes.wrap(serdes.rawKey(key));
     }
 

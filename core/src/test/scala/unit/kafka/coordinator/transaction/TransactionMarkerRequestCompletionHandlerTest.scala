@@ -177,8 +177,8 @@ class TransactionMarkerRequestCompletionHandlerTest {
   }
 
   @Test
-  def shouldRetryPartitionWhenNotLeaderForPartitionError(): Unit = {
-    verifyRetriesPartitionOnError(Errors.NOT_LEADER_FOR_PARTITION)
+  def shouldRetryPartitionWhenNotLeaderOrFollowerError(): Unit = {
+    verifyRetriesPartitionOnError(Errors.NOT_LEADER_OR_FOLLOWER)
   }
 
   @Test
@@ -189,6 +189,11 @@ class TransactionMarkerRequestCompletionHandlerTest {
   @Test
   def shouldRetryPartitionWhenNotEnoughReplicasAfterAppendError(): Unit = {
     verifyRetriesPartitionOnError(Errors.NOT_ENOUGH_REPLICAS_AFTER_APPEND)
+  }
+
+  @Test
+  def shouldRetryPartitionWhenKafkaStorageError(): Unit = {
+    verifyRetriesPartitionOnError(Errors.KAFKA_STORAGE_ERROR)
   }
 
   @Test
@@ -228,7 +233,7 @@ class TransactionMarkerRequestCompletionHandlerTest {
   private def verifyCompleteDelayedOperationOnError(error: Errors): Unit = {
 
     var completed = false
-    EasyMock.expect(markerChannelManager.completeSendMarkersForTxnId(transactionalId))
+    EasyMock.expect(markerChannelManager.maybeWriteTxnCompletion(transactionalId))
       .andAnswer(() => completed = true)
       .once()
     EasyMock.replay(markerChannelManager)

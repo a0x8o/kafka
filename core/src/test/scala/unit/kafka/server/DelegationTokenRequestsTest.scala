@@ -28,7 +28,7 @@ import org.junit.Assert._
 import org.junit.{After, Before, Test}
 import org.scalatest.Assertions.intercept
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionException
 
 class DelegationTokenRequestsTest extends BaseRequestTest with SaslSetup {
@@ -56,12 +56,12 @@ class DelegationTokenRequestsTest extends BaseRequestTest with SaslSetup {
     props.map(KafkaConfig.fromProps)
   }
 
-  private def createAdminConfig():util.Map[String, Object] = {
+  private def createAdminConfig: util.Map[String, Object] = {
     val config = new util.HashMap[String, Object]
     config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList)
     val securityProps: util.Map[Object, Object] =
       TestUtils.adminClientSecurityConfigs(securityProtocol, trustStoreFile, clientSaslProperties)
-    securityProps.asScala.foreach { case (key, value) => config.put(key.asInstanceOf[String], value) }
+    securityProps.forEach { (key, value) => config.put(key.asInstanceOf[String], value) }
     config
   }
 

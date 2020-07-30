@@ -20,7 +20,7 @@ package kafka.tools
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 
-import joptsimple.OptionException
+import kafka.utils.Exit
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -65,7 +65,8 @@ class ConsumerPerformanceTest {
     val args: Array[String] = Array(
       "--bootstrap-server", "localhost:9092",
       "--topic", "test",
-      "--messages", "10"
+      "--messages", "10",
+      "--print-metrics"
     )
 
     //When
@@ -96,8 +97,9 @@ class ConsumerPerformanceTest {
     assertEquals(10, config.numMessages)
   }
 
-  @Test(expected = classOf[OptionException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testConfigWithUnrecognizedOption(): Unit = {
+    Exit.setExitProcedure((_, message) => throw new IllegalArgumentException(message.orNull))
     //Given
     val args: Array[String] = Array(
       "--broker-list", "localhost:9092",
@@ -105,9 +107,12 @@ class ConsumerPerformanceTest {
       "--messages", "10",
       "--new-consumer"
     )
-
-    //When
-    new ConsumerPerformance.ConsumerPerfConfig(args)
+    try {
+      //When
+      new ConsumerPerformance.ConsumerPerfConfig(args)
+    } finally {
+      Exit.resetExitProcedure()
+    }
   }
 
   private def testHeaderMatchContent(detailed: Boolean, expectedOutputLineCount: Int, fun: () => Unit): Unit = {

@@ -461,7 +461,7 @@ public class FetchSessionHandler {
                 // fetch request is perfectly valid.
                 if (log.isDebugEnabled())
                     log.debug("Node {} sent an incremental fetch response with throttleTimeMs = {} " +
-                        "for session {}{}", response.throttleTimeMs(), node, response.sessionId(),
+                        "for session {}{}", node, response.throttleTimeMs(), response.sessionId(),
                         responseDataToLogString(response));
                 nextMetadata = nextMetadata.nextIncremental();
                 return true;
@@ -478,7 +478,7 @@ public class FetchSessionHandler {
      * @param t     The exception.
      */
     public void handleError(Throwable t) {
-        log.info("Error sending fetch request {} to node {}: {}.", nextMetadata, node, t);
+        log.info("Error sending fetch request {} to node {}:", nextMetadata, node, t);
         nextMetadata = nextMetadata.nextCloseExisting();
     }
 }

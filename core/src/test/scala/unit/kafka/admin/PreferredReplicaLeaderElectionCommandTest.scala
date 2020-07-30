@@ -41,7 +41,7 @@ import org.apache.kafka.test
 import org.junit.Assert._
 import org.junit.{After, Test}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class PreferredReplicaLeaderElectionCommandTest extends ZooKeeperTestHarness with Logging {
   var servers: Seq[KafkaServer] = Seq()
@@ -79,7 +79,7 @@ class PreferredReplicaLeaderElectionCommandTest extends ZooKeeperTestHarness wit
       () =>
         servers.forall { server =>
           partitionsAndAssignments.forall { partitionAndAssignment =>
-            server.getLogManager().getLog(partitionAndAssignment._1).isDefined
+            server.getLogManager.getLog(partitionAndAssignment._1).isDefined
           }
         },
       "Replicas for topic test not created"
@@ -367,7 +367,7 @@ class PreferredReplicaLeaderElectionCommandTest extends ZooKeeperTestHarness wit
     val serverConfigs = TestUtils.createBrokerConfigs(3, zkConnect, false, rackInfo = brokerRack).map(KafkaConfig.fromProps)
     // create the topic
     adminZkClient.createTopicWithAssignment(topic, config = new Properties, expectedReplicaAssignment)
-    servers = serverConfigs.reverseMap(s => TestUtils.createServer(s))
+    servers = serverConfigs.reverse.map(s => TestUtils.createServer(s))
     // broker 2 should be the leader since it was started first
     val currentLeader = TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, partition, oldLeaderOpt = None)
     // trigger preferred replica election

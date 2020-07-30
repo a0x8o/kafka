@@ -93,7 +93,7 @@ class WordCountTest extends WordCountTestData {
 
     streams.close()
 
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     assertEquals(actualWordCounts.asScala.take(expectedWordCounts.size).sortBy(_.key), expectedWordCounts.sortBy(_.key))
   }
 
@@ -126,7 +126,7 @@ class WordCountTest extends WordCountTestData {
 
     streams.close()
 
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     assertEquals(actualWordCounts.asScala.take(expectedWordCounts.size).sortBy(_.key), expectedWordCounts.sortBy(_.key))
   }
 
@@ -140,7 +140,7 @@ class WordCountTest extends WordCountTestData {
       KGroupedStream => KGroupedStreamJ,
       _
     }
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     val streamsConfiguration = getStreamsConfiguration()
     streamsConfiguration.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String.getClass.getName)
@@ -188,7 +188,6 @@ class WordCountTest extends WordCountTestData {
     val p = new Properties()
     p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.bootstrapServers())
     p.put(ProducerConfig.ACKS_CONFIG, "all")
-    p.put(ProducerConfig.RETRIES_CONFIG, "0")
     p.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, classOf[StringSerializer])
     p.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, classOf[StringSerializer])
     p
@@ -208,7 +207,7 @@ class WordCountTest extends WordCountTestData {
 
     val linesProducerConfig: Properties = getProducerConfig()
 
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     IntegrationTestUtils.produceValuesSynchronously(inputTopic, inputValues.asJava, linesProducerConfig, mockTime)
 
     val consumerConfig = getConsumerConfig()

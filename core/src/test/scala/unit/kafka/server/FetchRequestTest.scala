@@ -33,7 +33,7 @@ import org.apache.kafka.common.{IsolationLevel, TopicPartition}
 import org.junit.Assert._
 import org.junit.Test
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.Seq
 import scala.util.Random
 
@@ -209,7 +209,7 @@ class FetchRequestTest extends BaseRequestTest {
       Seq(topicPartition))).build()
     val fetchResponse = sendFetchRequest(nonReplicaId, fetchRequest)
     val partitionData = fetchResponse.responseData.get(topicPartition)
-    assertEquals(Errors.REPLICA_NOT_AVAILABLE, partitionData.error)
+    assertEquals(Errors.NOT_LEADER_OR_FOLLOWER, partitionData.error)
   }
 
   @Test
@@ -530,6 +530,12 @@ class FetchRequestTest extends BaseRequestTest {
     val data1 = res1.responseData.get(topicPartition)
     assertEquals(Errors.NONE, data1.error)
     assertEquals(3, records(data1).size)
+  }
+
+  @Test
+  def testPartitionDataEquals(): Unit = {
+    assertEquals(new FetchRequest.PartitionData(300, 0L, 300, Optional.of(300)),
+    new FetchRequest.PartitionData(300, 0L, 300, Optional.of(300)));
   }
 
   @Test

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package kafka.utils
 
 import java.io._
@@ -27,17 +26,13 @@ import java.time.Duration
 import java.util.{Arrays, Collections, Properties}
 import java.util.concurrent.{Callable, ExecutionException, Executors, TimeUnit}
 
-import com.yammer.metrics.Metrics
-import com.yammer.metrics.core.Meter
 import javax.net.ssl.X509TrustManager
 import kafka.api._
 import kafka.cluster.{Broker, EndPoint}
-import kafka.controller.LeaderIsrAndControllerEpoch
 import kafka.log._
-import kafka.security.auth.{Acl, Authorizer => LegacyAuthorizer, Resource}
+import kafka.security.auth.{Acl, Resource, Authorizer => LegacyAuthorizer}
 import kafka.server._
 import kafka.server.checkpoints.OffsetCheckpointFile
-import Implicits._
 import com.yammer.metrics.core.Meter
 import kafka.controller.LeaderIsrAndControllerEpoch
 import kafka.metrics.KafkaYammerMetrics
@@ -69,10 +64,10 @@ import org.apache.zookeeper.data.ACL
 import org.junit.Assert._
 import org.scalatest.Assertions.fail
 
-import scala.collection.JavaConverters._
+import scala.annotation.nowarn
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.{Map, Seq, mutable}
-import scala.compat.java8.OptionConverters._
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -473,14 +468,14 @@ object TestUtils extends Logging {
     var length = 0
     while(expected.hasNext && actual.hasNext) {
       length += 1
-      assertEquals(expected.next, actual.next)
+      assertEquals(expected.next(), actual.next())
     }
 
     // check if the expected iterator is longer
     if (expected.hasNext) {
       var length1 = length
       while (expected.hasNext) {
-        expected.next
+        expected.next()
         length1 += 1
       }
       assertFalse("Iterators have uneven length-- first has more: "+length1 + " > " + length, true)
@@ -490,7 +485,7 @@ object TestUtils extends Logging {
     if (actual.hasNext) {
       var length2 = length
       while (actual.hasNext) {
-        actual.next
+        actual.next()
         length2 += 1
       }
       assertFalse("Iterators have uneven length-- second has more: "+length2 + " > " + length, true)
@@ -504,8 +499,8 @@ object TestUtils extends Logging {
   def checkLength[T](s1: Iterator[T], expectedLength:Int): Unit = {
     var n = 0
     while (s1.hasNext) {
-      n+=1
-      s1.next
+      n += 1
+      s1.next()
     }
     assertEquals(expectedLength, n)
   }
@@ -530,7 +525,7 @@ object TestUtils extends Logging {
         while (true) {
           if (cur == null) {
             if (topIterator.hasNext)
-              cur = topIterator.next
+              cur = topIterator.next()
             else
               return false
           }
@@ -542,7 +537,7 @@ object TestUtils extends Logging {
         throw new RuntimeException("should not reach here")
       }
 
-      def next() : T = cur.next
+      def next() : T = cur.next()
     }
   }
 
@@ -586,6 +581,7 @@ object TestUtils extends Logging {
   /**
    * Create a (new) producer with a few pre-configured properties.
    */
+  @nowarn("cat=deprecation")
   def createProducer[K, V](brokerList: String,
                            acks: Int = -1,
                            maxBlockMs: Long = 60 * 1000L,
@@ -831,7 +827,7 @@ object TestUtils extends Logging {
   }
 
   /**
-    *  Wait until the given condition is true or throw an exception if the given wait time elapses.
+    * Wait until the given condition is true or throw an exception if the given wait time elapses.
     *
     * @param condition condition to check
     * @param msg error message
@@ -861,7 +857,7 @@ object TestUtils extends Logging {
     * This method is useful in cases where `waitUntilTrue` makes it awkward to provide good error messages.
     */
   def computeUntilTrue[T](compute: => T, waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L)(
-                    predicate: T => Boolean): (T, Boolean) = {
+                          predicate: T => Boolean): (T, Boolean) = {
     val startTime = System.currentTimeMillis()
     while (true) {
       val result = compute
@@ -1125,7 +1121,6 @@ object TestUtils extends Logging {
       }
       checkpoints.forall(checkpointsPerLogDir => !checkpointsPerLogDir.contains(tp))
     }), "Cleaner offset for deleted partition should have been removed")
-    import scala.collection.JavaConverters._
     waitUntilTrue(() => servers.forall(server =>
       server.config.logDirs.forall { logDir =>
         topicPartitions.forall { tp =>
@@ -1179,7 +1174,7 @@ object TestUtils extends Logging {
       .build()
 
     val sslProps = new Properties()
-    sslConfigs.asScala.foreach { case (k, v) => sslProps.put(k, v) }
+    sslConfigs.forEach { (k, v) => sslProps.put(k, v) }
     sslProps
   }
 
@@ -1385,7 +1380,8 @@ object TestUtils extends Logging {
                                   batchSize: Int = 16384,
                                   transactionTimeoutMs: Long = 60000,
                                   maxBlockMs: Long = 60000,
-                                  deliveryTimeoutMs: Int = 120000) = {
+                                  deliveryTimeoutMs: Int = 120000,
+                                  requestTimeoutMs: Int = 30000): KafkaProducer[Array[Byte], Array[Byte]] = {
     val props = new Properties()
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, TestUtils.getBrokerListStrFromServers(servers))
     props.put(ProducerConfig.ACKS_CONFIG, "all")
@@ -1395,7 +1391,7 @@ object TestUtils extends Logging {
     props.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, transactionTimeoutMs.toString)
     props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, maxBlockMs.toString)
     props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, deliveryTimeoutMs.toString)
-    props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, deliveryTimeoutMs.toString)
+    props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs.toString)
     new KafkaProducer[Array[Byte], Array[Byte]](props, new ByteArraySerializer, new ByteArraySerializer)
   }
 
@@ -1454,36 +1450,21 @@ object TestUtils extends Logging {
   // Collect the current positions for all partition in the consumers current assignment.
   def consumerPositions(consumer: KafkaConsumer[Array[Byte], Array[Byte]]) : Map[TopicPartition, OffsetAndMetadata]  = {
     val offsetsToCommit = new mutable.HashMap[TopicPartition, OffsetAndMetadata]()
-    consumer.assignment.asScala.foreach { topicPartition =>
+    consumer.assignment.forEach { topicPartition =>
       offsetsToCommit.put(topicPartition, new OffsetAndMetadata(consumer.position(topicPartition)))
     }
     offsetsToCommit.toMap
   }
 
   def resetToCommittedPositions(consumer: KafkaConsumer[Array[Byte], Array[Byte]]): Unit = {
-    val committed = consumer.committed(consumer.assignment).asScala.filter(_._2 != null).mapValues(_.offset)
+    val committed = consumer.committed(consumer.assignment).asScala.filter(_._2 != null).map { case (k, v) => k -> v.offset }
 
-    consumer.assignment.asScala.foreach { topicPartition =>
+    consumer.assignment.forEach { topicPartition =>
       if (committed.contains(topicPartition))
         consumer.seek(topicPartition, committed(topicPartition))
       else
         consumer.seekToBeginning(Collections.singletonList(topicPartition))
     }
-  }
-
-  def alterConfigs(servers: Seq[KafkaServer], adminClient: Admin, props: Properties,
-                   perBrokerConfig: Boolean): AlterConfigsResult = {
-    val configEntries = props.asScala.map { case (k, v) => new ConfigEntry(k, v) }.toList.asJava
-    val newConfig = new Config(configEntries)
-    val configs = if (perBrokerConfig) {
-      servers.map { server =>
-        val resource = new ConfigResource(ConfigResource.Type.BROKER, server.config.brokerId.toString)
-        (resource, newConfig)
-      }.toMap.asJava
-    } else {
-      Map(new ConfigResource(ConfigResource.Type.BROKER, "") -> newConfig).asJava
-    }
-    adminClient.alterConfigs(configs)
   }
 
   def incrementalAlterConfigs(servers: Seq[KafkaServer], adminClient: Admin, props: Properties,
@@ -1498,13 +1479,6 @@ object TestUtils extends Logging {
       Map(new ConfigResource(ConfigResource.Type.BROKER, "") -> configEntries).asJava
     }
     adminClient.incrementalAlterConfigs(configs)
-  }
-
-  def alterTopicConfigs(adminClient: Admin, topic: String, topicConfigs: Properties): AlterConfigsResult = {
-    val configEntries = topicConfigs.asScala.map { case (k, v) => new ConfigEntry(k, v) }.toList.asJava
-    val newConfig = new Config(configEntries)
-    val configs = Map(new ConfigResource(ConfigResource.Type.TOPIC, topic) -> newConfig).asJava
-    adminClient.alterConfigs(configs)
   }
 
   def assertLeader(client: Admin, topicPartition: TopicPartition, expectedLeader: Int): Unit = {
@@ -1636,7 +1610,7 @@ object TestUtils extends Logging {
 
   def meterCount(metricName: String): Long = {
     KafkaYammerMetrics.defaultRegistry.allMetrics.asScala
-      .filterKeys(_.getMBeanName.endsWith(metricName))
+      .filter { case (k, _) => k.getMBeanName.endsWith(metricName) }
       .values
       .headOption
       .getOrElse(fail(s"Unable to find metric $metricName"))
@@ -1650,11 +1624,8 @@ object TestUtils extends Logging {
   }
 
   def stringifyTopicPartitions(partitions: Set[TopicPartition]): String = {
-    Json.legacyEncodeAsString(
-      Map(
-        "partitions" -> partitions.map(tp => Map("topic" -> tp.topic, "partition" -> tp.partition))
-      )
-    )
+    Json.encodeAsString(Map("partitions" ->
+      partitions.map(tp => Map("topic" -> tp.topic, "partition" -> tp.partition).asJava).asJava).asJava)
   }
 
   def resource[R <: AutoCloseable, A](resource: R)(func: R => A): A = {
@@ -1748,7 +1719,7 @@ object TestUtils extends Logging {
     authorizer.createAcls(null, aclBindings.toList.asJava).asScala
       .map(_.toCompletableFuture.get)
       .foreach { result =>
-        result.exception.asScala.foreach { e => throw e }
+        result.exception.ifPresent { e => throw e }
       }
     val aclFilter = new AclBindingFilter(resource.toFilter, AccessControlEntryFilter.ANY)
     waitAndVerifyAcls(
