@@ -92,7 +92,7 @@ public abstract class AbstractResponse implements AbstractRequestResponse {
             case FETCH:
                 return new FetchResponse<>(new FetchResponseData(struct, version));
             case LIST_OFFSETS:
-                return new ListOffsetResponse(struct);
+                return new ListOffsetResponse(struct, version);
             case METADATA:
                 return new MetadataResponse(struct, version);
             case OFFSET_COMMIT:
@@ -191,6 +191,14 @@ public abstract class AbstractResponse implements AbstractRequestResponse {
                 return new DescribeUserScramCredentialsResponse(struct, version);
             case ALTER_USER_SCRAM_CREDENTIALS:
                 return new AlterUserScramCredentialsResponse(struct, version);
+            case VOTE:
+                return new VoteResponse(struct, version);
+            case BEGIN_QUORUM_EPOCH:
+                return new BeginQuorumEpochResponse(struct, version);
+            case END_QUORUM_EPOCH:
+                return new EndQuorumEpochResponse(struct, version);
+            case DESCRIBE_QUORUM:
+                return new DescribeQuorumResponse(struct, version);
             default:
                 throw new AssertionError(String.format("ApiKey %s is not currently handled in `parseResponse`, the " +
                         "code should be updated to do so.", apiKey));
