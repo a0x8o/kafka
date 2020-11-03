@@ -14,15 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.clients.admin;
+package org.apache.kafka.raft;
 
-import org.apache.kafka.common.annotation.InterfaceStability;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * Options for {@link AdminClient#describeFeatures(DescribeFeaturesOptions)}.
- *
- * The API of this class is evolving. See {@link Admin} for details.
- */
-@InterfaceStability.Evolving
-public class DescribeFeaturesOptions extends AbstractOptions<DescribeFeaturesOptions> {
+public interface ExpirationService {
+    /**
+     * Get a new completable future which will automatically fail exceptionally with a
+     * {@link org.apache.kafka.common.errors.TimeoutException} if not completed before
+     * the provided time limit expires.
+     *
+     * @param timeoutMs the duration in milliseconds before the future is completed exceptionally
+     * @param <T> arbitrary future type (the service must set no expectation on the this type)
+     * @return the completable future
+     */
+    <T> CompletableFuture<T> failAfter(long timeoutMs);
 }

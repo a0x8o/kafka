@@ -14,15 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.clients.admin;
+package org.apache.kafka.raft.internals;
 
-import org.apache.kafka.common.annotation.InterfaceStability;
+public interface CloseListener<T extends AutoCloseable> {
 
-/**
- * Options for {@link AdminClient#describeFeatures(DescribeFeaturesOptions)}.
- *
- * The API of this class is evolving. See {@link Admin} for details.
- */
-@InterfaceStability.Evolving
-public class DescribeFeaturesOptions extends AbstractOptions<DescribeFeaturesOptions> {
+    void onClose(T closeable);
+
 }
