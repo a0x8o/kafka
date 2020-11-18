@@ -14,14 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.streams.processor.internals.assignment;
+package org.apache.kafka.common.errors;
 
-public final class StreamsAssignmentProtocolVersions {
-    public static final int UNKNOWN = -1;
-    public static final int EARLIEST_PROBEABLE_VERSION = 3;
-    public static final int LATEST_SUPPORTED_VERSION = 9;
-    //When changing the versions update this test: streams_upgrade_test.py::StreamsUpgradeTest.test_version_probing_upgrade
-    //Add add a unit test in SubscriptionInfoTest
+/**
+ * This exception indicates that the produce request sent to the partition leader
+ * contains a non-matching producer epoch. When encountering this exception, user should abort the ongoing transaction
+ * by calling KafkaProducer#abortTransaction which would try to send initPidRequest and reinitialize the producer
+ * under the hood.
+ */
+public class InvalidProducerEpochException extends ApiException {
 
-    private StreamsAssignmentProtocolVersions() {}
+    private static final long serialVersionUID = 1L;
+
+    public InvalidProducerEpochException(String message) {
+        super(message);
+    }
 }
