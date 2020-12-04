@@ -20,6 +20,7 @@ package org.apache.kafka.jmh.fetcher;
 import kafka.api.ApiVersion$;
 import kafka.cluster.BrokerEndPoint;
 import kafka.cluster.DelayedOperations;
+import kafka.cluster.IsrChangeListener;
 import kafka.cluster.Partition;
 import kafka.cluster.PartitionStateStore;
 import kafka.log.CleanerConfig;
@@ -45,12 +46,12 @@ import kafka.utils.KafkaScheduler;
 import kafka.utils.Pool;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.message.LeaderAndIsrRequestData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData.EpochEndOffset;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.BaseRecords;
 import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.RecordsSend;
-import org.apache.kafka.common.requests.EpochEndOffset;
 import org.apache.kafka.common.requests.FetchRequest;
 import org.apache.kafka.common.requests.FetchResponse;
 import org.apache.kafka.common.requests.OffsetsForLeaderEpochRequest;
@@ -154,11 +155,12 @@ public class ReplicaFetcherThreadBenchmark {
 
             PartitionStateStore partitionStateStore = Mockito.mock(PartitionStateStore.class);
             Mockito.when(partitionStateStore.fetchTopicConfig()).thenReturn(new Properties());
+            IsrChangeListener isrChangeListener = Mockito.mock(IsrChangeListener.class);
             OffsetCheckpoints offsetCheckpoints = Mockito.mock(OffsetCheckpoints.class);
             Mockito.when(offsetCheckpoints.fetch(logDir.getAbsolutePath(), tp)).thenReturn(Option.apply(0L));
             AlterIsrManager isrChannelManager = Mockito.mock(AlterIsrManager.class);
             Partition partition = new Partition(tp, 100, ApiVersion$.MODULE$.latestVersion(),
-                    0, Time.SYSTEM, partitionStateStore, new DelayedOperationsMock(tp),
+                    0, Time.SYSTEM, partitionStateStore, isrChangeListener, new DelayedOperationsMock(tp),
                     Mockito.mock(MetadataCache.class), logManager, isrChannelManager);
 
             partition.makeFollower(partitionState, offsetCheckpoints);
@@ -307,7 +309,12 @@ public class ReplicaFetcherThreadBenchmark {
             scala.collection.mutable.Map<TopicPartition, EpochEndOffset> endOffsets = new scala.collection.mutable.HashMap<>();
             Iterator<TopicPartition> iterator = partitions.keys().iterator();
             while (iterator.hasNext()) {
-                endOffsets.put(iterator.next(), new EpochEndOffset(0, 100));
+                TopicPartition tp = iterator.next();
+                endOffsets.put(tp, new EpochEndOffset()
+                    .setPartition(tp.partition())
+                    .setErrorCode(Errors.NONE.code())
+                    .setLeaderEpoch(0)
+                    .setEndOffset(100));
             }
             return endOffsets;
         }
