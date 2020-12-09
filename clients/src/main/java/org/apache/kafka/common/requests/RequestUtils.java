@@ -16,35 +16,95 @@
  */
 package org.apache.kafka.common.requests;
 
-import org.apache.kafka.common.protocol.types.Field;
-import org.apache.kafka.common.protocol.types.Struct;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.protocol.ByteBufferAccessor;
+import org.apache.kafka.common.protocol.Message;
+import org.apache.kafka.common.protocol.MessageSizeAccumulator;
+import org.apache.kafka.common.protocol.ObjectSerializationCache;
+import org.apache.kafka.common.record.BaseRecords;
 import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.Records;
 
 import java.nio.ByteBuffer;
+import java.util.AbstractMap;
+import java.util.Iterator;
 import java.util.Optional;
 
 public final class RequestUtils {
 
     private RequestUtils() {}
 
-    static void setLeaderEpochIfExists(Struct struct, Field.Int32 leaderEpochField, Optional<Integer> leaderEpoch) {
-        struct.setIfExists(leaderEpochField, leaderEpoch.orElse(RecordBatch.NO_PARTITION_LEADER_EPOCH));
-    }
-
-    static Optional<Integer> getLeaderEpoch(Struct struct, Field.Int32 leaderEpochField) {
-        int leaderEpoch = struct.getOrElse(leaderEpochField, RecordBatch.NO_PARTITION_LEADER_EPOCH);
-        return getLeaderEpoch(leaderEpoch);
-    }
-
     static Optional<Integer> getLeaderEpoch(int leaderEpoch) {
         return leaderEpoch == RecordBatch.NO_PARTITION_LEADER_EPOCH ?
             Optional.empty() : Optional.of(leaderEpoch);
     }
 
-    public static ByteBuffer serialize(Struct headerStruct, Struct bodyStruct) {
-        ByteBuffer buffer = ByteBuffer.allocate(headerStruct.sizeOf() + bodyStruct.sizeOf());
-        headerStruct.writeTo(buffer);
-        bodyStruct.writeTo(buffer);
+    // visible for testing
+    public static boolean hasIdempotentRecords(ProduceRequest request) {
+        return flags(request).getKey();
+    }
+
+    // visible for testing
+    public static boolean hasTransactionalRecords(ProduceRequest request) {
+        return flags(request).getValue();
+    }
+
+    /**
+     * Get both hasIdempotentRecords flag and hasTransactionalRecords flag from produce request.
+     * Noted that we find all flags at once to avoid duplicate loop and record batch construction.
+     * @return first flag is "hasIdempotentRecords" and another is "hasTransactionalRecords"
+     */
+    public static AbstractMap.SimpleEntry<Boolean, Boolean> flags(ProduceRequest request) {
+        boolean hasIdempotentRecords = false;
+        boolean hasTransactionalRecords = false;
+        for (ProduceRequestData.TopicProduceData tpd : request.data().topicData()) {
+            for (ProduceRequestData.PartitionProduceData ppd : tpd.partitionData()) {
+                BaseRecords records = ppd.records();
+                if (records instanceof Records) {
+                    Iterator<? extends RecordBatch> iterator = ((Records) records).batches().iterator();
+                    if (iterator.hasNext()) {
+                        RecordBatch batch = iterator.next();
+                        hasIdempotentRecords = hasIdempotentRecords || batch.hasProducerId();
+                        hasTransactionalRecords = hasTransactionalRecords || batch.isTransactional();
+                    }
+                }
+                // return early
+                if (hasIdempotentRecords && hasTransactionalRecords)
+                    return new AbstractMap.SimpleEntry<>(true, true);
+            }
+        }
+        return new AbstractMap.SimpleEntry<>(hasIdempotentRecords, hasTransactionalRecords);
+    }
+
+    public static MessageSizeAccumulator size(
+        ObjectSerializationCache serializationCache,
+        Message header,
+        short headerVersion,
+        Message apiMessage,
+        short apiVersion
+    ) {
+        MessageSizeAccumulator messageSize = new MessageSizeAccumulator();
+        if (header != null)
+            header.addSize(messageSize, serializationCache, headerVersion);
+        apiMessage.addSize(messageSize, serializationCache, apiVersion);
+        return messageSize;
+    }
+
+    public static ByteBuffer serialize(
+        Message header,
+        short headerVersion,
+        Message apiMessage,
+        short apiVersion
+    ) {
+        ObjectSerializationCache serializationCache = new ObjectSerializationCache();
+        MessageSizeAccumulator messageSize = RequestUtils.size(serializationCache, header, headerVersion, apiMessage, apiVersion);
+
+        ByteBuffer buffer = ByteBuffer.allocate(messageSize.totalSize());
+        ByteBufferAccessor bufferWritable = new ByteBufferAccessor(buffer);
+        if (header != null)
+            header.write(bufferWritable, serializationCache, headerVersion);
+        apiMessage.write(bufferWritable, serializationCache, apiVersion);
+
         buffer.rewind();
         return buffer;
     }

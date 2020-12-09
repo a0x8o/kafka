@@ -46,6 +46,7 @@ import org.apache.kafka.common.requests.SaslHandshakeRequest;
 import org.apache.kafka.common.requests.SaslHandshakeResponse;
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
+import org.apache.kafka.common.security.auth.KafkaPrincipalSerde;
 import org.apache.kafka.common.security.kerberos.KerberosError;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Time;
@@ -57,6 +58,7 @@ import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslClient;
 import javax.security.sasl.SaslException;
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.security.Principal;
@@ -214,7 +216,11 @@ public class SaslClientAuthenticator implements Authenticator {
                 String[] mechs = {mechanism};
                 log.debug("Creating SaslClient: client={};service={};serviceHostname={};mechs={}",
                     clientPrincipalName, servicePrincipal, host, Arrays.toString(mechs));
-                return Sasl.createSaslClient(mechs, clientPrincipalName, servicePrincipal, host, configs, callbackHandler);
+                SaslClient retvalSaslClient = Sasl.createSaslClient(mechs, clientPrincipalName, servicePrincipal, host, configs, callbackHandler);
+                if (retvalSaslClient == null) {
+                    throw new SaslAuthenticationException("Failed to create SaslClient with mechanism " + mechanism);
+                }
+                return retvalSaslClient;
             });
         } catch (PrivilegedActionException e) {
             throw new SaslAuthenticationException("Failed to create SaslClient with mechanism " + mechanism, e.getCause());
@@ -427,13 +433,16 @@ public class SaslClientAuthenticator implements Authenticator {
             byte[] saslToken = createSaslToken(serverToken, isInitial);
             if (saslToken != null) {
                 ByteBuffer tokenBuf = ByteBuffer.wrap(saslToken);
-                if (saslAuthenticateVersion != DISABLE_KAFKA_SASL_AUTHENTICATE_HEADER) {
+                Send send;
+                if (saslAuthenticateVersion == DISABLE_KAFKA_SASL_AUTHENTICATE_HEADER) {
+                    send = new NetworkSend(node, tokenBuf);
+                } else {
                     SaslAuthenticateRequestData data = new SaslAuthenticateRequestData()
                             .setAuthBytes(tokenBuf.array());
                     SaslAuthenticateRequest request = new SaslAuthenticateRequest.Builder(data).build(saslAuthenticateVersion);
-                    tokenBuf = request.serialize(nextRequestHeader(ApiKeys.SASL_AUTHENTICATE, saslAuthenticateVersion));
+                    send = request.toSend(node, nextRequestHeader(ApiKeys.SASL_AUTHENTICATE, saslAuthenticateVersion));
                 }
-                send(new NetworkSend(node, tokenBuf));
+                send(send);
                 return true;
             }
         }
@@ -476,6 +485,11 @@ public class SaslClientAuthenticator implements Authenticator {
 
     public KafkaPrincipal principal() {
         return new KafkaPrincipal(KafkaPrincipal.USER_TYPE, clientPrincipalName);
+    }
+
+    @Override
+    public Optional<KafkaPrincipalSerde> principalSerde() {
+        return Optional.empty();
     }
 
     public boolean complete() {
@@ -529,15 +543,17 @@ public class SaslClientAuthenticator implements Authenticator {
                     " Users must configure FQDN of kafka brokers when authenticating using SASL and" +
                     " `socketChannel.socket().getInetAddress().getHostName()` must match the hostname in `principal/hostname@realm`";
             }
-            error += " Kafka Client will go to AUTHENTICATION_FAILED state.";
             //Unwrap the SaslException inside `PrivilegedActionException`
             Throwable cause = e.getCause();
             // Treat transient Kerberos errors as non-fatal SaslExceptions that are processed as I/O exceptions
             // and all other failures as fatal SaslAuthenticationException.
-            if (kerberosError != null && kerberosError.retriable())
+            if ((kerberosError != null && kerberosError.retriable()) || (kerberosError == null && KerberosError.isRetriableClientGssException(e))) {
+                error += " Kafka Client will retry.";
                 throw new SaslException(error, cause);
-            else
+            } else {
+                error += " Kafka Client will go to AUTHENTICATION_FAILED state.";
                 throw new SaslAuthenticationException(error, cause);
+            }
         }
     }
 
@@ -561,7 +577,7 @@ public class SaslClientAuthenticator implements Authenticator {
                 currentRequestHeader = null;
                 return response;
             }
-        } catch (SchemaException | IllegalArgumentException e) {
+        } catch (BufferUnderflowException | SchemaException | IllegalArgumentException e) {
             /*
              * Account for the fact that during re-authentication there may be responses
              * arriving for requests that were sent in the past.

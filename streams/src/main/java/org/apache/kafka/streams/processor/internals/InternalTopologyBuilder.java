@@ -22,11 +22,12 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.errors.TopologyException;
-import org.apache.kafka.streams.processor.ProcessorSupplier;
+import org.apache.kafka.streams.internals.ApiUtils;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StreamPartitioner;
 import org.apache.kafka.streams.processor.TimestampExtractor;
 import org.apache.kafka.streams.processor.TopicNameExtractor;
+import org.apache.kafka.streams.processor.api.ProcessorSupplier;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.internals.SessionStoreBuilder;
 import org.apache.kafka.streams.state.internals.TimestampedWindowStoreBuilder;
@@ -192,14 +193,21 @@ public class InternalTopologyBuilder {
     }
 
     private static class ProcessorNodeFactory<KIn, VIn, KOut, VOut> extends NodeFactory<KIn, VIn, KOut, VOut> {
-        private final ProcessorSupplier<KIn, VIn> supplier;
+        private final ProcessorSupplier<KIn, VIn, KOut, VOut> supplier;
         private final Set<String> stateStoreNames = new HashSet<>();
 
         ProcessorNodeFactory(final String name,
                              final String[] predecessors,
-                             final ProcessorSupplier<KIn, VIn> supplier) {
+                             final ProcessorSupplier<KIn, VIn, KOut, VOut> supplier) {
             super(name, predecessors.clone());
             this.supplier = supplier;
+        }
+
+        ProcessorNodeFactory(final String name,
+                             final String[] predecessors,
+                             final org.apache.kafka.streams.processor.ProcessorSupplier<KIn, VIn> supplier) {
+            super(name, predecessors.clone());
+            this.supplier = () -> ProcessorAdapter.adapt(supplier.get());
         }
 
         public void addStateStore(final String stateStoreName) {
@@ -402,18 +410,6 @@ public class InternalTopologyBuilder {
             }
         }
 
-        for (final Pattern otherPattern : earliestResetPatterns) {
-            if (topicPattern.pattern().contains(otherPattern.pattern()) || otherPattern.pattern().contains(topicPattern.pattern())) {
-                throw new TopologyException("Pattern " + topicPattern + " will overlap with another pattern " + otherPattern + " already been registered by another source");
-            }
-        }
-
-        for (final Pattern otherPattern : latestResetPatterns) {
-            if (topicPattern.pattern().contains(otherPattern.pattern()) || otherPattern.pattern().contains(topicPattern.pattern())) {
-                throw new TopologyException("Pattern " + topicPattern + " will overlap with another pattern " + otherPattern + " already been registered by another source");
-            }
-        }
-
         maybeAddToResetList(earliestResetPatterns, latestResetPatterns, offsetReset, topicPattern);
 
         nodeFactories.put(name, new SourceNodeFactory<>(name, null, topicPattern, timestampExtractor, keyDeserializer, valDeserializer));
@@ -475,12 +471,13 @@ public class InternalTopologyBuilder {
         nodeGroups = null;
     }
 
-    public final void addProcessor(final String name,
-                                   final ProcessorSupplier<?, ?> supplier,
-                                   final String... predecessorNames) {
+    public final <KIn, VIn, KOut, VOut> void addProcessor(final String name,
+                                                          final ProcessorSupplier<KIn, VIn, KOut, VOut> supplier,
+                                                          final String... predecessorNames) {
         Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(supplier, "supplier must not be null");
         Objects.requireNonNull(predecessorNames, "predecessor names must not be null");
+        ApiUtils.checkSupplier(supplier);
         if (nodeFactories.containsKey(name)) {
             throw new TopologyException("Processor " + name + " is already added.");
         }
@@ -514,7 +511,7 @@ public class InternalTopologyBuilder {
                                     final String... processorNames) {
         Objects.requireNonNull(storeBuilder, "storeBuilder can't be null");
         final StateStoreFactory<?> stateFactory = stateFactories.get(storeBuilder.name());
-        if (!allowOverride && stateFactory != null && stateFactory.builder != storeBuilder) {
+        if (!allowOverride && stateFactory != null && !stateFactory.builder.equals(storeBuilder)) {
             throw new TopologyException("A different StateStore has already been added with the name " + storeBuilder.name());
         }
         if (globalStateBuilders.containsKey(storeBuilder.name())) {
@@ -532,15 +529,16 @@ public class InternalTopologyBuilder {
         nodeGroups = null;
     }
 
-    public final <KIn, VIn, KOut, VOut> void addGlobalStore(final StoreBuilder<?> storeBuilder,
-                                                            final String sourceName,
-                                                            final TimestampExtractor timestampExtractor,
-                                                            final Deserializer<KIn> keyDeserializer,
-                                                            final Deserializer<VIn> valueDeserializer,
-                                                            final String topic,
-                                                            final String processorName,
-                                                            final ProcessorSupplier<KIn, VIn> stateUpdateSupplier) {
+    public final <KIn, VIn> void addGlobalStore(final StoreBuilder<?> storeBuilder,
+                                                final String sourceName,
+                                                final TimestampExtractor timestampExtractor,
+                                                final Deserializer<KIn> keyDeserializer,
+                                                final Deserializer<VIn> valueDeserializer,
+                                                final String topic,
+                                                final String processorName,
+                                                final ProcessorSupplier<KIn, VIn, Void, Void> stateUpdateSupplier) {
         Objects.requireNonNull(storeBuilder, "store builder must not be null");
+        ApiUtils.checkSupplier(stateUpdateSupplier);
         validateGlobalStoreArguments(sourceName,
                                      topic,
                                      processorName,
@@ -552,7 +550,7 @@ public class InternalTopologyBuilder {
         final String[] topics = {topic};
         final String[] predecessors = {sourceName};
 
-        final ProcessorNodeFactory<KIn, VIn, KOut, VOut> nodeFactory = new ProcessorNodeFactory<>(
+        final ProcessorNodeFactory<KIn, VIn, Void, Void> nodeFactory = new ProcessorNodeFactory<>(
             processorName,
             predecessors,
             stateUpdateSupplier
@@ -626,7 +624,17 @@ public class InternalTopologyBuilder {
     }
 
     public final void copartitionSources(final Collection<String> sourceNodes) {
-        copartitionSourceGroups.add(Collections.unmodifiableSet(new HashSet<>(sourceNodes)));
+        copartitionSourceGroups.add(new HashSet<>(sourceNodes));
+    }
+
+    public final void maybeUpdateCopartitionSourceGroups(final String replacedNodeName,
+                                                         final String optimizedNodeName) {
+        for (final Set<String> copartitionSourceGroup : copartitionSourceGroups) {
+            if (copartitionSourceGroup.contains(replacedNodeName)) {
+                copartitionSourceGroup.remove(replacedNodeName);
+                copartitionSourceGroup.add(optimizedNodeName);
+            }
+        }
     }
 
     public void validateCopartition() {
@@ -667,7 +675,7 @@ public class InternalTopologyBuilder {
     private void validateGlobalStoreArguments(final String sourceName,
                                               final String topic,
                                               final String processorName,
-                                              final ProcessorSupplier<?, ?> stateUpdateSupplier,
+                                              final ProcessorSupplier<?, ?, Void, Void> stateUpdateSupplier,
                                               final String storeName,
                                               final boolean loggingEnabled) {
         Objects.requireNonNull(sourceName, "sourceName must not be null");
