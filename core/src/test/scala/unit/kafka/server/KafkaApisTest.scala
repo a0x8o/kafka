@@ -23,7 +23,6 @@ import java.util
 import java.util.Arrays.asList
 import java.util.concurrent.TimeUnit
 import java.util.{Collections, Optional, Properties, Random}
-
 import kafka.api.{ApiVersion, KAFKA_0_10_2_IV0, KAFKA_2_2_IV1, LeaderAndIsr}
 import kafka.cluster.{Broker, Partition}
 import kafka.controller.KafkaController
@@ -65,12 +64,13 @@ import org.apache.kafka.common.requests.{FetchMetadata => JFetchMetadata, _}
 import org.apache.kafka.common.resource.{PatternType, Resource, ResourcePattern, ResourceType}
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, KafkaPrincipalSerde, SecurityProtocol}
 import org.apache.kafka.common.utils.ProducerIdAndEpoch
-import org.apache.kafka.common.{IsolationLevel, Node, TopicPartition}
+import org.apache.kafka.common.{IsolationLevel, Node, TopicPartition, Uuid}
 import org.apache.kafka.server.authorizer.{Action, AuthorizationResult, Authorizer}
 import org.easymock.EasyMock._
 import org.easymock.{Capture, EasyMock, IAnswer, IArgumentMatcher}
 import org.junit.Assert._
 import org.junit.{After, Test}
+import org.mockito.{ArgumentMatchers, Mockito}
 
 import scala.annotation.nowarn
 import scala.collection.{Map, Seq, mutable}
@@ -2681,12 +2681,13 @@ class KafkaApisTest {
       controllerEpoch,
       brokerEpochInRequest,
       partitionStates,
+      Collections.singletonMap("topicW", Uuid.randomUuid()),
       asList(new Node(0, "host0", 9090), new Node(1, "host1", 9091))
     ).build()
     val request = buildRequest(leaderAndIsrRequest)
     val response = new LeaderAndIsrResponse(new LeaderAndIsrResponseData()
       .setErrorCode(Errors.NONE.code)
-      .setPartitionErrors(asList()))
+      .setPartitionErrors(asList()), leaderAndIsrRequest.version())
 
     EasyMock.expect(controller.brokerEpoch).andStubReturn(currentBrokerEpoch)
     EasyMock.expect(replicaManager.becomeLeaderOrFollower(
@@ -2848,7 +2849,7 @@ class KafkaApisTest {
             .setListener(plaintextListener.value)).asJava)
     )
     val updateMetadataRequest = new UpdateMetadataRequest.Builder(ApiKeys.UPDATE_METADATA.latestVersion, 0,
-      0, 0, Seq.empty[UpdateMetadataPartitionState].asJava, brokers.asJava).build()
+      0, 0, Seq.empty[UpdateMetadataPartitionState].asJava, brokers.asJava, Collections.emptyMap()).build()
     metadataCache.updateMetadata(correlationId = 0, updateMetadataRequest)
     (plaintextListener, anotherListener)
   }
@@ -3017,7 +3018,7 @@ class KafkaApisTest {
         .setListener(plaintextListener.value)).asJava)
     val partitionStates = (0 until numPartitions).map(createPartitionState)
     new UpdateMetadataRequest.Builder(ApiKeys.UPDATE_METADATA.latestVersion, 0,
-      0, brokerEpoch, partitionStates.asJava, Seq(broker).asJava).build()
+      0, brokerEpoch, partitionStates.asJava, Seq(broker).asJava, Collections.emptyMap()).build()
   }
 
   private def setupBasicMetadataCache(topic: String, numPartitions: Int): Unit = {
@@ -3066,5 +3067,32 @@ class KafkaApisTest {
     assertEquals(Map(Errors.NONE -> 1,
       Errors.LOG_DIR_NOT_FOUND -> 1,
       Errors.INVALID_TOPIC_EXCEPTION -> 1).asJava, response.errorCounts)
+  }
+
+  @Test
+  def testSizeOfThrottledPartitions(): Unit = {
+    def fetchResponse(data: Map[TopicPartition, String]): FetchResponse[Records] = {
+      val responseData = new util.LinkedHashMap[TopicPartition, FetchResponse.PartitionData[Records]](
+        data.map { case (tp, raw) =>
+          tp -> new FetchResponse.PartitionData(Errors.NONE,
+            105, 105, 0, Optional.empty(), Collections.emptyList(), Optional.empty(),
+            MemoryRecords.withRecords(CompressionType.NONE,
+              new SimpleRecord(100, raw.getBytes(StandardCharsets.UTF_8))).asInstanceOf[Records])
+      }.toMap.asJava)
+      new FetchResponse(Errors.NONE, responseData, 100, 100)
+    }
+
+    val throttledPartition = new TopicPartition("throttledData", 0)
+    val throttledData = Map(throttledPartition -> "throttledData")
+    val expectedSize = FetchResponse.sizeOf(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+      fetchResponse(throttledData).responseData.entrySet.iterator)
+
+    val response = fetchResponse(throttledData ++ Map(new TopicPartition("nonThrottledData", 0) -> "nonThrottledData"))
+
+    val quota = Mockito.mock(classOf[ReplicationQuotaManager])
+    Mockito.when(quota.isThrottled(ArgumentMatchers.any(classOf[TopicPartition])))
+      .thenAnswer(invocation => throttledPartition == invocation.getArgument(0).asInstanceOf[TopicPartition])
+
+    assertEquals(expectedSize, KafkaApis.sizeOfThrottledPartitions(FetchResponseData.HIGHEST_SUPPORTED_VERSION, response, quota))
   }
 }
