@@ -1681,7 +1681,7 @@ public class KafkaRaftClientTest {
     }
 
     @Test
-    public void testFetchShouldBeTreatedAsLeaderEndorsement() throws Exception {
+    public void testFetchShouldBeTreatedAsLeaderAcknowledgement() throws Exception {
         int localId = 0;
         int otherNodeId = 1;
         int epoch = 5;
@@ -1792,7 +1792,7 @@ public class KafkaRaftClientTest {
 
         int correlationId = context.assertSentFetchRequest(epoch, 3L, lastEpoch);
 
-        FetchResponseData response = context.outOfRangeFetchRecordsResponse(epoch, otherNodeId, 2L,
+        FetchResponseData response = context.divergingFetchResponse(epoch, otherNodeId, 2L,
             lastEpoch, 1L);
         context.deliverResponse(correlationId, otherNodeId, response);
 
