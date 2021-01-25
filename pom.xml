@@ -62,7 +62,7 @@
     <janino.version>3.0.11</janino.version>
     <sqlline.version>1.9.0</sqlline.version>
     <jackson.version>2.9.9</jackson.version>
-    <jackson.databind.version>2.9.9</jackson.databind.version>
+    <jackson.databind.version>2.9.10.7</jackson.databind.version>
     <zookeeper.version>3.4.12</zookeeper.version>
     <mapr.release.version>6.1.0-mapr</mapr.release.version>
     <ojai.version>3.0-mapr-1808</ojai.version>
