@@ -20,7 +20,7 @@ package kafka.server
 import java.io.{File, IOException}
 import java.net.{InetAddress, SocketTimeoutException}
 import java.util.concurrent._
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import kafka.api.{KAFKA_0_9_0, KAFKA_2_2_IV0, KAFKA_2_4_IV1}
 import kafka.cluster.Broker
@@ -29,15 +29,16 @@ import kafka.controller.KafkaController
 import kafka.coordinator.group.GroupCoordinator
 import kafka.coordinator.transaction.{ProducerIdManager, TransactionCoordinator}
 import kafka.log.LogManager
-import kafka.metrics.{KafkaMetricsGroup, KafkaMetricsReporter, KafkaYammerMetrics, LinuxIoMetricsCollector}
+import kafka.metrics.{KafkaMetricsReporter, KafkaYammerMetrics}
 import kafka.network.SocketServer
 import kafka.security.CredentialProvider
+import kafka.server.metadata.ZkConfigRepository
 import kafka.utils._
-import kafka.zk.{BrokerInfo, KafkaZkClient}
+import kafka.zk.{AdminZkClient, BrokerInfo, KafkaZkClient}
 import org.apache.kafka.clients.{ApiVersions, ClientDnsLookup, ManualMetadataUpdater, NetworkClient, NetworkClientUtils}
-import org.apache.kafka.common.internals.ClusterResourceListeners
+import org.apache.kafka.common.internals.Topic
 import org.apache.kafka.common.message.ControlledShutdownRequestData
-import org.apache.kafka.common.metrics.{Metrics, MetricsReporter}
+import org.apache.kafka.common.metrics.Metrics
 import org.apache.kafka.common.network._
 import org.apache.kafka.common.protocol.Errors
 import org.apache.kafka.common.requests.{ControlledShutdownRequest, ControlledShutdownResponse}
@@ -45,7 +46,7 @@ import org.apache.kafka.common.security.scram.internals.ScramMechanism
 import org.apache.kafka.common.security.token.delegation.internals.DelegationTokenCache
 import org.apache.kafka.common.security.{JaasContext, JaasUtils}
 import org.apache.kafka.common.utils.{AppInfoParser, LogContext, Time}
-import org.apache.kafka.common.{ClusterResource, Endpoint, Node}
+import org.apache.kafka.common.{Endpoint, Node}
 import org.apache.kafka.metadata.BrokerState
 import org.apache.kafka.server.authorizer.Authorizer
 import org.apache.zookeeper.client.ZKClientConfig
@@ -89,7 +90,7 @@ class KafkaServer(
   time: Time = Time.SYSTEM,
   threadNamePrefix: Option[String] = None,
   enableForwarding: Boolean = false
-) extends Server with Logging with KafkaMetricsGroup {
+) extends KafkaBroker with Server {
 
   private val startupComplete = new AtomicBoolean(false)
   private val isShuttingDown = new AtomicBoolean(false)
@@ -102,8 +103,6 @@ class KafkaServer(
     KafkaMetricsReporter.startReporters(VerifiableProperties(config.originals))
   var kafkaYammerMetrics: KafkaYammerMetrics = null
   var metrics: Metrics = null
-
-  val brokerState = new AtomicReference[BrokerState](BrokerState.NOT_RUNNING)
 
   var dataPlaneRequestProcessor: KafkaApis = null
   var controlPlaneRequestProcessor: KafkaApis = null
@@ -133,6 +132,8 @@ class KafkaServer(
 
   var forwardingManager: Option[ForwardingManager] = None
 
+  var autoTopicCreationManager: AutoTopicCreationManager = null
+
   var alterIsrManager: AlterIsrManager = null
 
   var kafkaScheduler: KafkaScheduler = null
@@ -142,6 +143,7 @@ class KafkaServer(
 
   val zkClientConfig: ZKClientConfig = KafkaServer.zkClientConfigFromKafkaConfig(config).getOrElse(new ZKClientConfig())
   private var _zkClient: KafkaZkClient = null
+  private var configRepository: ZkConfigRepository = null
 
   val correlationId: AtomicInteger = new AtomicInteger(0)
   val brokerMetaPropsFile = "meta.properties"
@@ -167,17 +169,6 @@ class KafkaServer(
 
   private[kafka] def featureChangeListener = _featureChangeListener
 
-  newGauge("BrokerState", () => brokerState.get().value())
-  newGauge("ClusterId", () => clusterId)
-  newGauge("yammer-metrics-count", () =>  KafkaYammerMetrics.defaultRegistry.allMetrics.size)
-
-  val linuxIoMetricsCollector = new LinuxIoMetricsCollector("/proc", time, logger.underlying)
-
-  if (linuxIoMetricsCollector.usable()) {
-    newGauge("linux-disk-read-bytes", () => linuxIoMetricsCollector.readBytes())
-    newGauge("linux-disk-write-bytes", () => linuxIoMetricsCollector.writeBytes())
-  }
-
   /**
    * Start up API for bringing up a single instance of the Kafka server.
    * Instantiates the LogManager, the SocketServer and the request handlers - KafkaRequestHandlers
@@ -198,6 +189,7 @@ class KafkaServer(
 
         /* setup zookeeper */
         initZkClient(time)
+        configRepository = new ZkConfigRepository(new AdminZkClient(zkClient))
 
         /* initialize features */
         _featureChangeListener = new FinalizedFeatureChangeListener(featureCache, _zkClient)
@@ -207,7 +199,7 @@ class KafkaServer(
 
         /* Get or create cluster_id */
         _clusterId = getOrGenerateClusterId(zkClient)
-        info(s"Cluster ID = $clusterId")
+        info(s"Cluster ID = ${clusterId}")
 
         /* load metadata */
         val (preloadedBrokerMetadataCheckpoint, initialOfflineDirs) =
@@ -247,15 +239,18 @@ class KafkaServer(
         _brokerTopicStats = new BrokerTopicStats
 
         quotaManagers = QuotaFactory.instantiate(config, metrics, time, threadNamePrefix.getOrElse(""))
-        notifyClusterListeners(kafkaMetricsReporters ++ metrics.reporters.asScala)
+        KafkaBroker.notifyClusterListeners(clusterId, kafkaMetricsReporters ++ metrics.reporters.asScala)
 
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
         /* start log manager */
-        logManager = LogManager(config, initialOfflineDirs, zkClient, brokerState, kafkaScheduler, time, brokerTopicStats, logDirFailureChannel)
-        logManager.startup()
+        logManager = LogManager(config, initialOfflineDirs,
+          new ZkConfigRepository(new AdminZkClient(zkClient)),
+          kafkaScheduler, time, brokerTopicStats, logDirFailureChannel)
+        brokerState.set(BrokerState.RECOVERY)
+        logManager.startup(zkClient.getAllTopicsInCluster())
 
-        metadataCache = new MetadataCache(config.brokerId)
+        metadataCache = MetadataCache.zkMetadataCache(config.brokerId)
         // Enable delegation token cache for all SCRAM mechanisms to simplify dynamic update.
         // This keeps the cache up-to-date if new SCRAM mechanisms are enabled dynamically.
         tokenCache = new DelegationTokenCache(ScramMechanism.mechanismNames)
@@ -304,6 +299,7 @@ class KafkaServer(
         kafkaController = new KafkaController(config, zkClient, time, metrics, brokerInfo, brokerEpoch, tokenManager, brokerFeatures, featureCache, threadNamePrefix)
         kafkaController.startup()
 
+        /* start forwarding manager */
         if (enableForwarding) {
           this.forwardingManager = Some(ForwardingManager(
             config,
@@ -319,14 +315,30 @@ class KafkaServer(
 
         /* start group coordinator */
         // Hardcode Time.SYSTEM for now as some Streams tests fail otherwise, it would be good to fix the underlying issue
-        groupCoordinator = GroupCoordinator(config, zkClient, replicaManager, Time.SYSTEM, metrics)
-        groupCoordinator.startup()
+        groupCoordinator = GroupCoordinator(config, replicaManager, Time.SYSTEM, metrics)
+        groupCoordinator.startup(() => zkClient.getTopicPartitionCount(Topic.GROUP_METADATA_TOPIC_NAME).getOrElse(config.offsetsTopicPartitions))
 
         /* start transaction coordinator, with a separate background thread scheduler for transaction expiration and log loading */
         // Hardcode Time.SYSTEM for now as some Streams tests fail otherwise, it would be good to fix the underlying issue
         transactionCoordinator = TransactionCoordinator(config, replicaManager, new KafkaScheduler(threads = 1, threadNamePrefix = "transaction-log-manager-"),
-          () => new ProducerIdManager(config.brokerId, zkClient), zkClient, metrics, metadataCache, Time.SYSTEM)
-        transactionCoordinator.startup()
+          () => new ProducerIdManager(config.brokerId, zkClient), metrics, metadataCache, Time.SYSTEM)
+        transactionCoordinator.startup(
+          () => zkClient.getTopicPartitionCount(Topic.TRANSACTION_STATE_TOPIC_NAME).getOrElse(config.transactionTopicPartitions))
+
+        /* start auto topic creation manager */
+        this.autoTopicCreationManager = AutoTopicCreationManager(
+          config,
+          metadataCache,
+          time,
+          metrics,
+          threadNamePrefix,
+          adminManager,
+          kafkaController,
+          groupCoordinator,
+          transactionCoordinator,
+          enableForwarding
+        )
+        autoTopicCreationManager.start()
 
         /* Get the authorizer and initialize it if one is specified.*/
         authorizer = config.authorizer
@@ -347,16 +359,17 @@ class KafkaServer(
             KafkaServer.MIN_INCREMENTAL_FETCH_SESSION_EVICTION_MS))
 
         /* start processing requests */
-        dataPlaneRequestProcessor = new KafkaApis(socketServer.dataPlaneRequestChannel, replicaManager, adminManager, groupCoordinator, transactionCoordinator,
-          kafkaController, forwardingManager, zkClient, config.brokerId, config, metadataCache, metrics, authorizer, quotaManagers,
+        val zkSupport = ZkSupport(adminManager, kafkaController, zkClient, forwardingManager)
+        dataPlaneRequestProcessor = new KafkaApis(socketServer.dataPlaneRequestChannel, zkSupport, replicaManager, groupCoordinator, transactionCoordinator,
+          autoTopicCreationManager, config.brokerId, config, configRepository, metadataCache, metrics, authorizer, quotaManagers,
           fetchManager, brokerTopicStats, clusterId, time, tokenManager, brokerFeatures, featureCache)
 
         dataPlaneRequestHandlerPool = new KafkaRequestHandlerPool(config.brokerId, socketServer.dataPlaneRequestChannel, dataPlaneRequestProcessor, time,
           config.numIoThreads, s"${SocketServer.DataPlaneMetricPrefix}RequestHandlerAvgIdlePercent", SocketServer.DataPlaneThreadPrefix)
 
         socketServer.controlPlaneRequestChannelOpt.foreach { controlPlaneRequestChannel =>
-          controlPlaneRequestProcessor = new KafkaApis(controlPlaneRequestChannel, replicaManager, adminManager, groupCoordinator, transactionCoordinator,
-            kafkaController, forwardingManager, zkClient, config.brokerId, config, metadataCache, metrics, authorizer, quotaManagers,
+          controlPlaneRequestProcessor = new KafkaApis(controlPlaneRequestChannel, zkSupport, replicaManager, groupCoordinator, transactionCoordinator,
+            autoTopicCreationManager, config.brokerId, config, configRepository, metadataCache, metrics, authorizer, quotaManagers,
             fetchManager, brokerTopicStats, clusterId, time, tokenManager, brokerFeatures, featureCache)
 
           controlPlaneRequestHandlerPool = new KafkaRequestHandlerPool(config.brokerId, socketServer.controlPlaneRequestChannelOpt.get, controlPlaneRequestProcessor, time,
@@ -398,23 +411,9 @@ class KafkaServer(
     }
   }
 
-  private[server] def notifyClusterListeners(clusterListeners: Seq[AnyRef]): Unit = {
-    val clusterResourceListeners = new ClusterResourceListeners
-    clusterResourceListeners.maybeAddAll(clusterListeners.asJava)
-    clusterResourceListeners.onUpdate(new ClusterResource(clusterId))
-  }
-
-  private[server] def notifyMetricsReporters(metricsReporters: Seq[AnyRef]): Unit = {
-    val metricsContext = Server.createKafkaMetricsContext(config, clusterId)
-    metricsReporters.foreach {
-      case x: MetricsReporter => x.contextChange(metricsContext)
-      case _ => //do nothing
-    }
-  }
-
   protected def createReplicaManager(isShuttingDown: AtomicBoolean): ReplicaManager = {
-    new ReplicaManager(config, metrics, time, zkClient, kafkaScheduler, logManager, isShuttingDown, quotaManagers,
-      brokerTopicStats, metadataCache, logDirFailureChannel, alterIsrManager)
+    new ReplicaManager(config, metrics, time, Some(zkClient), kafkaScheduler, logManager, isShuttingDown, quotaManagers,
+      brokerTopicStats, metadataCache, logDirFailureChannel, alterIsrManager, configRepository)
   }
 
   private def initZkClient(time: Time): Unit = {
@@ -696,8 +695,10 @@ class KafkaServer(
         if (alterIsrManager != null)
           CoreUtils.swallow(alterIsrManager.shutdown(), this)
 
-        if (forwardingManager != null)
-          CoreUtils.swallow(forwardingManager.foreach(_.shutdown()), this)
+        CoreUtils.swallow(forwardingManager.foreach(_.shutdown()), this)
+
+        if (autoTopicCreationManager != null)
+          CoreUtils.swallow(autoTopicCreationManager.shutdown(), this)
 
         if (logManager != null)
           CoreUtils.swallow(logManager.shutdown(), this)

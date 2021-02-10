@@ -166,7 +166,7 @@ public class StandaloneHerder extends AbstractHerder {
             worker.stopAndAwaitConnector(connName);
             configBackingStore.removeConnectorConfig(connName);
             onDeletion(connName);
-            callback.onCompletion(null, new Created<ConnectorInfo>(false, null));
+            callback.onCompletion(null, new Created<>(false, null));
         } catch (ConnectException e) {
             callback.onCompletion(e, null);
         }
@@ -392,9 +392,7 @@ public class StandaloneHerder extends AbstractHerder {
                     }
 
                     if (newState == TargetState.STARTED) {
-                        requestExecutorService.submit(() -> {
-                            updateConnectorTasks(connector);
-                        });
+                        requestExecutorService.submit(() -> updateConnectorTasks(connector));
                     }
                 });
             }
@@ -434,4 +432,15 @@ public class StandaloneHerder extends AbstractHerder {
             return Objects.hash(seq);
         }
     }
+
+    @Override
+    public void tasksConfig(String connName, Callback<Map<ConnectorTaskId, Map<String, String>>> callback) {
+        Map<ConnectorTaskId, Map<String, String>> tasksConfig = buildTasksConfig(connName);
+        if (tasksConfig.isEmpty()) {
+            callback.onCompletion(new NotFoundException("Connector " + connName + " not found"), tasksConfig);
+            return;
+        }
+        callback.onCompletion(null, tasksConfig);
+    }
+
 }
