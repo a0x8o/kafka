@@ -23,7 +23,8 @@ import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.TimestampType;
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 
@@ -31,9 +32,9 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestRecordTest {
     private final String key = "testKey";
@@ -166,6 +167,5 @@ public class TestRecordTest {
         final TestRecord<String, Integer> testRecord = new TestRecord<>(producerRecord);
         final TestRecord<String, Integer> expectedRecord = new TestRecord<>(key, value, headers, recordTime);
         assertEquals(expectedRecord, testRecord);
-        assertNotEquals(expectedRecord, producerRecord);
     }
 }
