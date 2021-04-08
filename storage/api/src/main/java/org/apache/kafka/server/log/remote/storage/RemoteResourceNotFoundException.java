@@ -14,30 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.streams.kstream.internals;
+package org.apache.kafka.server.log.remote.storage;
 
-import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.streams.kstream.Joined;
+/**
+ * Exception thrown when a resource is not found on the remote storage.
+ * <p>
+ * A resource can be a log segment, any of the indexes or any which was stored in remote storage for a particular log
+ * segment.
+ */
+public class RemoteResourceNotFoundException extends RemoteStorageException {
+    private static final long serialVersionUID = 1L;
 
-public class JoinedInternal<K, V, VO> extends Joined<K, V, VO>  {
-
-    JoinedInternal(final Joined<K, V, VO> joined) {
-        super(joined);
+    public RemoteResourceNotFoundException(final String message) {
+        super(message);
     }
 
-    public Serde<K> keySerde() {
-        return keySerde;
+    public RemoteResourceNotFoundException(final Throwable cause) {
+        super("Requested remote resource was not found", cause);
     }
 
-    public Serde<V> valueSerde() {
-        return valueSerde;
-    }
-
-    public Serde<VO> otherValueSerde() {
-        return otherValueSerde;
-    }
-
-    public String name() {
-        return name;
+    public RemoteResourceNotFoundException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
