@@ -14,13 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.kafka.clients.admin;
 
-package org.apache.kafka.streams;
+import org.apache.kafka.common.annotation.InterfaceStability;
 
-import java.util.Collections;
-
-public class TopologyTestDriverEosTest extends TopologyTestDriverTest {
-    TopologyTestDriverEosTest() {
-        super(Collections.singletonMap(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2));
-    }
+@InterfaceStability.Evolving
+public class AbortTransactionOptions extends AbstractOptions<AbortTransactionOptions> {
 }
