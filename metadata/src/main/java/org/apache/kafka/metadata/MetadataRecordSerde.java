@@ -14,32 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.kafka.metadata;
 
-package org.apache.kafka.controller;
+import org.apache.kafka.common.metadata.MetadataRecordType;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.server.common.serialization.AbstractApiMessageSerde;
 
+public class MetadataRecordSerde extends AbstractApiMessageSerde {
 
-public interface ControllerMetrics {
-    void setActive(boolean active);
-
-    boolean active();
-
-    void updateEventQueueTime(long durationMs);
-
-    void updateEventQueueProcessingTime(long durationMs);
-
-    void setGlobalTopicsCount(int topicCount);
-
-    int globalTopicsCount();
-
-    void setGlobalPartitionCount(int partitionCount);
-
-    int globalPartitionCount();
-
-    void setOfflinePartitionCount(int offlinePartitions);
-
-    int offlinePartitionCount();
-
-    void setPreferredReplicaImbalanceCount(int replicaImbalances);
-
-    int preferredReplicaImbalanceCount();
+    @Override
+    public ApiMessage apiMessageFor(short apiKey) {
+        return MetadataRecordType.fromId(apiKey).newMetadataRecord();
+    }
 }
