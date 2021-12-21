@@ -58,7 +58,7 @@ public class MirrorHeartbeatTask extends SourceTask {
 
     @Override
     public String version() {
-        return new MirrorHeartbeatConnector().version();
+        return "1";
     }
 
     @Override

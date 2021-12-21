@@ -95,25 +95,25 @@ object AclAuthorizer {
     }
   }
 
-  private[authorizer] def zkClientConfigFromKafkaConfigAndMap(kafkaConfig: KafkaConfig, configMap: mutable.Map[String, _<:Any]): ZKClientConfig = {
+  private[authorizer] def zkClientConfigFromKafkaConfigAndMap(kafkaConfig: KafkaConfig, configMap: mutable.Map[String, _<:Any]): Option[ZKClientConfig] = {
     val zkSslClientEnable = configMap.get(AclAuthorizer.configPrefix + KafkaConfig.ZkSslClientEnableProp).
       map(_.toString).getOrElse(kafkaConfig.zkSslClientEnable.toString).toBoolean
     if (!zkSslClientEnable)
-      new ZKClientConfig
+      None
     else {
       // start with the base config from the Kafka configuration
       // be sure to force creation since the zkSslClientEnable property in the kafkaConfig could be false
       val zkClientConfig = KafkaServer.zkClientConfigFromKafkaConfig(kafkaConfig, true)
       // add in any prefixed overlays
-      KafkaConfig.ZkSslConfigToSystemPropertyMap.forKeyValue { (kafkaProp, sysProp) =>
-        configMap.get(AclAuthorizer.configPrefix + kafkaProp).foreach { prefixedValue =>
-          zkClientConfig.setProperty(sysProp,
+      KafkaConfig.ZkSslConfigToSystemPropertyMap.foreach{ case (kafkaProp, sysProp) => {
+        val prefixedValue = configMap.get(AclAuthorizer.configPrefix + kafkaProp)
+        if (prefixedValue.isDefined)
+          zkClientConfig.get.setProperty(sysProp,
             if (kafkaProp == KafkaConfig.ZkSslEndpointIdentificationAlgorithmProp)
-              (prefixedValue.toString.toUpperCase == "HTTPS").toString
+              (prefixedValue.get.toString.toUpperCase == "HTTPS").toString
             else
-              prefixedValue.toString)
-        }
-      }
+              prefixedValue.get.toString)
+      }}
       zkClientConfig
     }
   }
@@ -178,8 +178,8 @@ class AclAuthorizer extends Authorizer with Logging {
     // createChrootIfNecessary=true is necessary in case we are running in a KRaft cluster
     // because such a cluster will not create any chroot path in ZooKeeper (it doesn't connect to ZooKeeper)
     zkClient = KafkaZkClient(zkUrl, kafkaConfig.zkEnableSecureAcls, zkSessionTimeOutMs, zkConnectionTimeoutMs,
-      zkMaxInFlightRequests, time, name = "ACL authorizer", zkClientConfig = zkClientConfig,
-      metricGroup = "kafka.security", metricType = "AclAuthorizer", createChrootIfNecessary = true)
+      zkMaxInFlightRequests, time, "kafka.security", "AclAuthorizer", name=Some("ACL authorizer"),
+      zkClientConfig = zkClientConfig, createChrootIfNecessary = true)
     zkClient.createAclPaths()
 
     extendedAclSupport = kafkaConfig.interBrokerProtocolVersion >= KAFKA_2_0_IV1

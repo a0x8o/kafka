@@ -17,7 +17,6 @@
 package kafka.api
 
 import java.util.Properties
-
 import kafka.server.KafkaConfig
 import kafka.utils.{JaasTestUtils, TestUtils}
 import kafka.zk.ConfigEntityChangeNotificationZNode
@@ -27,7 +26,7 @@ import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
 import org.apache.kafka.common.security.scram.internals.ScramMechanism
 import org.apache.kafka.common.security.token.delegation.DelegationToken
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import scala.jdk.CollectionConverters._
 
@@ -99,9 +98,9 @@ class DelegationTokenEndToEndAuthorizationTest extends EndToEndAuthorizationTest
   }
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
+  override def setUp(): Unit = {
     startSasl(jaasSections(kafkaServerSaslMechanisms, Option(kafkaClientSaslMechanism), Both))
-    super.setUp(testInfo)
+    super.setUp()
     privilegedAdminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList)
   }
 

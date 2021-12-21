@@ -17,28 +17,23 @@
 package org.apache.kafka.streams.processor.internals;
 
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
-import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.internals.KafkaFutureImpl;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.errors.TopologyException;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.internals.InternalTopologyBuilder.TopicsInfo;
-import org.apache.kafka.streams.processor.internals.namedtopology.TopologyConfig.TaskConfig;
+import org.apache.kafka.streams.processor.internals.StreamThread.State;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -70,23 +65,11 @@ public class TopologyMetadata {
     private ProcessorTopology globalTopology;
     private final Map<String, StateStore> globalStateStores = new HashMap<>();
     private final Set<String> allInputTopics = new HashSet<>();
-    private final Map<String, Long> threadVersions = new ConcurrentHashMap<>();
 
     public static class TopologyVersion {
         public AtomicLong topologyVersion = new AtomicLong(0L); // the local topology version
         public ReentrantLock topologyLock = new ReentrantLock();
         public Condition topologyCV = topologyLock.newCondition();
-        public List<TopologyVersionWaiters> activeTopologyWaiters = new LinkedList<>();
-    }
-
-    public static class TopologyVersionWaiters {
-        final long topologyVersion; // the (minimum) version to wait for these threads to cross
-        final KafkaFutureImpl<Void> future; // the future waiting on all threads to be updated
-
-        public TopologyVersionWaiters(final long topologyVersion, final KafkaFutureImpl<Void> future) {
-            this.topologyVersion = topologyVersion;
-            this.future = future;
-        }
     }
 
     public TopologyMetadata(final InternalTopologyBuilder builder,
@@ -124,44 +107,6 @@ public class TopologyMetadata {
         version.topologyLock.unlock();
     }
 
-    public Collection<String> sourceTopicsForTopology(final String name) {
-        return builders.get(name).sourceTopicCollection();
-    }
-
-    public boolean needsUpdate(final String threadName) {
-        return threadVersions.get(threadName) < topologyVersion();
-    }
-
-    public void registerThread(final String threadName) {
-        threadVersions.put(threadName, 0L);
-    }
-
-    public void unregisterThread(final String threadName) {
-        threadVersions.remove(threadName);
-    }
-
-    public void maybeNotifyTopologyVersionWaiters(final String threadName) {
-        try {
-            lock();
-            final Iterator<TopologyVersionWaiters> iterator = version.activeTopologyWaiters.listIterator();
-            TopologyVersionWaiters topologyVersionWaiters;
-            threadVersions.put(threadName, topologyVersion());
-            while (iterator.hasNext()) {
-                topologyVersionWaiters = iterator.next();
-                final long topologyVersionWaitersVersion = topologyVersionWaiters.topologyVersion;
-                if (topologyVersionWaitersVersion <= threadVersions.get(threadName)) {
-                    if (threadVersions.values().stream().allMatch(t -> t >= topologyVersionWaitersVersion)) {
-                        topologyVersionWaiters.future.complete(null);
-                        iterator.remove();
-                        log.info("Thread {} is now on topology version {}", threadName, topologyVersionWaiters.topologyVersion);
-                    }
-                }
-            }
-        } finally {
-            unlock();
-        }
-    }
-
     public void wakeupThreads() {
         try {
             lock();
@@ -171,7 +116,7 @@ public class TopologyMetadata {
         }
     }
 
-    public void maybeWaitForNonEmptyTopology(final Supplier<StreamThread.State> threadState) {
+    public void maybeWaitForNonEmptyTopology(final Supplier<State> threadState) {
         if (isEmpty() && threadState.get().isAlive()) {
             try {
                 lock();
@@ -189,47 +134,31 @@ public class TopologyMetadata {
         }
     }
 
-    /**
-     * Adds the topology and registers a future that listens for all threads on the older version to see the update
-     */
-    public KafkaFuture<Void> registerAndBuildNewTopology(final InternalTopologyBuilder newTopologyBuilder) {
-        final KafkaFutureImpl<Void> future = new KafkaFutureImpl<>();
+    public void registerAndBuildNewTopology(final InternalTopologyBuilder newTopologyBuilder) {
         try {
             lock();
             version.topologyVersion.incrementAndGet();
             log.info("Adding NamedTopology {}, latest topology version is {}", newTopologyBuilder.topologyName(), version.topologyVersion.get());
-            version.activeTopologyWaiters.add(new TopologyVersionWaiters(topologyVersion(), future));
             builders.put(newTopologyBuilder.topologyName(), newTopologyBuilder);
             buildAndVerifyTopology(newTopologyBuilder);
-            wakeupThreads();
+            version.topologyCV.signalAll();
         } finally {
             unlock();
         }
-        return future;
     }
 
-    /**
-     * Removes the topology and registers a future that listens for all threads on the older version to see the update
-     */
-    public KafkaFuture<Void> unregisterTopology(final String topologyName) {
-        final KafkaFutureImpl<Void> future = new KafkaFutureImpl<>();
+    public void unregisterTopology(final String topologyName) {
         try {
             lock();
             version.topologyVersion.incrementAndGet();
             log.info("Removing NamedTopology {}, latest topology version is {}", topologyName, version.topologyVersion.get());
-            version.activeTopologyWaiters.add(new TopologyVersionWaiters(topologyVersion(), future));
             final InternalTopologyBuilder removedBuilder = builders.remove(topologyName);
             removedBuilder.fullSourceTopicNames().forEach(allInputTopics::remove);
             removedBuilder.allSourcePatternStrings().forEach(allInputTopics::remove);
+            version.topologyCV.signalAll();
         } finally {
             unlock();
         }
-        return future;
-    }
-
-    public TaskConfig getTaskConfigFor(final TaskId taskId) {
-        final InternalTopologyBuilder builder = lookupBuilderForTask(taskId);
-        return builder.topologyConfigs().getTaskConfig();
     }
 
     public void buildAndRewriteTopology() {
@@ -350,7 +279,7 @@ public class TopologyMetadata {
         return null;
     }
 
-    public Collection<String> sourceTopicCollection() {
+    Collection<String> sourceTopicCollection() {
         final List<String> sourceTopics = new ArrayList<>();
         applyToEachBuilder(b -> sourceTopics.addAll(b.sourceTopicCollection()));
         return sourceTopics;

@@ -27,7 +27,7 @@ import org.apache.kafka.common.TopicPartition
 import kafka.utils.{ShutdownableThread, TestUtils}
 import kafka.server.{BaseRequestTest, KafkaConfig}
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{BeforeEach, TestInfo}
+import org.junit.jupiter.api.BeforeEach
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable.{ArrayBuffer, Buffer}
@@ -74,8 +74,8 @@ abstract class AbstractConsumerTest extends BaseRequestTest {
   }
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    super.setUp(testInfo)
+  override def setUp(): Unit = {
+    super.setUp()
 
     // create the test topic with all the brokers as replicas
     createTopic(topic, 2, brokerCount)

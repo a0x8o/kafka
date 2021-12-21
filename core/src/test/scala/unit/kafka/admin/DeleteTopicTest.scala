@@ -22,9 +22,9 @@ import java.util.{Collections, Optional, Properties}
 
 import scala.collection.Seq
 import kafka.log.UnifiedLog
-import kafka.zk.TopicPartitionZNode
+import kafka.zk.{TopicPartitionZNode, ZooKeeperTestHarness}
 import kafka.utils.TestUtils
-import kafka.server.{KafkaConfig, KafkaServer, QuorumTestHarness}
+import kafka.server.{KafkaConfig, KafkaServer}
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.{AfterEach, Test}
 import kafka.common.TopicAlreadyMarkedForDeletionException
@@ -34,7 +34,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
 import scala.jdk.CollectionConverters._
 
-class DeleteTopicTest extends QuorumTestHarness {
+class DeleteTopicTest extends ZooKeeperTestHarness {
 
   var servers: Seq[KafkaServer] = Seq()
 

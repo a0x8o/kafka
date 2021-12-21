@@ -14,4 +14,3 @@
  # limitations under the License.
 
 org.apache.kafka.common.config.provider.FileConfigProvider
-org.apache.kafka.common.config.provider.DirectoryConfigProvider

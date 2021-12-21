@@ -82,23 +82,23 @@ class TopicCommandTest {
   }
 
   @Test
-  def testCreateWithPartitionCountWithoutReplicationFactorShouldSucceed(): Unit = {
-    val opts = new TopicCommandOptions(
-      Array("--bootstrap-server", brokerList,
-        "--create",
-        "--partitions", "2",
-        "--topic", topicName))
-    opts.checkArgs()
+  def testCreateWithPartitionCountWithoutReplicationFactor(): Unit = {
+    assertCheckArgsExitCode(1,
+      new TopicCommandOptions(
+        Array("--bootstrap-server", brokerList,
+          "--create",
+          "--partitions", "2",
+          "--topic", topicName)))
   }
 
   @Test
-  def testCreateWithReplicationFactorWithoutPartitionCountShouldSucceed(): Unit = {
-    val opts = new TopicCommandOptions(
-      Array("--bootstrap-server", brokerList,
-        "--create",
-        "--replication-factor", "3",
-        "--topic", topicName))
-    opts.checkArgs()
+  def testCreateWithReplicationFactorWithoutPartitionCount(): Unit = {
+    assertCheckArgsExitCode(1,
+      new TopicCommandOptions(
+        Array("--bootstrap-server", brokerList,
+          "--create",
+          "--replication-factor", "3",
+          "--topic", topicName)))
   }
 
   @Test
@@ -122,25 +122,6 @@ class TopicCommandTest {
           "--replication-factor", "2",
           "--topic", topicName)))
   }
-
-  @Test
-  def testCreateWithoutPartitionCountAndReplicationFactorShouldSucceed(): Unit = {
-    val opts = new TopicCommandOptions(
-      Array("--bootstrap-server", brokerList,
-        "--create",
-        "--topic", topicName))
-    opts.checkArgs()
-  }
-
-  @Test
-  def testDescribeShouldSucceed(): Unit = {
-    val opts = new TopicCommandOptions(
-      Array("--bootstrap-server", brokerList,
-        "--describe",
-        "--topic", topicName))
-    opts.checkArgs()
-  }
-
 
   @Test
   def testParseAssignmentDuplicateEntries(): Unit = {

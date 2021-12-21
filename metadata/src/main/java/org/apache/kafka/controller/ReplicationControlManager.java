@@ -29,7 +29,6 @@ import org.apache.kafka.common.errors.InvalidReplicationFactorException;
 import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.NoReassignmentInProgressException;
-import org.apache.kafka.common.errors.PolicyViolationException;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
@@ -77,7 +76,6 @@ import org.apache.kafka.metadata.BrokerHeartbeatReply;
 import org.apache.kafka.metadata.BrokerRegistration;
 import org.apache.kafka.metadata.PartitionRegistration;
 import org.apache.kafka.metadata.Replicas;
-import org.apache.kafka.server.policy.CreateTopicPolicy;
 import org.apache.kafka.timeline.SnapshotRegistry;
 import org.apache.kafka.timeline.TimelineHashMap;
 import org.apache.kafka.timeline.TimelineInteger;
@@ -97,7 +95,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.OptionalInt;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.kafka.clients.admin.AlterConfigOp.OpType.SET;
@@ -134,14 +131,6 @@ public class ReplicationControlManager {
             this.name = name;
             this.id = id;
             this.parts = new TimelineHashMap<>(snapshotRegistry, 0);
-        }
-
-        public String name() {
-            return name;
-        }
-
-        public Uuid topicId() {
-            return id;
         }
     }
 
@@ -186,11 +175,6 @@ public class ReplicationControlManager {
     private final ControllerMetrics controllerMetrics;
 
     /**
-     * The policy to use to validate that topic assignments are valid, if one is present.
-     */
-    private final Optional<CreateTopicPolicy> createTopicPolicy;
-
-    /**
      * Maps topic names to topic UUIDs.
      */
     private final TimelineHashMap<String, Uuid> topicsByName;
@@ -216,15 +200,13 @@ public class ReplicationControlManager {
                               int defaultNumPartitions,
                               ConfigurationControlManager configurationControl,
                               ClusterControlManager clusterControl,
-                              ControllerMetrics controllerMetrics,
-                              Optional<CreateTopicPolicy> createTopicPolicy) {
+                              ControllerMetrics controllerMetrics) {
         this.snapshotRegistry = snapshotRegistry;
         this.log = logContext.logger(ReplicationControlManager.class);
         this.defaultReplicationFactor = defaultReplicationFactor;
         this.defaultNumPartitions = defaultNumPartitions;
         this.configurationControl = configurationControl;
         this.controllerMetrics = controllerMetrics;
-        this.createTopicPolicy = createTopicPolicy;
         this.clusterControl = clusterControl;
         this.globalPartitionCount = new TimelineInteger(snapshotRegistry);
         this.preferredReplicaImbalanceCount = new TimelineInteger(snapshotRegistry);
@@ -369,8 +351,7 @@ public class ReplicationControlManager {
 
         // Identify topics that already exist and mark them with the appropriate error
         request.topics().stream().filter(creatableTopic -> topicsByName.containsKey(creatableTopic.name()))
-                .forEach(t -> topicErrors.put(t.name(), new ApiError(Errors.TOPIC_ALREADY_EXISTS,
-                    "Topic '" + t.name() + "' already exists.")));
+                .forEach(t -> topicErrors.put(t.name(), new ApiError(Errors.TOPIC_ALREADY_EXISTS)));
 
         // Verify that the configurations for the new topics are OK, and figure out what
         // ConfigRecords should be created.
@@ -389,12 +370,7 @@ public class ReplicationControlManager {
         Map<String, CreatableTopicResult> successes = new HashMap<>();
         for (CreatableTopic topic : request.topics()) {
             if (topicErrors.containsKey(topic.name())) continue;
-            ApiError error;
-            try {
-                error = createTopic(topic, records, successes);
-            } catch (ApiException e) {
-                error = ApiError.fromThrowable(e);
-            }
+            ApiError error = createTopic(topic, records, successes);
             if (error.isFailure()) {
                 topicErrors.put(topic.name(), error);
             }
@@ -422,13 +398,8 @@ public class ReplicationControlManager {
                 append("SUCCESS");
             resultsPrefix = ", ";
         }
-        if (request.validateOnly()) {
-            log.info("Validate-only CreateTopics result(s): {}", resultsBuilder.toString());
-            return ControllerResult.atomicOf(Collections.emptyList(), data);
-        } else {
-            log.info("CreateTopics result(s): {}", resultsBuilder.toString());
-            return ControllerResult.atomicOf(records, data);
-        }
+        log.info("createTopics result(s): {}", resultsBuilder.toString());
+        return ControllerResult.atomicOf(records, data);
     }
 
     private ApiError createTopic(CreatableTopic topic,
@@ -466,19 +437,13 @@ public class ReplicationControlManager {
                     Replicas.toArray(assignment.brokerIds()), Replicas.toArray(isr),
                     Replicas.NONE, Replicas.NONE, isr.get(0), 0, 0));
             }
-            ApiError error = maybeCheckCreateTopicPolicy(() -> {
-                Map<Integer, List<Integer>> assignments = new HashMap<>();
-                newParts.entrySet().forEach(e -> assignments.put(e.getKey(),
-                    Replicas.toList(e.getValue().replicas)));
-                Map<String, String> configs = new HashMap<>();
-                topic.configs().forEach(config -> configs.put(config.name(), config.value()));
-                return new CreateTopicPolicy.RequestMetadata(
-                    topic.name(), null, null, assignments, configs);
-            });
-            if (error.isFailure()) return error;
         } else if (topic.replicationFactor() < -1 || topic.replicationFactor() == 0) {
             return new ApiError(Errors.INVALID_REPLICATION_FACTOR,
-                "Replication factor must be larger than 0, or -1 to use the default value.");
+                "Replication factor was set to an invalid non-positive value.");
+        } else if (!topic.assignments().isEmpty()) {
+            return new ApiError(INVALID_REQUEST,
+                "Replication factor was not set to -1 but a manual partition " +
+                    "assignment was specified.");
         } else if (topic.numPartitions() < -1 || topic.numPartitions() == 0) {
             return new ApiError(Errors.INVALID_PARTITIONS,
                 "Number of partitions was set to an invalid non-positive value.");
@@ -500,13 +465,6 @@ public class ReplicationControlManager {
                     "Unable to replicate the partition " + replicationFactor +
                         " time(s): " + e.getMessage());
             }
-            ApiError error = maybeCheckCreateTopicPolicy(() -> {
-                Map<String, String> configs = new HashMap<>();
-                topic.configs().forEach(config -> configs.put(config.name(), config.value()));
-                return new CreateTopicPolicy.RequestMetadata(
-                    topic.name(), numPartitions, replicationFactor, null, configs);
-            });
-            if (error.isFailure()) return error;
         }
         Uuid topicId = Uuid.randomUuid();
         successes.put(topic.name(), new CreatableTopicResult().
@@ -523,17 +481,6 @@ public class ReplicationControlManager {
             int partitionIndex = partEntry.getKey();
             PartitionRegistration info = partEntry.getValue();
             records.add(info.toRecord(topicId, partitionIndex));
-        }
-        return ApiError.NONE;
-    }
-
-    private ApiError maybeCheckCreateTopicPolicy(Supplier<CreateTopicPolicy.RequestMetadata> supplier) {
-        if (createTopicPolicy.isPresent()) {
-            try {
-                createTopicPolicy.get().validate(supplier.get());
-            } catch (PolicyViolationException e) {
-                return new ApiError(Errors.POLICY_VIOLATION, e.getMessage());
-            }
         }
         return ApiError.NONE;
     }
@@ -637,11 +584,6 @@ public class ReplicationControlManager {
             return null;
         }
         return topic.parts.get(partitionId);
-    }
-
-    // VisibleForTesting
-    TopicControlInfo getTopic(Uuid topicId) {
-        return topics.get(topicId);
     }
 
     // VisibleForTesting
@@ -845,7 +787,7 @@ public class ReplicationControlManager {
     }
 
     ControllerResult<ElectLeadersResponseData> electLeaders(ElectLeadersRequestData request) {
-        ElectionType electionType = electionType(request.electionType());
+        boolean uncleanOk = electionTypeIsUnclean(request.electionType());
         List<ApiMessageAndVersion> records = new ArrayList<>();
         ElectLeadersResponseData response = new ElectLeadersResponseData();
         if (request.topicPartitions() == null) {
@@ -862,16 +804,11 @@ public class ReplicationControlManager {
                 TopicControlInfo topic = topics.get(topicEntry.getValue());
                 if (topic != null) {
                     for (int partitionId : topic.parts.keySet()) {
-                        ApiError error = electLeader(topicName, partitionId, electionType, records);
-
-                        // When electing leaders for all partitions, we do not return
-                        // partitions which already have the desired leader.
-                        if (error.error() != Errors.ELECTION_NOT_NEEDED) {
-                            topicResults.partitionResult().add(new PartitionResult().
-                                setPartitionId(partitionId).
-                                setErrorCode(error.error().code()).
-                                setErrorMessage(error.message()));
-                        }
+                        ApiError error = electLeader(topicName, partitionId, uncleanOk, records);
+                        topicResults.partitionResult().add(new PartitionResult().
+                            setPartitionId(partitionId).
+                            setErrorCode(error.error().code()).
+                            setErrorMessage(error.message()));
                     }
                 }
             }
@@ -881,7 +818,7 @@ public class ReplicationControlManager {
                     new ReplicaElectionResult().setTopic(topic.topic());
                 response.replicaElectionResults().add(topicResults);
                 for (int partitionId : topic.partitions()) {
-                    ApiError error = electLeader(topic.topic(), partitionId, electionType, records);
+                    ApiError error = electLeader(topic.topic(), partitionId, uncleanOk, records);
                     topicResults.partitionResult().add(new PartitionResult().
                         setPartitionId(partitionId).
                         setErrorCode(error.error().code()).
@@ -892,15 +829,17 @@ public class ReplicationControlManager {
         return ControllerResult.of(records, response);
     }
 
-    private static ElectionType electionType(byte electionType) {
+    static boolean electionTypeIsUnclean(byte electionType) {
+        ElectionType type;
         try {
-            return ElectionType.valueOf(electionType);
+            type = ElectionType.valueOf(electionType);
         } catch (IllegalArgumentException e) {
             throw new InvalidRequestException("Unknown election type " + (int) electionType);
         }
+        return type == ElectionType.UNCLEAN;
     }
 
-    ApiError electLeader(String topic, int partitionId, ElectionType electionType,
+    ApiError electLeader(String topic, int partitionId, boolean uncleanOk,
                          List<ApiMessageAndVersion> records) {
         Uuid topicId = topicsByName.get(topic);
         if (topicId == null) {
@@ -917,24 +856,21 @@ public class ReplicationControlManager {
             return new ApiError(UNKNOWN_TOPIC_OR_PARTITION,
                 "No such partition as " + topic + "-" + partitionId);
         }
-        if ((electionType == ElectionType.PREFERRED && partition.hasPreferredLeader())
-            || (electionType == ElectionType.UNCLEAN && partition.hasLeader())) {
-            return new ApiError(Errors.ELECTION_NOT_NEEDED);
-        }
-
         PartitionChangeBuilder builder = new PartitionChangeBuilder(partition,
             topicId,
             partitionId,
             r -> clusterControl.unfenced(r),
-            () -> electionType == ElectionType.UNCLEAN);
-
-        builder.setAlwaysElectPreferredIfPossible(electionType == ElectionType.PREFERRED);
+            () -> uncleanOk || configurationControl.uncleanLeaderElectionEnabledForTopic(topic));
+        builder.setAlwaysElectPreferredIfPossible(true);
         Optional<ApiMessageAndVersion> record = builder.build();
         if (!record.isPresent()) {
-            if (electionType == ElectionType.PREFERRED) {
-                return new ApiError(Errors.PREFERRED_LEADER_NOT_AVAILABLE);
+            if (partition.leader == NO_LEADER) {
+                // If we can't find any leader for the partition, return an error.
+                return new ApiError(Errors.LEADER_NOT_AVAILABLE,
+                    "Unable to find any leader for the partition.");
             } else {
-                return new ApiError(Errors.ELIGIBLE_LEADERS_NOT_AVAILABLE);
+                // There is nothing to do.
+                return ApiError.NONE;
             }
         }
         records.add(record.get());

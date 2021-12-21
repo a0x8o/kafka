@@ -61,15 +61,15 @@ public class KafkaProducerMetrics implements AutoCloseable {
         );
         sendOffsetsSensor = newLatencySensor(
             TXN_SEND_OFFSETS,
-            "Total time producer has spent in sendOffsetsToTransaction in nanoseconds."
+            "Total time producer has spent in sendOffsetsToTransaction."
         );
         commitTxnSensor = newLatencySensor(
             TXN_COMMIT,
-            "Total time producer has spent in commitTransaction in nanoseconds."
+            "Total time producer has spent in commitTransaction."
         );
         abortTxnSensor = newLatencySensor(
             TXN_ABORT,
-            "Total time producer has spent in abortTransaction in nanoseconds."
+            "Total time producer has spent in abortTransaction."
         );
     }
 

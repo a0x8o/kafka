@@ -47,7 +47,8 @@ public final class TopicPartition implements Serializable {
         if (hash != 0)
             return hash;
         final int prime = 31;
-        int result = prime + partition;
+        int result = 1;
+        result = prime * result + partition;
         result = prime * result + Objects.hashCode(topic);
         this.hash = result;
         return result;

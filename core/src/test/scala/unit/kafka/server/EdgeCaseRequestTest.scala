@@ -121,7 +121,7 @@ class EdgeCaseRequestTest extends KafkaServerTestHarness {
     val topic = "topic"
     val topicPartition = new TopicPartition(topic, 0)
     val correlationId = -1
-    createTopic(topic)
+    createTopic(topic, numPartitions = 1, replicationFactor = 1)
 
     val version = ApiKeys.PRODUCE.latestVersion: Short
     val (serializedBytes, responseHeaderVersion) = {

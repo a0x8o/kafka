@@ -17,11 +17,10 @@
 package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.IsolationLevel;
-import org.apache.kafka.common.TopicIdPartition;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchRequestData.ForgottenTopic;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ByteBufferAccessor;
@@ -48,14 +47,13 @@ public class FetchRequest extends AbstractRequest {
     public static final long INVALID_LOG_START_OFFSET = -1L;
 
     private final FetchRequestData data;
-    private volatile LinkedHashMap<TopicIdPartition, PartitionData> fetchData = null;
-    private volatile List<TopicIdPartition> toForget = null;
+    private volatile LinkedHashMap<TopicPartition, PartitionData> fetchData = null;
+    private volatile List<TopicPartition> toForget = null;
 
     // This is an immutable read-only structures derived from FetchRequestData
     private final FetchMetadata metadata;
 
     public static final class PartitionData {
-        public final Uuid topicId;
         public final long fetchOffset;
         public final long logStartOffset;
         public final int maxBytes;
@@ -63,24 +61,21 @@ public class FetchRequest extends AbstractRequest {
         public final Optional<Integer> lastFetchedEpoch;
 
         public PartitionData(
-            Uuid topicId,
             long fetchOffset,
             long logStartOffset,
             int maxBytes,
             Optional<Integer> currentLeaderEpoch
         ) {
-            this(topicId, fetchOffset, logStartOffset, maxBytes, currentLeaderEpoch, Optional.empty());
+            this(fetchOffset, logStartOffset, maxBytes, currentLeaderEpoch, Optional.empty());
         }
 
         public PartitionData(
-            Uuid topicId,
             long fetchOffset,
             long logStartOffset,
             int maxBytes,
             Optional<Integer> currentLeaderEpoch,
             Optional<Integer> lastFetchedEpoch
         ) {
-            this.topicId = topicId;
             this.fetchOffset = fetchOffset;
             this.logStartOffset = logStartOffset;
             this.maxBytes = maxBytes;
@@ -93,8 +88,7 @@ public class FetchRequest extends AbstractRequest {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             PartitionData that = (PartitionData) o;
-            return Objects.equals(topicId, that.topicId) &&
-                fetchOffset == that.fetchOffset &&
+            return fetchOffset == that.fetchOffset &&
                 logStartOffset == that.logStartOffset &&
                 maxBytes == that.maxBytes &&
                 Objects.equals(currentLeaderEpoch, that.currentLeaderEpoch) &&
@@ -103,14 +97,13 @@ public class FetchRequest extends AbstractRequest {
 
         @Override
         public int hashCode() {
-            return Objects.hash(topicId, fetchOffset, logStartOffset, maxBytes, currentLeaderEpoch, lastFetchedEpoch);
+            return Objects.hash(fetchOffset, logStartOffset, maxBytes, currentLeaderEpoch, lastFetchedEpoch);
         }
 
         @Override
         public String toString() {
             return "PartitionData(" +
-                "topicId=" + topicId +
-                ", fetchOffset=" + fetchOffset +
+                "fetchOffset=" + fetchOffset +
                 ", logStartOffset=" + logStartOffset +
                 ", maxBytes=" + maxBytes +
                 ", currentLeaderEpoch=" + currentLeaderEpoch +
@@ -131,31 +124,33 @@ public class FetchRequest extends AbstractRequest {
         private final int maxWait;
         private final int minBytes;
         private final int replicaId;
-        private final Map<TopicPartition, PartitionData> toFetch;
+        private final Map<TopicPartition, PartitionData> fetchData;
+        private final Map<String, Uuid> topicIds;
         private IsolationLevel isolationLevel = IsolationLevel.READ_UNCOMMITTED;
         private int maxBytes = DEFAULT_RESPONSE_MAX_BYTES;
         private FetchMetadata metadata = FetchMetadata.LEGACY;
-        private List<TopicIdPartition> removed = Collections.emptyList();
-        private List<TopicIdPartition> replaced = Collections.emptyList();
+        private List<TopicPartition> toForget = Collections.emptyList();
         private String rackId = "";
 
-        public static Builder forConsumer(short maxVersion, int maxWait, int minBytes, Map<TopicPartition, PartitionData> fetchData) {
+        public static Builder forConsumer(short maxVersion, int maxWait, int minBytes, Map<TopicPartition, PartitionData> fetchData,
+                                          Map<String, Uuid> topicIds) {
             return new Builder(ApiKeys.FETCH.oldestVersion(), maxVersion,
-                CONSUMER_REPLICA_ID, maxWait, minBytes, fetchData);
+                CONSUMER_REPLICA_ID, maxWait, minBytes, fetchData, topicIds);
         }
 
         public static Builder forReplica(short allowedVersion, int replicaId, int maxWait, int minBytes,
-                                         Map<TopicPartition, PartitionData> fetchData) {
-            return new Builder(allowedVersion, allowedVersion, replicaId, maxWait, minBytes, fetchData);
+                                         Map<TopicPartition, PartitionData> fetchData, Map<String, Uuid> topicIds) {
+            return new Builder(allowedVersion, allowedVersion, replicaId, maxWait, minBytes, fetchData, topicIds);
         }
 
         public Builder(short minVersion, short maxVersion, int replicaId, int maxWait, int minBytes,
-                       Map<TopicPartition, PartitionData> fetchData) {
+                        Map<TopicPartition, PartitionData> fetchData, Map<String, Uuid> topicIds) {
             super(ApiKeys.FETCH, minVersion, maxVersion);
             this.replicaId = replicaId;
             this.maxWait = maxWait;
             this.minBytes = minBytes;
-            this.toFetch = fetchData;
+            this.fetchData = fetchData;
+            this.topicIds = topicIds;
         }
 
         public Builder isolationLevel(IsolationLevel isolationLevel) {
@@ -174,7 +169,7 @@ public class FetchRequest extends AbstractRequest {
         }
 
         public Map<TopicPartition, PartitionData> fetchData() {
-            return this.toFetch;
+            return this.fetchData;
         }
 
         public Builder setMaxBytes(int maxBytes) {
@@ -182,35 +177,13 @@ public class FetchRequest extends AbstractRequest {
             return this;
         }
 
-        public List<TopicIdPartition> removed() {
-            return removed;
+        public List<TopicPartition> toForget() {
+            return toForget;
         }
 
-        public Builder removed(List<TopicIdPartition> removed) {
-            this.removed = removed;
+        public Builder toForget(List<TopicPartition> toForget) {
+            this.toForget = toForget;
             return this;
-        }
-
-        public List<TopicIdPartition> replaced() {
-            return replaced;
-        }
-
-        public Builder replaced(List<TopicIdPartition> replaced) {
-            this.replaced = replaced;
-            return this;
-        }
-
-        private void addToForgottenTopicMap(List<TopicIdPartition> toForget, Map<String, FetchRequestData.ForgottenTopic> forgottenTopicMap) {
-            toForget.forEach(topicIdPartition -> {
-                FetchRequestData.ForgottenTopic forgottenTopic = forgottenTopicMap.get(topicIdPartition.topic());
-                if (forgottenTopic == null) {
-                    forgottenTopic = new ForgottenTopic()
-                            .setTopic(topicIdPartition.topic())
-                            .setTopicId(topicIdPartition.topicId());
-                    forgottenTopicMap.put(topicIdPartition.topic(), forgottenTopic);
-                }
-                forgottenTopic.partitions().add(topicIdPartition.partition());
-            });
         }
 
         @Override
@@ -226,31 +199,26 @@ public class FetchRequest extends AbstractRequest {
             fetchRequestData.setMaxBytes(maxBytes);
             fetchRequestData.setIsolationLevel(isolationLevel.id());
             fetchRequestData.setForgottenTopicsData(new ArrayList<>());
-
-            Map<String, FetchRequestData.ForgottenTopic> forgottenTopicMap = new LinkedHashMap<>();
-            addToForgottenTopicMap(removed, forgottenTopicMap);
-
-            // If a version older than v13 is used, topic-partition which were replaced
-            // by a topic-partition with the same name but a different topic ID are not
-            // sent out in the "forget" set in order to not remove the newly added
-            // partition in the "fetch" set.
-            if (version >= 13) {
-                addToForgottenTopicMap(replaced, forgottenTopicMap);
-            }
-
-            forgottenTopicMap.forEach((topic, forgottenTopic) -> fetchRequestData.forgottenTopicsData().add(forgottenTopic));
+            toForget.stream()
+                .collect(Collectors.groupingBy(TopicPartition::topic, LinkedHashMap::new, Collectors.toList()))
+                .forEach((topic, partitions) ->
+                    fetchRequestData.forgottenTopicsData().add(new FetchRequestData.ForgottenTopic()
+                        .setTopic(topic)
+                        .setTopicId(topicIds.getOrDefault(topic, Uuid.ZERO_UUID))
+                        .setPartitions(partitions.stream().map(TopicPartition::partition).collect(Collectors.toList())))
+                );
+            fetchRequestData.setTopics(new ArrayList<>());
 
             // We collect the partitions in a single FetchTopic only if they appear sequentially in the fetchData
-            fetchRequestData.setTopics(new ArrayList<>());
             FetchRequestData.FetchTopic fetchTopic = null;
-            for (Map.Entry<TopicPartition, PartitionData> entry : toFetch.entrySet()) {
+            for (Map.Entry<TopicPartition, PartitionData> entry : fetchData.entrySet()) {
                 TopicPartition topicPartition = entry.getKey();
                 PartitionData partitionData = entry.getValue();
 
                 if (fetchTopic == null || !topicPartition.topic().equals(fetchTopic.topic())) {
                     fetchTopic = new FetchRequestData.FetchTopic()
                        .setTopic(topicPartition.topic())
-                       .setTopicId(partitionData.topicId)
+                       .setTopicId(topicIds.getOrDefault(topicPartition.topic(), Uuid.ZERO_UUID))
                        .setPartitions(new ArrayList<>());
                     fetchRequestData.topics().add(fetchTopic);
                 }
@@ -283,10 +251,9 @@ public class FetchRequest extends AbstractRequest {
                     append(", maxWait=").append(maxWait).
                     append(", minBytes=").append(minBytes).
                     append(", maxBytes=").append(maxBytes).
-                    append(", fetchData=").append(toFetch).
+                    append(", fetchData=").append(fetchData).
                     append(", isolationLevel=").append(isolationLevel).
-                    append(", removed=").append(Utils.join(removed, ", ")).
-                    append(", replaced=").append(Utils.join(replaced, ", ")).
+                    append(", toForget=").append(Utils.join(toForget, ", ")).
                     append(", metadata=").append(metadata).
                     append(", rackId=").append(rackId).
                     append(")");
@@ -347,7 +314,8 @@ public class FetchRequest extends AbstractRequest {
 
     // For versions < 13, builds the partitionData map using only the FetchRequestData.
     // For versions 13+, builds the partitionData map using both the FetchRequestData and a mapping of topic IDs to names.
-    public Map<TopicIdPartition, PartitionData> fetchData(Map<Uuid, String> topicNames) {
+    // Throws UnknownTopicIdException for versions 13+ if the topic ID was unknown to the server.
+    public Map<TopicPartition, PartitionData> fetchData(Map<Uuid, String> topicNames) throws UnknownTopicIdException {
         if (fetchData == null) {
             synchronized (this) {
                 if (fetchData == null) {
@@ -360,19 +328,22 @@ public class FetchRequest extends AbstractRequest {
                         } else {
                             name = topicNames.get(fetchTopic.topicId());
                         }
-                        fetchTopic.partitions().forEach(fetchPartition ->
-                                // Topic name may be null here if the topic name was unable to be resolved using the topicNames map.
-                                fetchData.put(new TopicIdPartition(fetchTopic.topicId(), new TopicPartition(name, fetchPartition.partition())),
-                                        new PartitionData(
-                                                fetchTopic.topicId(),
-                                                fetchPartition.fetchOffset(),
-                                                fetchPartition.logStartOffset(),
-                                                fetchPartition.partitionMaxBytes(),
-                                                optionalEpoch(fetchPartition.currentLeaderEpoch()),
-                                                optionalEpoch(fetchPartition.lastFetchedEpoch())
-                                        )
-                                )
-                        );
+                        if (name != null) {
+                            // If topic name is resolved, simply add to fetchData map
+                            fetchTopic.partitions().forEach(fetchPartition ->
+                                    fetchData.put(new TopicPartition(name, fetchPartition.partition()),
+                                            new PartitionData(
+                                                    fetchPartition.fetchOffset(),
+                                                    fetchPartition.logStartOffset(),
+                                                    fetchPartition.partitionMaxBytes(),
+                                                    optionalEpoch(fetchPartition.currentLeaderEpoch()),
+                                                    optionalEpoch(fetchPartition.lastFetchedEpoch())
+                                            )
+                                    )
+                            );
+                        } else {
+                            throw new UnknownTopicIdException(String.format("Topic Id %s in FetchRequest was unknown to the server", fetchTopic.topicId()));
+                        }
                     });
                 }
             }
@@ -380,9 +351,8 @@ public class FetchRequest extends AbstractRequest {
         return fetchData;
     }
 
-    // For versions < 13, builds the forgotten topics list using only the FetchRequestData.
-    // For versions 13+, builds the forgotten topics list using both the FetchRequestData and a mapping of topic IDs to names.
-    public List<TopicIdPartition> forgottenTopics(Map<Uuid, String> topicNames) {
+    // For versions 13+, throws UnknownTopicIdException if the topic ID was unknown to the server.
+    public List<TopicPartition> forgottenTopics(Map<Uuid, String> topicNames) throws UnknownTopicIdException {
         if (toForget == null) {
             synchronized (this) {
                 if (toForget == null) {
@@ -394,8 +364,10 @@ public class FetchRequest extends AbstractRequest {
                         } else {
                             name = topicNames.get(forgottenTopic.topicId());
                         }
-                        // Topic name may be null here if the topic name was unable to be resolved using the topicNames map.
-                        forgottenTopic.partitions().forEach(partitionId -> toForget.add(new TopicIdPartition(forgottenTopic.topicId(), new TopicPartition(name, partitionId))));
+                        if (name == null) {
+                            throw new UnknownTopicIdException(String.format("Topic Id %s in FetchRequest was unknown to the server", forgottenTopic.topicId()));
+                        }
+                        forgottenTopic.partitions().forEach(partitionId -> toForget.add(new TopicPartition(name, partitionId)));
                     });
                 }
             }

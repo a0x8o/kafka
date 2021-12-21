@@ -301,6 +301,8 @@ public class StreamThread extends Thread {
     private java.util.function.Consumer<Throwable> streamsUncaughtExceptionHandler;
     private final Runnable shutdownErrorHook;
 
+    private long lastSeenTopologyVersion = 0L;
+
     // These must be Atomic references as they are shared and used to signal between the assignor and the stream thread
     private final AtomicInteger assignmentErrorCode;
     private final AtomicLong nextProbingRebalanceMs;
@@ -308,7 +310,6 @@ public class StreamThread extends Thread {
     // These are used to signal from outside the stream thread, but the variables themselves are internal to the thread
     private final AtomicLong cacheResizeSize = new AtomicLong(-1L);
     private final AtomicBoolean leaveGroupRequested = new AtomicBoolean(false);
-    private final boolean eosEnabled;
 
     public static StreamThread create(final TopologyMetadata topologyMetadata,
                                       final StreamsConfig config,
@@ -528,7 +529,6 @@ public class StreamThread extends Thread {
 
         this.time = time;
         this.topologyMetadata = topologyMetadata;
-        this.topologyMetadata.registerThread(getName());
         this.logPrefix = logContext.logPrefix();
         this.log = logContext.logger(StreamThread.class);
         this.rebalanceListener = new StreamsRebalanceListener(time, taskManager, this, this.log, this.assignmentErrorCode);
@@ -547,7 +547,6 @@ public class StreamThread extends Thread {
         this.commitTimeMs = config.getLong(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG);
 
         this.numIterations = 1;
-        this.eosEnabled = eosEnabled(config);
     }
 
     private static final class InternalConsumerConfig extends ConsumerConfig {
@@ -595,14 +594,6 @@ public class StreamThread extends Thread {
         // until the rebalance is completed before we close and commit the tasks
         while (isRunning() || taskManager.isRebalanceInProgress()) {
             try {
-                checkForTopologyUpdates();
-                // If we received the shutdown signal while waiting for a topology to be added, we can
-                // stop polling regardless of the rebalance status since we know there are no tasks left
-                if (!isRunning() && topologyMetadata.isEmpty()) {
-                    log.info("Shutting down thread with empty topology.");
-                    break;
-                }
-
                 maybeSendShutdown();
                 final long size = cacheResizeSize.getAndSet(-1L);
                 if (size != -1L) {
@@ -618,13 +609,7 @@ public class StreamThread extends Thread {
                 log.warn("Detected the states of tasks " + e.corruptedTasks() + " are corrupted. " +
                          "Will close the task as dirty and re-create and bootstrap from scratch.", e);
                 try {
-                    // check if any active task got corrupted. We will trigger a rebalance in that case.
-                    // once the task corruptions have been handled
-                    final boolean enforceRebalance = taskManager.handleCorruption(e.corruptedTasks());
-                    if (enforceRebalance && eosEnabled) {
-                        log.info("Active task(s) got corrupted. Triggering a rebalance.");
-                        mainConsumer.enforceRebalance();
-                    }
+                    taskManager.handleCorruption(e.corruptedTasks());
                 } catch (final TaskMigratedException taskMigrated) {
                     handleTaskMigrated(taskMigrated);
                 }
@@ -641,12 +626,8 @@ public class StreamThread extends Thread {
                           StreamsConfig.EXACTLY_ONCE_V2, StreamsConfig.EXACTLY_ONCE_BETA);
                 }
                 failedStreamThreadSensor.record();
-                this.streamsUncaughtExceptionHandler.accept(new StreamsException(e));
+                this.streamsUncaughtExceptionHandler.accept(e);
                 return false;
-            } catch (final StreamsException e) {
-                throw e;
-            } catch (final Exception e) {
-                throw new StreamsException(e);
             }
         }
         return true;
@@ -907,22 +888,22 @@ public class StreamThread extends Thread {
 
     // Check if the topology has been updated since we last checked, ie via #addNamedTopology or #removeNamedTopology
     private void checkForTopologyUpdates() {
-        if (topologyMetadata.isEmpty() || topologyMetadata.needsUpdate(getName())) {
+        if (lastSeenTopologyVersion < topologyMetadata.topologyVersion() || topologyMetadata.isEmpty()) {
+            lastSeenTopologyVersion = topologyMetadata.topologyVersion();
             taskManager.handleTopologyUpdates();
-            log.info("StreamThread has detected an update to the topology, triggering a rebalance to refresh the assignment");
-            if (topologyMetadata.isEmpty()) {
-                mainConsumer.unsubscribe();
-            }
-            topologyMetadata.maybeNotifyTopologyVersionWaiters(getName());
 
             topologyMetadata.maybeWaitForNonEmptyTopology(() -> state);
 
+            // TODO KAFKA-12648 Pt.4: optimize to avoid always triggering a rebalance for each thread on every update
+            log.info("StreamThread has detected an update to the topology, triggering a rebalance to refresh the assignment");
             subscribeConsumer();
             mainConsumer.enforceRebalance();
         }
     }
 
     private long pollPhase() {
+        checkForTopologyUpdates();
+
         final ConsumerRecords<byte[], byte[]> records;
         log.debug("Invoking poll on main Consumer");
 
@@ -1164,8 +1145,6 @@ public class StreamThread extends Thread {
         streamsMetrics.removeAllThreadLevelMetrics(getName());
 
         setState(State.DEAD);
-
-        topologyMetadata.unregisterThread(threadMetadata.threadName());
 
         log.info("Shutdown complete");
     }

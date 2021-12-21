@@ -22,17 +22,17 @@ import scala.collection.Seq
 
 import kafka.utils.TestUtils
 import TestUtils._
-import kafka.server.QuorumTestHarness
+import kafka.zk.ZooKeeperTestHarness
 import java.io.File
 
 import kafka.server.checkpoints.OffsetCheckpointFile
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{IntegerSerializer, StringSerializer}
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 import org.junit.jupiter.api.Assertions._
 
-class LogRecoveryTest extends QuorumTestHarness {
+class LogRecoveryTest extends ZooKeeperTestHarness {
 
   val replicaLagTimeMaxMs = 5000L
   val replicaLagMaxMessages = 10L
@@ -75,8 +75,8 @@ class LogRecoveryTest extends QuorumTestHarness {
   }
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    super.setUp(testInfo)
+  override def setUp(): Unit = {
+    super.setUp()
 
     configs = TestUtils.createBrokerConfigs(2, zkConnect, enableControlledShutdown = false).map(KafkaConfig.fromProps(_, overridingProps))
 

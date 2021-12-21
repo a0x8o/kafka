@@ -217,11 +217,12 @@ public class Metadata implements Closeable {
         }
     }
 
-    /**
-     * @return a mapping from topic names to topic IDs for all topics with valid IDs in the cache
-     */
     public synchronized Map<String, Uuid> topicIds() {
         return cache.topicIds();
+    }
+
+    public synchronized Map<Uuid, String> topicNames() {
+        return cache.topicNames();
     }
 
     public synchronized LeaderAndEpoch currentLeader(TopicPartition topicPartition) {
@@ -325,31 +326,22 @@ public class Metadata implements Closeable {
 
         List<MetadataResponse.PartitionMetadata> partitions = new ArrayList<>();
         Map<String, Uuid> topicIds = new HashMap<>();
-        Map<String, Uuid> oldTopicIds = cache.topicIds();
         for (MetadataResponse.TopicMetadata metadata : metadataResponse.topicMetadata()) {
-            String topicName = metadata.topic();
-            Uuid topicId = metadata.topicId();
-            topics.add(topicName);
-            // We can only reason about topic ID changes when both IDs are valid, so keep oldId null unless the new metadata contains a topic ID
-            Uuid oldTopicId = null;
-            if (!Uuid.ZERO_UUID.equals(topicId)) {
-                topicIds.put(topicName, topicId);
-                oldTopicId = oldTopicIds.get(topicName);
-            } else {
-                topicId = null;
-            }
+            topics.add(metadata.topic());
+            if (!metadata.topicId().equals(Uuid.ZERO_UUID))
+                topicIds.put(metadata.topic(), metadata.topicId());
 
-            if (!retainTopic(topicName, metadata.isInternal(), nowMs))
+            if (!retainTopic(metadata.topic(), metadata.isInternal(), nowMs))
                 continue;
 
             if (metadata.isInternal())
-                internalTopics.add(topicName);
+                internalTopics.add(metadata.topic());
 
             if (metadata.error() == Errors.NONE) {
                 for (MetadataResponse.PartitionMetadata partitionMetadata : metadata.partitionMetadata()) {
                     // Even if the partition's metadata includes an error, we need to handle
                     // the update to catch new epochs
-                    updateLatestMetadata(partitionMetadata, metadataResponse.hasReliableLeaderEpochs(), topicId, oldTopicId)
+                    updateLatestMetadata(partitionMetadata, metadataResponse.hasReliableLeaderEpochs())
                         .ifPresent(partitions::add);
 
                     if (partitionMetadata.error.exception() instanceof InvalidMetadataException) {
@@ -360,14 +352,14 @@ public class Metadata implements Closeable {
                 }
             } else {
                 if (metadata.error().exception() instanceof InvalidMetadataException) {
-                    log.debug("Requesting metadata update for topic {} due to error {}", topicName, metadata.error());
+                    log.debug("Requesting metadata update for topic {} due to error {}", metadata.topic(), metadata.error());
                     requestUpdate();
                 }
 
                 if (metadata.error() == Errors.INVALID_TOPIC_EXCEPTION)
-                    invalidTopics.add(topicName);
+                    invalidTopics.add(metadata.topic());
                 else if (metadata.error() == Errors.TOPIC_AUTHORIZATION_FAILED)
-                    unauthorizedTopics.add(topicName);
+                    unauthorizedTopics.add(metadata.topic());
             }
         }
 
@@ -383,25 +375,17 @@ public class Metadata implements Closeable {
 
     /**
      * Compute the latest partition metadata to cache given ordering by leader epochs (if both
-     * available and reliable) and whether the topic ID changed.
+     * available and reliable).
      */
     private Optional<MetadataResponse.PartitionMetadata> updateLatestMetadata(
             MetadataResponse.PartitionMetadata partitionMetadata,
-            boolean hasReliableLeaderEpoch,
-            Uuid topicId,
-            Uuid oldTopicId) {
+            boolean hasReliableLeaderEpoch) {
         TopicPartition tp = partitionMetadata.topicPartition;
         if (hasReliableLeaderEpoch && partitionMetadata.leaderEpoch.isPresent()) {
             int newEpoch = partitionMetadata.leaderEpoch.get();
+            // If the received leader epoch is at least the same as the previous one, update the metadata
             Integer currentEpoch = lastSeenLeaderEpochs.get(tp);
-            if (topicId != null && oldTopicId != null && !topicId.equals(oldTopicId)) {
-                // If both topic IDs were valid and the topic ID changed, update the metadata
-                log.info("Resetting the last seen epoch of partition {} to {} since the associated topicId changed from {} to {}",
-                         tp, newEpoch, oldTopicId, topicId);
-                lastSeenLeaderEpochs.put(tp, newEpoch);
-                return Optional.of(partitionMetadata);
-            } else if (currentEpoch == null || newEpoch >= currentEpoch) {
-                // If the received leader epoch is at least the same as the previous one, update the metadata
+            if (currentEpoch == null || newEpoch >= currentEpoch) {
                 log.debug("Updating last seen epoch for partition {} from {} to epoch {} from new metadata", tp, currentEpoch, newEpoch);
                 lastSeenLeaderEpochs.put(tp, newEpoch);
                 return Optional.of(partitionMetadata);

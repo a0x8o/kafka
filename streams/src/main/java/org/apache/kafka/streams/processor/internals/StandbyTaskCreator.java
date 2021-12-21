@@ -38,7 +38,7 @@ import static org.apache.kafka.common.utils.Utils.filterMap;
 
 class StandbyTaskCreator {
     private final TopologyMetadata topologyMetadata;
-    private final StreamsConfig applicationConfig;
+    private final StreamsConfig config;
     private final StreamsMetricsImpl streamsMetrics;
     private final StateDirectory stateDirectory;
     private final ChangelogReader storeChangelogReader;
@@ -50,14 +50,14 @@ class StandbyTaskCreator {
     private final Map<TaskId, Set<TopicPartition>> unknownTasksToBeCreated = new HashMap<>();
 
     StandbyTaskCreator(final TopologyMetadata topologyMetadata,
-                       final StreamsConfig applicationConfig,
+                       final StreamsConfig config,
                        final StreamsMetricsImpl streamsMetrics,
                        final StateDirectory stateDirectory,
                        final ChangelogReader storeChangelogReader,
                        final String threadId,
                        final Logger log) {
         this.topologyMetadata = topologyMetadata;
-        this.applicationConfig = applicationConfig;
+        this.config = config;
         this.streamsMetrics = streamsMetrics;
         this.stateDirectory = stateDirectory;
         this.storeChangelogReader = storeChangelogReader;
@@ -101,7 +101,7 @@ class StandbyTaskCreator {
                 final ProcessorStateManager stateManager = new ProcessorStateManager(
                     taskId,
                     Task.TaskType.STANDBY,
-                    StreamThread.eosEnabled(applicationConfig),
+                    StreamThread.eosEnabled(config),
                     getLogContext(taskId),
                     stateDirectory,
                     storeChangelogReader,
@@ -111,7 +111,7 @@ class StandbyTaskCreator {
 
                 final InternalProcessorContext context = new ProcessorContextImpl(
                     taskId,
-                    applicationConfig,
+                    config,
                     stateManager,
                     streamsMetrics,
                     dummyCache
@@ -160,7 +160,7 @@ class StandbyTaskCreator {
             taskId,
             inputPartitions,
             topology,
-            topologyMetadata.getTaskConfigFor(taskId),
+            config,
             streamsMetrics,
             stateManager,
             stateDirectory,

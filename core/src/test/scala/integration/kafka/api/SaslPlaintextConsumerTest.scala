@@ -14,15 +14,15 @@ package kafka.api
 
 import kafka.utils.JaasTestUtils
 import org.apache.kafka.common.security.auth.SecurityProtocol
-import org.junit.jupiter.api.{AfterEach, BeforeEach, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
 class SaslPlaintextConsumerTest extends BaseConsumerTest with SaslSetup {
   override protected def securityProtocol = SecurityProtocol.SASL_PLAINTEXT
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
+  override def setUp(): Unit = {
     startSasl(jaasSections(Seq("GSSAPI"), Some("GSSAPI"), KafkaSasl, JaasTestUtils.KafkaServerContextName))
-    super.setUp(testInfo)
+    super.setUp()
   }
 
   @AfterEach

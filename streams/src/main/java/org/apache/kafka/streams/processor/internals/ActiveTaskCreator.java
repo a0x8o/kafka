@@ -51,7 +51,7 @@ import static org.apache.kafka.streams.processor.internals.StreamThread.Processi
 
 class ActiveTaskCreator {
     private final TopologyMetadata topologyMetadata;
-    private final StreamsConfig applicationConfig;
+    private final StreamsConfig config;
     private final StreamsMetricsImpl streamsMetrics;
     private final StateDirectory stateDirectory;
     private final ChangelogReader storeChangelogReader;
@@ -71,7 +71,7 @@ class ActiveTaskCreator {
     private final Map<TaskId, Set<TopicPartition>> unknownTasksToBeCreated = new HashMap<>();
 
     ActiveTaskCreator(final TopologyMetadata topologyMetadata,
-                      final StreamsConfig applicationConfig,
+                      final StreamsConfig config,
                       final StreamsMetricsImpl streamsMetrics,
                       final StateDirectory stateDirectory,
                       final ChangelogReader storeChangelogReader,
@@ -82,7 +82,7 @@ class ActiveTaskCreator {
                       final UUID processId,
                       final Logger log) {
         this.topologyMetadata = topologyMetadata;
-        this.applicationConfig = applicationConfig;
+        this.config = config;
         this.streamsMetrics = streamsMetrics;
         this.stateDirectory = stateDirectory;
         this.storeChangelogReader = storeChangelogReader;
@@ -93,7 +93,7 @@ class ActiveTaskCreator {
         this.log = log;
 
         createTaskSensor = ThreadMetrics.createTaskSensor(threadId, streamsMetrics);
-        processingMode = StreamThread.processingMode(applicationConfig);
+        processingMode = StreamThread.processingMode(config);
 
         if (processingMode == EXACTLY_ONCE_ALPHA) {
             threadProducer = null;
@@ -105,7 +105,7 @@ class ActiveTaskCreator {
             final LogContext logContext = new LogContext(threadIdPrefix);
 
             threadProducer = new StreamsProducer(
-                applicationConfig,
+                config,
                 threadId,
                 clientSupplier,
                 null,
@@ -170,7 +170,7 @@ class ActiveTaskCreator {
             final ProcessorStateManager stateManager = new ProcessorStateManager(
                 taskId,
                 Task.TaskType.ACTIVE,
-                StreamThread.eosEnabled(applicationConfig),
+                StreamThread.eosEnabled(config),
                 logContext,
                 stateDirectory,
                 storeChangelogReader,
@@ -180,7 +180,7 @@ class ActiveTaskCreator {
 
             final InternalProcessorContext context = new ProcessorContextImpl(
                 taskId,
-                applicationConfig,
+                config,
                 stateManager,
                 streamsMetrics,
                 cache
@@ -239,7 +239,7 @@ class ActiveTaskCreator {
         if (processingMode == StreamThread.ProcessingMode.EXACTLY_ONCE_ALPHA) {
             log.info("Creating producer client for task {}", taskId);
             streamsProducer = new StreamsProducer(
-                applicationConfig,
+                config,
                 threadId,
                 clientSupplier,
                 taskId,
@@ -255,7 +255,7 @@ class ActiveTaskCreator {
             logContext,
             taskId,
             streamsProducer,
-            applicationConfig.defaultProductionExceptionHandler(),
+            config.defaultProductionExceptionHandler(),
             streamsMetrics
         );
 
@@ -264,7 +264,7 @@ class ActiveTaskCreator {
             inputPartitions,
             topology,
             consumer,
-            topologyMetadata.getTaskConfigFor(taskId),
+            config,
             streamsMetrics,
             stateDirectory,
             cache,
@@ -296,7 +296,7 @@ class ActiveTaskCreator {
             try {
                 taskProducer.close();
             } catch (final RuntimeException e) {
-                throw new StreamsException("[" + id + "] task producer encounter error trying to close.", e, id);
+                throw new StreamsException("[" + id + "] task producer encounter error trying to close.", e);
             }
         }
     }

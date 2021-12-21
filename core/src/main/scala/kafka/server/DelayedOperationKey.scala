@@ -17,7 +17,7 @@
 
 package kafka.server
 
-import org.apache.kafka.common.{TopicIdPartition, TopicPartition}
+import org.apache.kafka.common.TopicPartition
 
 /**
  * Keys used for delayed operation metrics recording
@@ -38,9 +38,6 @@ case class TopicPartitionOperationKey(topic: String, partition: Int) extends Del
 object TopicPartitionOperationKey {
   def apply(topicPartition: TopicPartition): TopicPartitionOperationKey = {
     apply(topicPartition.topic, topicPartition.partition)
-  }
-  def apply(topicIdPartition: TopicIdPartition): TopicPartitionOperationKey = {
-    apply(topicIdPartition.topic, topicIdPartition.partition)
   }
 }
 

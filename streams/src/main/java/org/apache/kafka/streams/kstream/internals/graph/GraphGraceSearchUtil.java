@@ -23,7 +23,6 @@ import org.apache.kafka.streams.kstream.Windows;
 import org.apache.kafka.streams.kstream.internals.KStreamSessionWindowAggregate;
 import org.apache.kafka.streams.kstream.internals.KStreamSlidingWindowAggregate;
 import org.apache.kafka.streams.kstream.internals.KStreamWindowAggregate;
-import org.apache.kafka.streams.processor.api.ProcessorSupplier;
 
 public final class GraphGraceSearchUtil {
     private GraphGraceSearchUtil() {}
@@ -70,10 +69,10 @@ public final class GraphGraceSearchUtil {
         return inheritedGrace;
     }
 
-    @SuppressWarnings("rawtypes")
     private static Long extractGracePeriod(final GraphNode node) {
         if (node instanceof StatefulProcessorNode) {
-            final ProcessorSupplier processorSupplier = ((StatefulProcessorNode) node).processorParameters().processorSupplier();
+            @SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+            final org.apache.kafka.streams.processor.ProcessorSupplier processorSupplier = ((StatefulProcessorNode) node).processorParameters().oldProcessorSupplier();
             if (processorSupplier instanceof KStreamWindowAggregate) {
                 final KStreamWindowAggregate kStreamWindowAggregate = (KStreamWindowAggregate) processorSupplier;
                 final Windows windows = kStreamWindowAggregate.windows();

@@ -110,7 +110,11 @@ public class RemoveMembersFromConsumerGroupHandler implements AdminApiHandler<Co
                                  Errors.forCode(memberResponse.errorCode()));
             }
 
-            return ApiResult.completed(groupId, memberErrors);
+            return new ApiResult<>(
+                Collections.singletonMap(groupId, memberErrors),
+                Collections.emptyMap(),
+                Collections.emptyList()
+            );
         }
     }
 
@@ -125,6 +129,7 @@ public class RemoveMembersFromConsumerGroupHandler implements AdminApiHandler<Co
                 log.debug("`LeaveGroup` request for group id {} failed due to error {}", groupId.idValue, error);
                 failed.put(groupId, error.exception());
                 break;
+
             case COORDINATOR_LOAD_IN_PROGRESS:
                 // If the coordinator is in the middle of loading, then we just need to retry
                 log.debug("`LeaveGroup` request for group id {} failed because the coordinator " +

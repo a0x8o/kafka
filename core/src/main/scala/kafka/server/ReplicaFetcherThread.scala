@@ -224,8 +224,10 @@ class ReplicaFetcherThread(name: String,
     }
     val fetchResponse = clientResponse.responseBody.asInstanceOf[FetchResponse]
     if (!fetchSessionHandler.handleResponse(fetchResponse, clientResponse.requestHeader().apiVersion())) {
-      // If we had a session topic ID related error, throw it, otherwise return an empty fetch data map.
-      if (fetchResponse.error == Errors.FETCH_SESSION_TOPIC_ID_ERROR) {
+      // If we had a topic ID related error, throw it, otherwise return an empty fetch data map.
+      if (fetchResponse.error == Errors.UNKNOWN_TOPIC_ID ||
+          fetchResponse.error == Errors.FETCH_SESSION_TOPIC_ID_ERROR ||
+          fetchResponse.error == Errors.INCONSISTENT_TOPIC_ID) {
         throw Errors.forCode(fetchResponse.error().code()).exception()
       } else {
         Map.empty
@@ -271,6 +273,7 @@ class ReplicaFetcherThread(name: String,
 
   override def buildFetch(partitionMap: Map[TopicPartition, PartitionFetchState]): ResultWithPartitions[Option[ReplicaFetch]] = {
     val partitionsWithError = mutable.Set[TopicPartition]()
+    val topicIds = replicaMgr.metadataCache.topicNamesToIds()
 
     val builder = fetchSessionHandler.newBuilder(partitionMap.size, false)
     partitionMap.forKeyValue { (topicPartition, fetchState) =>
@@ -282,8 +285,7 @@ class ReplicaFetcherThread(name: String,
             fetchState.lastFetchedEpoch.map(_.asInstanceOf[Integer]).asJava
           else
             Optional.empty[Integer]
-          builder.add(topicPartition, new FetchRequest.PartitionData(
-            fetchState.topicId.getOrElse(Uuid.ZERO_UUID),
+          builder.add(topicPartition, topicIds.getOrDefault(topicPartition.topic(), Uuid.ZERO_UUID), new FetchRequest.PartitionData(
             fetchState.fetchOffset,
             logStartOffset,
             fetchSize,
@@ -304,10 +306,9 @@ class ReplicaFetcherThread(name: String,
     } else {
       val version: Short = if (fetchRequestVersion >= 13 && !fetchData.canUseTopicIds) 12 else fetchRequestVersion
       val requestBuilder = FetchRequest.Builder
-        .forReplica(version, replicaId, maxWait, minBytes, fetchData.toSend)
+        .forReplica(version, replicaId, maxWait, minBytes, fetchData.toSend, fetchData.topicIds)
         .setMaxBytes(maxBytes)
-        .removed(fetchData.toForget)
-        .replaced(fetchData.toReplace)
+        .toForget(fetchData.toForget)
         .metadata(fetchData.metadata)
       Some(ReplicaFetch(fetchData.sessionPartitions(), requestBuilder))
     }

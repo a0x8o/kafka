@@ -288,8 +288,6 @@ object ConsumerPerformance extends LazyLogging {
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, classOf[ByteArrayDeserializer])
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, classOf[ByteArrayDeserializer])
     props.put(ConsumerConfig.CHECK_CRCS_CONFIG, "false")
-    if (props.getProperty(ConsumerConfig.CLIENT_ID_CONFIG) == null)
-      props.put(ConsumerConfig.CLIENT_ID_CONFIG, "perf-consumer-client")
 
     val numThreads = options.valueOf(numThreadsOpt).intValue
     val topic = options.valueOf(topicOpt)

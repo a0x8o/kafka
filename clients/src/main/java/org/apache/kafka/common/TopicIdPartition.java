@@ -27,27 +27,9 @@ public class TopicIdPartition {
     private final Uuid topicId;
     private final TopicPartition topicPartition;
 
-    /**
-     * Create an instance with the provided parameters.
-     *
-     * @param topicId the topic id
-     * @param topicPartition the topic partition
-     */
     public TopicIdPartition(Uuid topicId, TopicPartition topicPartition) {
         this.topicId = Objects.requireNonNull(topicId, "topicId can not be null");
         this.topicPartition = Objects.requireNonNull(topicPartition, "topicPartition can not be null");
-    }
-
-    /**
-     * Create an instance with the provided parameters.
-     *
-     * @param topicId the topic id
-     * @param partition the partition id
-     * @param topic the topic name or null
-     */
-    public TopicIdPartition(Uuid topicId, int partition, String topic) {
-        this.topicId = Objects.requireNonNull(topicId, "topicId can not be null");
-        this.topicPartition = new TopicPartition(topic, partition);
     }
 
     /**
@@ -55,20 +37,6 @@ public class TopicIdPartition {
      */
     public Uuid topicId() {
         return topicId;
-    }
-
-    /**
-     * @return the topic name or null if it is unknown.
-     */
-    public String topic() {
-        return topicPartition.topic();
-    }
-
-    /**
-     * @return the partition id.
-     */
-    public int partition() {
-        return topicPartition.partition();
     }
 
     /**
@@ -87,20 +55,20 @@ public class TopicIdPartition {
             return false;
         }
         TopicIdPartition that = (TopicIdPartition) o;
-        return topicId.equals(that.topicId) &&
-               topicPartition.equals(that.topicPartition);
+        return Objects.equals(topicId, that.topicId) &&
+               Objects.equals(topicPartition, that.topicPartition);
     }
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = prime + topicId.hashCode();
-        result = prime * result + topicPartition.hashCode();
-        return result;
+        return Objects.hash(topicId, topicPartition);
     }
 
     @Override
     public String toString() {
-        return topicId + ":" + topic() + "-" + partition();
+        return "TopicIdPartition{" +
+               "topicId=" + topicId +
+               ", topicPartition=" + topicPartition +
+               '}';
     }
 }

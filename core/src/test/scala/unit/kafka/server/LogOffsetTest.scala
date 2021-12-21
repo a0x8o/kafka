@@ -17,7 +17,7 @@
 
 package kafka.server
 
-import kafka.log.{ClientRecordDeletion, LogSegment, UnifiedLog}
+import kafka.log.{ClientRecordDeletion, UnifiedLog, LogSegment}
 import kafka.utils.{MockTime, TestUtils}
 import org.apache.kafka.common.message.ListOffsetsRequestData.{ListOffsetsPartition, ListOffsetsTopic}
 import org.apache.kafka.common.message.ListOffsetsResponseData.{ListOffsetsPartitionResponse, ListOffsetsTopicResponse}
@@ -135,7 +135,6 @@ class LogOffsetTest extends BaseRequestTest {
 
     val topicIds = getTopicIds().asJava
     val topicNames = topicIds.asScala.map(_.swap).asJava
-    val topicId = topicIds.get(topic)
 
     for (_ <- 0 until 20)
       log.appendAsLeader(TestUtils.singletonRecords(value = Integer.toString(42).getBytes()), leaderEpoch = 0)
@@ -153,8 +152,8 @@ class LogOffsetTest extends BaseRequestTest {
 
     // try to fetch using latest offset
     val fetchRequest = FetchRequest.Builder.forConsumer(ApiKeys.FETCH.latestVersion, 0, 1,
-      Map(topicPartition -> new FetchRequest.PartitionData(topicId, consumerOffsets.head, FetchRequest.INVALID_LOG_START_OFFSET,
-        300 * 1024, Optional.empty())).asJava).build()
+      Map(topicPartition -> new FetchRequest.PartitionData(consumerOffsets.head, FetchRequest.INVALID_LOG_START_OFFSET,
+        300 * 1024, Optional.empty())).asJava, topicIds).build()
     val fetchResponse = sendFetchRequest(fetchRequest)
     assertFalse(FetchResponse.recordsOrFail(fetchResponse.responseData(topicNames, ApiKeys.FETCH.latestVersion).get(topicPartition)).batches.iterator.hasNext)
   }

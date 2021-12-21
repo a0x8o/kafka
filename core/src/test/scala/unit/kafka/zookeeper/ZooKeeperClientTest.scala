@@ -25,8 +25,7 @@ import scala.collection.Seq
 import com.yammer.metrics.core.{Gauge, Meter, MetricName}
 import kafka.server.KafkaConfig
 import kafka.metrics.KafkaYammerMetrics
-import kafka.utils.TestUtils
-import kafka.server.QuorumTestHarness
+import kafka.zk.ZooKeeperTestHarness
 import org.apache.kafka.common.security.JaasUtils
 import org.apache.kafka.common.utils.Time
 import org.apache.zookeeper.KeeperException.{Code, NoNodeException}
@@ -34,23 +33,24 @@ import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
 import org.apache.zookeeper.ZooKeeper.States
 import org.apache.zookeeper.client.ZKClientConfig
 import org.apache.zookeeper.{CreateMode, WatchedEvent, ZooDefs}
-import org.junit.jupiter.api.Assertions.{assertArrayEquals, assertEquals, assertFalse, assertThrows, assertTrue, fail}
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.Assertions.{assertArrayEquals, assertEquals, assertFalse, assertTrue, assertThrows, fail}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 
 import scala.jdk.CollectionConverters._
 
-class ZooKeeperClientTest extends QuorumTestHarness {
+class ZooKeeperClientTest extends ZooKeeperTestHarness {
   private val mockPath = "/foo"
   private val time = Time.SYSTEM
 
   private var zooKeeperClient: ZooKeeperClient = _
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    TestUtils.verifyNoUnexpectedThreads("@BeforeEach")
+  override def setUp(): Unit = {
+    ZooKeeperTestHarness.verifyNoUnexpectedThreads("@BeforeEach")
     cleanMetricsRegistry()
-    super.setUp(testInfo)
-    zooKeeperClient = newZooKeeperClient()
+    super.setUp()
+    zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, zkMaxInFlightRequests,
+      Time.SYSTEM, "testMetricGroup", "testMetricType")
   }
 
   @AfterEach
@@ -59,13 +59,14 @@ class ZooKeeperClientTest extends QuorumTestHarness {
       zooKeeperClient.close()
     super.tearDown()
     System.clearProperty(JaasUtils.JAVA_LOGIN_CONFIG_PARAM)
-    TestUtils.verifyNoUnexpectedThreads("@AfterEach")
+    ZooKeeperTestHarness.verifyNoUnexpectedThreads("@AfterEach")
   }
 
   @Test
   def testUnresolvableConnectString(): Unit = {
     try {
-      newZooKeeperClient("some.invalid.hostname.foo.bar.local", connectionTimeoutMs = 10)
+      new ZooKeeperClient("some.invalid.hostname.foo.bar.local", zkSessionTimeout, connectionTimeoutMs = 10,
+        Int.MaxValue, time, "testMetricGroup", "testMetricType")
     } catch {
       case e: ZooKeeperClientTimeoutException =>
         assertEquals(Set.empty, runningZkSendThreads,  "ZooKeeper client threads still running")
@@ -80,17 +81,18 @@ class ZooKeeperClientTest extends QuorumTestHarness {
   @Test
   def testConnectionTimeout(): Unit = {
     zookeeper.shutdown()
-    assertThrows(classOf[ZooKeeperClientTimeoutException], () => newZooKeeperClient(
-      connectionTimeoutMs = 10).close())
+    assertThrows(classOf[ZooKeeperClientTimeoutException], () => new ZooKeeperClient(zkConnect, zkSessionTimeout,
+      connectionTimeoutMs = 10, Int.MaxValue, time, "testMetricGroup", "testMetricType").close())
   }
 
   @Test
   def testConnection(): Unit = {
-    val client = newZooKeeperClient()
+    val client = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time, "testMetricGroup",
+      "testMetricType")
     try {
-      // Verify ZooKeeper event thread name. This is used in QuorumTestHarness to verify that tests have closed ZK clients
+      // Verify ZooKeeper event thread name. This is used in ZooKeeperTestHarness to verify that tests have closed ZK clients
       val threads = Thread.getAllStackTraces.keySet.asScala.map(_.getName)
-      assertTrue(threads.exists(_.contains(QuorumTestHarness.ZkClientEventThreadSuffix)),
+      assertTrue(threads.exists(_.contains(ZooKeeperTestHarness.ZkClientEventThreadSuffix)),
         s"ZooKeeperClient event thread not found, threads=$threads")
     } finally {
       client.close()
@@ -106,13 +108,15 @@ class ZooKeeperClientTest extends QuorumTestHarness {
     val propKey = KafkaConfig.ZkClientCnxnSocketProp
     val propVal = "org.apache.zookeeper.ClientCnxnSocketNetty"
     KafkaConfig.setZooKeeperClientProperty(clientConfig, propKey, propVal)
-    val client = newZooKeeperClient(clientConfig = clientConfig)
+    val client = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time, "testMetricGroup",
+      "testMetricType", None, Some(clientConfig))
     try {
-      assertEquals(Some(propVal), KafkaConfig.zooKeeperClientProperty(client.clientConfig, propKey))
+      assertEquals(Some(propVal), KafkaConfig.getZooKeeperClientProperty(client.getClientConfig, propKey))
       // For a sanity check, make sure a bad client connection socket class name generates an exception
       val badClientConfig = new ZKClientConfig()
       KafkaConfig.setZooKeeperClientProperty(badClientConfig, propKey, propVal + "BadClassName")
-      assertThrows(classOf[Exception], () => newZooKeeperClient(clientConfig = badClientConfig))
+      assertThrows(classOf[Exception], () => new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout,
+        Int.MaxValue, time, "testMetricGroup", "testMetricType", None, Some(badClientConfig)))
     } finally {
       client.close()
     }
@@ -346,7 +350,8 @@ class ZooKeeperClientTest extends QuorumTestHarness {
     }
 
     zooKeeperClient.close()
-    zooKeeperClient = newZooKeeperClient()
+    zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time,
+      "testMetricGroup", "testMetricType")
     zooKeeperClient.registerStateChangeHandler(stateChangeHandler)
 
     val requestThread = new Thread() {
@@ -394,7 +399,8 @@ class ZooKeeperClientTest extends QuorumTestHarness {
     }
 
     zooKeeperClient.close()
-    zooKeeperClient = newZooKeeperClient()
+    zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time,
+      "testMetricGroup", "testMetricType")
     zooKeeperClient.registerStateChangeHandler(faultyHandler)
     zooKeeperClient.registerStateChangeHandler(goodHandler)
 
@@ -470,7 +476,8 @@ class ZooKeeperClientTest extends QuorumTestHarness {
       }
     }
 
-    val zooKeeperClient = newZooKeeperClient()
+    val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time,
+      "testMetricGroup", "testMetricType")
     try {
       zooKeeperClient.registerStateChangeHandler(stateChangeHandler)
       zooKeeperClient.forceReinitialize()
@@ -482,7 +489,8 @@ class ZooKeeperClientTest extends QuorumTestHarness {
   @Test
   def testConnectionLossRequestTermination(): Unit = {
     val batchSize = 10
-    val zooKeeperClient = newZooKeeperClient(maxInFlight = 2)
+    val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, 2, time,
+      "testGroupType", "testGroupName")
     zookeeper.shutdown()
     try {
       val requests = (1 to batchSize).map(i => GetDataRequest(s"/$i"))
@@ -545,7 +553,7 @@ class ZooKeeperClientTest extends QuorumTestHarness {
     @volatile var resultCodes: Seq[Code] = null
     val stateChanges = new ConcurrentLinkedQueue[String]()
     val zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, maxInflightRequests,
-      time, "testGroupType", "testGroupName", new ZKClientConfig, "ZooKeeperClientTest") {
+      time, "testGroupType", "testGroupName") {
       override def send[Req <: AsyncRequest](request: Req)(processResponse: Req#Response => Unit): Unit = {
         super.send(request)( response => {
           responseExecutor.submit(new Runnable {
@@ -649,18 +657,10 @@ class ZooKeeperClientTest extends QuorumTestHarness {
     }
 
     zooKeeperClient.close()
-    @volatile var connectionStateOverride: Option[States] = None
-    zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout,
-      zkMaxInFlightRequests, time, "testMetricGroup", "testMetricType", new ZKClientConfig, "ZooKeeperClientTest") {
-      override def connectionState: States = connectionStateOverride.getOrElse(super.connectionState)
-    }
+    zooKeeperClient = new ZooKeeperClient(zkConnect, zkSessionTimeout, zkConnectionTimeout, Int.MaxValue, time,
+      "testMetricGroup", "testMetricType")
     zooKeeperClient.registerStateChangeHandler(changeHandler)
 
-    connectionStateOverride = Some(States.CONNECTED)
-    zooKeeperClient.ZooKeeperClientWatcher.process(new WatchedEvent(EventType.None, KeeperState.AuthFailed, null))
-    assertFalse(sessionInitializedCountDownLatch.await(10, TimeUnit.MILLISECONDS), "Unexpected session initialization when connection is alive")
-
-    connectionStateOverride = Some(States.AUTH_FAILED)
     zooKeeperClient.ZooKeeperClientWatcher.process(new WatchedEvent(EventType.None, KeeperState.AuthFailed, null))
     assertTrue(sessionInitializedCountDownLatch.await(5, TimeUnit.SECONDS), "Failed to receive session initializing notification")
   }
@@ -707,13 +707,6 @@ class ZooKeeperClientTest extends QuorumTestHarness {
     assertEquals(None, gaugeValue("SessionState"))
     assertEquals(States.CLOSED, zooKeeperClient.connectionState)
   }
-
-  private def newZooKeeperClient(connectionString: String = zkConnect,
-                                 connectionTimeoutMs: Int = zkConnectionTimeout,
-                                 maxInFlight: Int = zkMaxInFlightRequests,
-                                 clientConfig: ZKClientConfig = new ZKClientConfig) =
-    new ZooKeeperClient(connectionString, zkSessionTimeout, connectionTimeoutMs, maxInFlight, time,
-      "testMetricGroup", "testMetricType", clientConfig, "ZooKeeperClientTest")
 
   private def cleanMetricsRegistry(): Unit = {
     val metrics = KafkaYammerMetrics.defaultRegistry

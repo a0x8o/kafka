@@ -29,72 +29,70 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 public class TopicBasedRemoteLogMetadataManagerWrapperWithHarness implements RemoteLogMetadataManager {
 
     private final TopicBasedRemoteLogMetadataManagerHarness remoteLogMetadataManagerHarness = new TopicBasedRemoteLogMetadataManagerHarness();
 
     @Override
-    public CompletableFuture<Void> addRemoteLogSegmentMetadata(RemoteLogSegmentMetadata remoteLogSegmentMetadata) throws RemoteStorageException {
-        return remoteLogMetadataManagerHarness.remoteLogMetadataManager().addRemoteLogSegmentMetadata(remoteLogSegmentMetadata);
+    public void addRemoteLogSegmentMetadata(RemoteLogSegmentMetadata remoteLogSegmentMetadata) throws RemoteStorageException {
+        remoteLogMetadataManagerHarness.topicBasedRlmm().addRemoteLogSegmentMetadata(remoteLogSegmentMetadata);
     }
 
     @Override
-    public CompletableFuture<Void> updateRemoteLogSegmentMetadata(RemoteLogSegmentMetadataUpdate remoteLogSegmentMetadataUpdate) throws RemoteStorageException {
-        return remoteLogMetadataManagerHarness.remoteLogMetadataManager().updateRemoteLogSegmentMetadata(remoteLogSegmentMetadataUpdate);
+    public void updateRemoteLogSegmentMetadata(RemoteLogSegmentMetadataUpdate remoteLogSegmentMetadataUpdate) throws RemoteStorageException {
+        remoteLogMetadataManagerHarness.topicBasedRlmm().updateRemoteLogSegmentMetadata(remoteLogSegmentMetadataUpdate);
     }
 
     @Override
     public Optional<RemoteLogSegmentMetadata> remoteLogSegmentMetadata(TopicIdPartition topicIdPartition,
                                                                        int epochForOffset,
                                                                        long offset) throws RemoteStorageException {
-        return remoteLogMetadataManagerHarness.remoteLogMetadataManager().remoteLogSegmentMetadata(topicIdPartition, epochForOffset, offset);
+        return remoteLogMetadataManagerHarness.topicBasedRlmm().remoteLogSegmentMetadata(topicIdPartition, epochForOffset, offset);
     }
 
     @Override
     public Optional<Long> highestOffsetForEpoch(TopicIdPartition topicIdPartition,
                                                 int leaderEpoch) throws RemoteStorageException {
-        return remoteLogMetadataManagerHarness.remoteLogMetadataManager().highestOffsetForEpoch(topicIdPartition, leaderEpoch);
+        return remoteLogMetadataManagerHarness.topicBasedRlmm().highestOffsetForEpoch(topicIdPartition, leaderEpoch);
     }
 
     @Override
-    public CompletableFuture<Void> putRemotePartitionDeleteMetadata(RemotePartitionDeleteMetadata remotePartitionDeleteMetadata) throws RemoteStorageException {
-        return remoteLogMetadataManagerHarness.remoteLogMetadataManager().putRemotePartitionDeleteMetadata(remotePartitionDeleteMetadata);
+    public void putRemotePartitionDeleteMetadata(RemotePartitionDeleteMetadata remotePartitionDeleteMetadata) throws RemoteStorageException {
+        remoteLogMetadataManagerHarness.topicBasedRlmm().putRemotePartitionDeleteMetadata(remotePartitionDeleteMetadata);
     }
 
     @Override
     public Iterator<RemoteLogSegmentMetadata> listRemoteLogSegments(TopicIdPartition topicIdPartition) throws RemoteStorageException {
-        return remoteLogMetadataManagerHarness.remoteLogMetadataManager().listRemoteLogSegments(topicIdPartition);
+        return remoteLogMetadataManagerHarness.topicBasedRlmm().listRemoteLogSegments(topicIdPartition);
     }
 
     @Override
     public Iterator<RemoteLogSegmentMetadata> listRemoteLogSegments(TopicIdPartition topicIdPartition,
                                                                     int leaderEpoch) throws RemoteStorageException {
-        return remoteLogMetadataManagerHarness.remoteLogMetadataManager().listRemoteLogSegments(topicIdPartition, leaderEpoch);
+        return remoteLogMetadataManagerHarness.topicBasedRlmm().listRemoteLogSegments(topicIdPartition, leaderEpoch);
     }
 
     @Override
     public void onPartitionLeadershipChanges(Set<TopicIdPartition> leaderPartitions,
                                              Set<TopicIdPartition> followerPartitions) {
-
-        remoteLogMetadataManagerHarness.remoteLogMetadataManager().onPartitionLeadershipChanges(leaderPartitions, followerPartitions);
+        remoteLogMetadataManagerHarness.topicBasedRlmm().onPartitionLeadershipChanges(leaderPartitions, followerPartitions);
     }
 
     @Override
     public void onStopPartitions(Set<TopicIdPartition> partitions) {
-        remoteLogMetadataManagerHarness.remoteLogMetadataManager().onStopPartitions(partitions);
+        remoteLogMetadataManagerHarness.topicBasedRlmm().onStopPartitions(partitions);
     }
 
     @Override
     public void close() throws IOException {
-        remoteLogMetadataManagerHarness.remoteLogMetadataManager().close();
+        remoteLogMetadataManagerHarness.topicBasedRlmm().close();
     }
 
     @Override
     public void configure(Map<String, ?> configs) {
         // This will make sure the cluster is up and TopicBasedRemoteLogMetadataManager is initialized.
-        remoteLogMetadataManagerHarness.initialize(Collections.emptySet(), true);
-        remoteLogMetadataManagerHarness.remoteLogMetadataManager().configure(configs);
+        remoteLogMetadataManagerHarness.initialize(Collections.emptySet());
+        remoteLogMetadataManagerHarness.topicBasedRlmm().configure(configs);
     }
 }

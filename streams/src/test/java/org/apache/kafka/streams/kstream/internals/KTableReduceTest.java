@@ -16,8 +16,6 @@
  */
 package org.apache.kafka.streams.kstream.internals;
 
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.state.TimestampedKeyValueStore;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
@@ -33,13 +31,14 @@ import static java.util.Collections.singleton;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
 public class KTableReduceTest {
 
     @Test
     public void shouldAddAndSubtract() {
         final InternalMockProcessorContext<String, Change<Set<String>>> context = new InternalMockProcessorContext<>();
 
-        final Processor<String, Change<Set<String>>, String, Change<Set<String>>> reduceProcessor =
+        final org.apache.kafka.streams.processor.Processor<String, Change<Set<String>>> reduceProcessor =
             new KTableReduce<String, Set<String>>(
                 "myStore",
                 this::unionNotNullArgs,
@@ -53,11 +52,14 @@ public class KTableReduceTest {
         reduceProcessor.init(context);
         context.setCurrentNode(new ProcessorNode<>("reduce", reduceProcessor, singleton("myStore")));
 
-        reduceProcessor.process(new Record<>("A", new Change<>(singleton("a"), null), 10L));
+        context.setTime(10L);
+        reduceProcessor.process("A", new Change<>(singleton("a"), null));
         assertEquals(ValueAndTimestamp.make(singleton("a"), 10L), myStore.get("A"));
-        reduceProcessor.process(new Record<>("A", new Change<>(singleton("b"), singleton("a")), 15L));
+        context.setTime(15L);
+        reduceProcessor.process("A", new Change<>(singleton("b"), singleton("a")));
         assertEquals(ValueAndTimestamp.make(singleton("b"), 15L), myStore.get("A"));
-        reduceProcessor.process(new Record<>("A", new Change<>(null, singleton("b")), 12L));
+        context.setTime(12L);
+        reduceProcessor.process("A", new Change<>(null, singleton("b")));
         assertEquals(ValueAndTimestamp.make(emptySet(), 15L), myStore.get("A"));
     }
 

@@ -26,7 +26,7 @@ import org.apache.kafka.streams.state.ValueAndTimestamp;
 import static org.apache.kafka.streams.state.ValueAndTimestamp.getValueOrNull;
 
 
-class KTableMapValues<KIn, VIn, VOut> implements KTableProcessorSupplier<KIn, VIn, KIn, VOut> {
+class KTableMapValues<KIn, VIn, VOut> implements KTableNewProcessorSupplier<KIn, VIn, KIn, VOut> {
     private final KTableImpl<KIn, ?, VIn> parent;
     private final ValueMapperWithKey<? super KIn, ? super VIn, ? extends VOut> mapper;
     private final String queryableName;
@@ -129,7 +129,7 @@ class KTableMapValues<KIn, VIn, VOut> implements KTableProcessorSupplier<KIn, VI
 
             if (queryableName != null) {
                 store.put(record.key(), ValueAndTimestamp.make(newValue, record.timestamp()));
-                tupleForwarder.maybeForward(record.withValue(new Change<>(newValue, oldValue)));
+                tupleForwarder.maybeForward(record.key(), newValue, oldValue);
             } else {
                 context.forward(record.withValue(new Change<>(newValue, oldValue)));
             }
@@ -155,7 +155,7 @@ class KTableMapValues<KIn, VIn, VOut> implements KTableProcessorSupplier<KIn, VI
         }
 
         @Override
-        public void init(final ProcessorContext<?, ?> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             parentGetter.init(context);
         }
 

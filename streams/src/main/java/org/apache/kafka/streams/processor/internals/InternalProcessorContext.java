@@ -25,7 +25,6 @@ import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.internals.Task.TaskType;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
-import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.internals.ThreadCache;
 import org.apache.kafka.streams.state.internals.ThreadCache.DirtyEntryFlushListener;
@@ -116,8 +115,7 @@ public interface InternalProcessorContext<KOut, VOut>
     void logChange(final String storeName,
                    final Bytes key,
                    final byte[] value,
-                   final long timestamp,
-                   final Position position);
+                   final long timestamp);
 
     String changelogFor(final String storeName);
 }

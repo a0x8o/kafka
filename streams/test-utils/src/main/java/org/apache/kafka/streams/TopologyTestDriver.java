@@ -70,7 +70,6 @@ import org.apache.kafka.streams.processor.internals.StreamsProducer;
 import org.apache.kafka.streams.processor.internals.Task;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.processor.internals.metrics.TaskMetrics;
-import org.apache.kafka.streams.processor.internals.namedtopology.TopologyConfig.TaskConfig;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
@@ -368,7 +367,7 @@ public class TopologyTestDriver implements Closeable {
         );
 
         setupGlobalTask(mockWallClockTime, streamsConfig, streamsMetrics, cache);
-        setupTask(streamsConfig, streamsMetrics, cache, internalTopologyBuilder.topologyConfigs().getTaskConfig());
+        setupTask(streamsConfig, streamsMetrics, cache);
     }
 
     private static void logIfTaskIdleEnabled(final StreamsConfig streamsConfig) {
@@ -470,8 +469,7 @@ public class TopologyTestDriver implements Closeable {
     @SuppressWarnings("deprecation")
     private void setupTask(final StreamsConfig streamsConfig,
                            final StreamsMetricsImpl streamsMetrics,
-                           final ThreadCache cache,
-                           final TaskConfig taskConfig) {
+                           final ThreadCache cache) {
         if (!partitionsByInputTopic.isEmpty()) {
             consumer.assign(partitionsByInputTopic.values());
             final Map<TopicPartition, Long> startOffsets = new HashMap<>();
@@ -511,7 +509,7 @@ public class TopologyTestDriver implements Closeable {
                 new HashSet<>(partitionsByInputTopic.values()),
                 processorTopology,
                 consumer,
-                taskConfig,
+                streamsConfig,
                 streamsMetrics,
                 stateDirectory,
                 cache,

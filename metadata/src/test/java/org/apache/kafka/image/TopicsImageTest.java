@@ -44,9 +44,6 @@ import static org.apache.kafka.common.metadata.MetadataRecordType.PARTITION_RECO
 import static org.apache.kafka.common.metadata.MetadataRecordType.REMOVE_TOPIC_RECORD;
 import static org.apache.kafka.common.metadata.MetadataRecordType.TOPIC_RECORD;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 @Timeout(value = 40)
@@ -86,22 +83,16 @@ public class TopicsImageTest {
         return map;
     }
 
-    private static final Uuid FOO_UUID = Uuid.fromString("ThIaNwRnSM2Nt9Mx1v0RvA");
-
-    private static final Uuid BAR_UUID = Uuid.fromString("f62ptyETTjet8SL5ZeREiw");
-
-    private static final Uuid BAZ_UUID = Uuid.fromString("tgHBnRglT5W_RlENnuG5vg");
-
     static {
         TOPIC_IMAGES1 = Arrays.asList(
-            newTopicImage("foo", FOO_UUID,
+            newTopicImage("foo", Uuid.fromString("ThIaNwRnSM2Nt9Mx1v0RvA"),
                 new PartitionRegistration(new int[] {2, 3, 4},
                     new int[] {2, 3}, Replicas.NONE, Replicas.NONE, 2, 1, 345),
                 new PartitionRegistration(new int[] {3, 4, 5},
                     new int[] {3, 4, 5}, Replicas.NONE, Replicas.NONE, 3, 4, 684),
                 new PartitionRegistration(new int[] {2, 4, 5},
                     new int[] {2, 4, 5}, Replicas.NONE, Replicas.NONE, 2, 10, 84)),
-            newTopicImage("bar", BAR_UUID,
+            newTopicImage("bar", Uuid.fromString("f62ptyETTjet8SL5ZeREiw"),
                 new PartitionRegistration(new int[] {0, 1, 2, 3, 4},
                     new int[] {0, 1, 2, 3}, new int[] {1}, new int[] {3, 4}, 0, 1, 345)));
 
@@ -109,18 +100,18 @@ public class TopicsImageTest {
 
         DELTA1_RECORDS = new ArrayList<>();
         DELTA1_RECORDS.add(new ApiMessageAndVersion(new RemoveTopicRecord().
-            setTopicId(FOO_UUID),
+            setTopicId(Uuid.fromString("ThIaNwRnSM2Nt9Mx1v0RvA")),
             REMOVE_TOPIC_RECORD.highestSupportedVersion()));
         DELTA1_RECORDS.add(new ApiMessageAndVersion(new PartitionChangeRecord().
-            setTopicId(BAR_UUID).
+            setTopicId(Uuid.fromString("f62ptyETTjet8SL5ZeREiw")).
             setPartitionId(0).setLeader(1),
             PARTITION_CHANGE_RECORD.highestSupportedVersion()));
         DELTA1_RECORDS.add(new ApiMessageAndVersion(new TopicRecord().
-            setName("baz").setTopicId(BAZ_UUID),
+            setName("baz").setTopicId(Uuid.fromString("tgHBnRglT5W_RlENnuG5vg")),
             TOPIC_RECORD.highestSupportedVersion()));
         DELTA1_RECORDS.add(new ApiMessageAndVersion(new PartitionRecord().
             setPartitionId(0).
-            setTopicId(BAZ_UUID).
+            setTopicId(Uuid.fromString("tgHBnRglT5W_RlENnuG5vg")).
             setReplicas(Arrays.asList(1, 2, 3, 4)).
             setIsr(Arrays.asList(3, 4)).
             setRemovingReplicas(Collections.singletonList(2)).
@@ -133,10 +124,10 @@ public class TopicsImageTest {
         RecordTestUtils.replayAll(DELTA1, DELTA1_RECORDS);
 
         List<TopicImage> topics2 = Arrays.asList(
-            newTopicImage("bar", BAR_UUID,
+            newTopicImage("bar", Uuid.fromString("f62ptyETTjet8SL5ZeREiw"),
                 new PartitionRegistration(new int[] {0, 1, 2, 3, 4},
                     new int[] {0, 1, 2, 3}, new int[] {1}, new int[] {3, 4}, 1, 2, 346)),
-            newTopicImage("baz", BAZ_UUID,
+            newTopicImage("baz", Uuid.fromString("tgHBnRglT5W_RlENnuG5vg"),
                 new PartitionRegistration(new int[] {1, 2, 3, 4},
                     new int[] {3, 4}, new int[] {2}, new int[] {1}, 3, 2, 1)));
         IMAGE2 = new TopicsImage(newTopicsByIdMap(topics2), newTopicsByNameMap(topics2));
@@ -181,12 +172,12 @@ public class TopicsImageTest {
         topicRecords.add(newPartitionRecord(newFooId, 0, Arrays.asList(0, 1, 2)));
         topicRecords.add(newPartitionRecord(newFooId, 1, Arrays.asList(0, 1, localId)));
 
-        // baz-1 - new partition to follower
+        // baz-1 - new partion to follower
         topicRecords.add(
             new ApiMessageAndVersion(
                 new PartitionRecord()
                     .setPartitionId(1)
-                    .setTopicId(BAZ_UUID)
+                    .setTopicId(Uuid.fromString("tgHBnRglT5W_RlENnuG5vg"))
                     .setReplicas(Arrays.asList(4, 2, localId))
                     .setIsr(Arrays.asList(4, 2, localId))
                     .setLeader(4)
@@ -383,41 +374,5 @@ public class TopicsImageTest {
         RecordTestUtils.replayAllBatches(delta, writer.batches());
         TopicsImage nextImage = delta.apply();
         assertEquals(image, nextImage);
-    }
-
-    @Test
-    public void testTopicNameToIdView() {
-        Map<String, Uuid> map = IMAGE1.topicNameToIdView();
-        assertTrue(map.containsKey("foo"));
-        assertEquals(FOO_UUID, map.get("foo"));
-        assertTrue(map.containsKey("bar"));
-        assertEquals(BAR_UUID, map.get("bar"));
-        assertFalse(map.containsKey("baz"));
-        assertEquals(null, map.get("baz"));
-        HashSet<Uuid> uuids = new HashSet<>();
-        map.values().iterator().forEachRemaining(u -> uuids.add(u));
-        HashSet<Uuid> expectedUuids = new HashSet<>(Arrays.asList(
-            Uuid.fromString("ThIaNwRnSM2Nt9Mx1v0RvA"),
-            Uuid.fromString("f62ptyETTjet8SL5ZeREiw")));
-        assertEquals(expectedUuids, uuids);
-        assertThrows(UnsupportedOperationException.class, () -> map.remove("foo"));
-        assertThrows(UnsupportedOperationException.class, () -> map.put("bar", FOO_UUID));
-    }
-
-    @Test
-    public void testTopicIdToNameView() {
-        Map<Uuid, String> map = IMAGE1.topicIdToNameView();
-        assertTrue(map.containsKey(FOO_UUID));
-        assertEquals("foo", map.get(FOO_UUID));
-        assertTrue(map.containsKey(BAR_UUID));
-        assertEquals("bar", map.get(BAR_UUID));
-        assertFalse(map.containsKey(BAZ_UUID));
-        assertEquals(null, map.get(BAZ_UUID));
-        HashSet<String> names = new HashSet<>();
-        map.values().iterator().forEachRemaining(n -> names.add(n));
-        HashSet<String> expectedNames = new HashSet<>(Arrays.asList("foo", "bar"));
-        assertEquals(expectedNames, names);
-        assertThrows(UnsupportedOperationException.class, () -> map.remove(FOO_UUID));
-        assertThrows(UnsupportedOperationException.class, () -> map.put(FOO_UUID, "bar"));
     }
 }

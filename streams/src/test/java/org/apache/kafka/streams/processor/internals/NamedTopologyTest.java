@@ -22,7 +22,7 @@ import org.apache.kafka.streams.errors.TopologyException;
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.processor.internals.namedtopology.KafkaStreamsNamedTopologyWrapper;
 import org.apache.kafka.streams.processor.internals.namedtopology.NamedTopology;
-import org.apache.kafka.streams.processor.internals.namedtopology.NamedTopologyBuilder;
+import org.apache.kafka.streams.processor.internals.namedtopology.NamedTopologyStreamsBuilder;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.test.TestUtils;
 
@@ -41,11 +41,11 @@ public class NamedTopologyTest {
     final KafkaClientSupplier clientSupplier = new DefaultKafkaClientSupplier();
     final Properties props = configProps();
 
-    private final KafkaStreamsNamedTopologyWrapper streams = new KafkaStreamsNamedTopologyWrapper(props);
+    final NamedTopologyStreamsBuilder builder1 = new NamedTopologyStreamsBuilder("topology-1");
+    final NamedTopologyStreamsBuilder builder2 = new NamedTopologyStreamsBuilder("topology-2");
+    final NamedTopologyStreamsBuilder builder3 = new NamedTopologyStreamsBuilder("topology-3");
 
-    private final NamedTopologyBuilder builder1 = streams.newNamedTopologyBuilder("topology-1");
-    private final NamedTopologyBuilder builder2 = streams.newNamedTopologyBuilder("topology-2");
-    private final NamedTopologyBuilder builder3 = streams.newNamedTopologyBuilder("topology-3");
+    KafkaStreamsNamedTopologyWrapper streams;
 
     @Before
     public void setup() {
@@ -56,7 +56,9 @@ public class NamedTopologyTest {
 
     @After
     public void cleanup() {
-        streams.close();
+        if (streams != null) {
+            streams.close();
+        }
     }
 
     private static Properties configProps() {
@@ -69,13 +71,14 @@ public class NamedTopologyTest {
 
     @Test
     public void shouldThrowIllegalArgumentOnIllegalName() {
-        assertThrows(IllegalArgumentException.class, () -> streams.newNamedTopologyBuilder("__not-allowed__"));
+        assertThrows(IllegalArgumentException.class, () -> new NamedTopologyStreamsBuilder("__not-allowed__"));
     }
 
     @Test
     public void shouldBuildSingleNamedTopology() {
         builder1.stream("stream-1").filter((k, v) -> !k.equals(v)).to("output-1");
-        streams.start(builder1.build());
+
+        streams = new KafkaStreamsNamedTopologyWrapper(builder1.buildNamedTopology(props), props, clientSupplier);
     }
 
     @Test
@@ -84,20 +87,22 @@ public class NamedTopologyTest {
         builder2.stream("stream-2").selectKey((k, v) -> v).groupByKey().count().toStream().to("output-2");
         builder3.stream("stream-3").selectKey((k, v) -> v).groupByKey().count().toStream().to("output-3");
 
-        streams.start(
+        streams = new KafkaStreamsNamedTopologyWrapper(
             asList(
-                builder1.build(),
-                builder2.build(),
-                builder3.build())
+                builder1.buildNamedTopology(props),
+                builder2.buildNamedTopology(props),
+                builder3.buildNamedTopology(props)),
+            props,
+            clientSupplier
         );
     }
 
     @Test
     public void shouldReturnTopologyByName() {
-        final NamedTopology topology1 = builder1.build();
-        final NamedTopology topology2 = builder2.build();
-        final NamedTopology topology3 = builder3.build();
-        streams.start(asList(topology1, topology2, topology3));
+        final NamedTopology topology1 = builder1.buildNamedTopology(props);
+        final NamedTopology topology2 = builder2.buildNamedTopology(props);
+        final NamedTopology topology3 = builder3.buildNamedTopology(props);
+        streams = new KafkaStreamsNamedTopologyWrapper(asList(topology1, topology2, topology3), props, clientSupplier);
         assertThat(streams.getTopologyByName("topology-1").get(), equalTo(topology1));
         assertThat(streams.getTopologyByName("topology-2").get(), equalTo(topology2));
         assertThat(streams.getTopologyByName("topology-3").get(), equalTo(topology3));
@@ -105,7 +110,7 @@ public class NamedTopologyTest {
 
     @Test
     public void shouldReturnEmptyWhenLookingUpNonExistentTopologyByName() {
-        streams.start(builder1.build());
+        streams = new KafkaStreamsNamedTopologyWrapper(builder1.buildNamedTopology(props), props, clientSupplier);
         assertThat(streams.getTopologyByName("non-existent-topology").isPresent(), equalTo(false));
     }
 
@@ -114,7 +119,12 @@ public class NamedTopologyTest {
         builder1.stream("stream-1").selectKey((k, v) -> v).groupByKey().count(Materialized.as(Stores.inMemoryKeyValueStore("store")));
         builder2.stream("stream-2").selectKey((k, v) -> v).groupByKey().count(Materialized.as(Stores.inMemoryKeyValueStore("store")));
 
-        streams.start(asList(builder1.build(), builder2.build()));
+        streams = new KafkaStreamsNamedTopologyWrapper(asList(
+                    builder1.buildNamedTopology(props),
+                    builder2.buildNamedTopology(props)),
+                props,
+                clientSupplier
+        );
     }
 
     @Test
@@ -124,9 +134,12 @@ public class NamedTopologyTest {
 
         assertThrows(
             TopologyException.class,
-            () -> streams.start(asList(
-                builder1.build(),
-                builder2.build()))
+            () -> streams = new KafkaStreamsNamedTopologyWrapper(
+                asList(
+                    builder1.buildNamedTopology(props),
+                    builder2.buildNamedTopology(props)),
+                props,
+                clientSupplier)
         );
     }
 
@@ -137,9 +150,12 @@ public class NamedTopologyTest {
 
         assertThrows(
             TopologyException.class,
-            () -> streams.start(asList(
-                builder1.build(),
-                builder2.build()))
+            () -> streams = new KafkaStreamsNamedTopologyWrapper(
+                asList(
+                    builder1.buildNamedTopology(props),
+                    builder2.buildNamedTopology(props)),
+                props,
+                clientSupplier)
         );
     }
 
@@ -150,9 +166,12 @@ public class NamedTopologyTest {
 
         assertThrows(
             TopologyException.class,
-            () -> streams.start(asList(
-                builder1.build(),
-                builder2.build()))
+            () -> streams = new KafkaStreamsNamedTopologyWrapper(
+                asList(
+                    builder1.buildNamedTopology(props),
+                    builder2.buildNamedTopology(props)),
+                props,
+                clientSupplier)
         );
     }
 
@@ -163,9 +182,12 @@ public class NamedTopologyTest {
 
         assertThrows(
             TopologyException.class,
-            () -> streams.start(asList(
-                builder1.build(),
-                builder2.build()))
+            () -> streams = new KafkaStreamsNamedTopologyWrapper(
+                asList(
+                    builder1.buildNamedTopology(props),
+                    builder2.buildNamedTopology(props)),
+                props,
+                clientSupplier)
         );
     }
 
@@ -176,21 +198,24 @@ public class NamedTopologyTest {
 
         assertThrows(
             TopologyException.class,
-            () -> streams.start(asList(
-                builder1.build(),
-                builder2.build()))
+            () -> streams = new KafkaStreamsNamedTopologyWrapper(
+                asList(
+                    builder1.buildNamedTopology(props),
+                    builder2.buildNamedTopology(props)),
+                props,
+                clientSupplier)
         );
     }
 
     @Test
     public void shouldDescribeWithSingleNamedTopology() {
         builder1.stream("input").filter((k, v) -> !k.equals(v)).to("output");
-        streams.start(builder1.build());
+        streams = new KafkaStreamsNamedTopologyWrapper(builder1.buildNamedTopology(props), props, clientSupplier);
 
         assertThat(
             streams.getFullTopologyDescription(),
             equalTo(
-                "Topology: topology-1:\n"
+                "Topology - topology-1:\n"
                     + "   Sub-topology: 0\n"
                     + "    Source: KSTREAM-SOURCE-0000000000 (topics: [input-1])\n"
                     + "      --> none\n"
@@ -212,17 +237,19 @@ public class NamedTopologyTest {
         builder2.stream("stream-2").filter((k, v) -> !k.equals(v)).to("output-2");
         builder3.stream("stream-3").filter((k, v) -> !k.equals(v)).to("output-3");
 
-        streams.start(
+        streams = new KafkaStreamsNamedTopologyWrapper(
             asList(
-                builder1.build(),
-                builder2.build(),
-                builder3.build())
+                builder1.buildNamedTopology(props),
+                builder2.buildNamedTopology(props),
+                builder3.buildNamedTopology(props)),
+            props,
+            clientSupplier
         );
 
         assertThat(
             streams.getFullTopologyDescription(),
             equalTo(
-                     "Topology: topology-1:\n"
+                     "Topology - topology-1:\n"
                     + "   Sub-topology: 0\n"
                     + "    Source: KSTREAM-SOURCE-0000000000 (topics: [input-1])\n"
                     + "      --> none\n"
@@ -236,7 +263,7 @@ public class NamedTopologyTest {
                     + "    Sink: KSTREAM-SINK-0000000003 (topic: output-1)\n"
                     + "      <-- KSTREAM-FILTER-0000000002\n"
                     + "\n"
-                    + "Topology: topology-2:\n"
+                    + "Topology - topology-2:\n"
                     + "   Sub-topology: 0\n"
                     + "    Source: KSTREAM-SOURCE-0000000000 (topics: [input-2])\n"
                     + "      --> none\n"
@@ -250,7 +277,7 @@ public class NamedTopologyTest {
                     + "    Sink: KSTREAM-SINK-0000000003 (topic: output-2)\n"
                     + "      <-- KSTREAM-FILTER-0000000002\n"
                     + "\n"
-                    + "Topology: topology-3:\n"
+                    + "Topology - topology-3:\n"
                     + "   Sub-topology: 0\n"
                     + "    Source: KSTREAM-SOURCE-0000000000 (topics: [input-3])\n"
                     + "      --> none\n"
@@ -268,6 +295,8 @@ public class NamedTopologyTest {
 
     @Test
     public void shouldDescribeWithEmptyNamedTopology() {
+        streams = new KafkaStreamsNamedTopologyWrapper(props, clientSupplier);
+
         assertThat(streams.getFullTopologyDescription(), equalTo(""));
     }
 }

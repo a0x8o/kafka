@@ -35,10 +35,9 @@ import kafka.log.LogConfig
 import kafka.message.ProducerCompressionCodec
 import kafka.metrics.KafkaYammerMetrics
 import kafka.network.{Processor, RequestChannel}
-import kafka.server.QuorumTestHarness
 import kafka.utils._
 import kafka.utils.Implicits._
-import kafka.zk.{ConfigEntityChangeNotificationZNode}
+import kafka.zk.{ConfigEntityChangeNotificationZNode, ZooKeeperTestHarness}
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.admin.AlterConfigOp.OpType
 import org.apache.kafka.clients.admin.ConfigEntry.{ConfigSource, ConfigSynonym}
@@ -62,7 +61,7 @@ import org.apache.kafka.common.security.scram.ScramCredential
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 import org.apache.kafka.test.{TestSslUtils, TestUtils => JTestUtils}
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Disabled, Test, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Disabled, Test}
 
 import scala.annotation.nowarn
 import scala.collection._
@@ -75,7 +74,7 @@ object DynamicBrokerReconfigurationTest {
   val SecureExternal = "EXTERNAL"
 }
 
-class DynamicBrokerReconfigurationTest extends QuorumTestHarness with SaslSetup {
+class DynamicBrokerReconfigurationTest extends ZooKeeperTestHarness with SaslSetup {
 
   import DynamicBrokerReconfigurationTest._
 
@@ -102,9 +101,9 @@ class DynamicBrokerReconfigurationTest extends QuorumTestHarness with SaslSetup 
   }
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
+  override def setUp(): Unit = {
     startSasl(jaasSections(kafkaServerSaslMechanisms, Some(kafkaClientSaslMechanism)))
-    super.setUp(testInfo)
+    super.setUp()
 
     clearLeftOverProcessorMetrics() // clear metrics left over from other tests so that new ones can be tested
 

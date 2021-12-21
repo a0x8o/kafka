@@ -17,14 +17,14 @@
 
 package org.apache.kafka.streams.kstream.internals.foreignkeyjoin;
 
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.ValueJoiner;
 import org.apache.kafka.streams.kstream.internals.KTableValueGetter;
 import org.apache.kafka.streams.kstream.internals.KTableValueGetterSupplier;
-import org.apache.kafka.streams.processor.api.MockProcessorContext;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.Record;
+import org.apache.kafka.streams.processor.MockProcessorContext;
+import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
 import org.apache.kafka.streams.state.internals.Murmur3;
 import org.junit.Test;
@@ -37,6 +37,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
 public class SubscriptionResolverJoinProcessorSupplierTest {
     private static final StringSerializer STRING_SERIALIZER = new StringSerializer();
     private static final ValueJoiner<String, String, String> JOINER =
@@ -49,7 +50,7 @@ public class SubscriptionResolverJoinProcessorSupplierTest {
         public KTableValueGetter<K, V> get() {
             return new KTableValueGetter<K, V>() {
                 @Override
-                public void init(final ProcessorContext<?, ?> context) {
+                public void init(final ProcessorContext context) {
                 }
 
                 @Override
@@ -82,15 +83,15 @@ public class SubscriptionResolverJoinProcessorSupplierTest {
                 JOINER,
                 leftJoin
             );
-        final Processor<String, SubscriptionResponseWrapper<String>, String, String> processor = processorSupplier.get();
-        final org.apache.kafka.streams.processor.api.MockProcessorContext<String, String> context = new org.apache.kafka.streams.processor.api.MockProcessorContext<>();
+        final org.apache.kafka.streams.processor.Processor<String, SubscriptionResponseWrapper<String>> processor = processorSupplier.get();
+        final MockProcessorContext context = new MockProcessorContext();
         processor.init(context);
-        context.setRecordMetadata("topic", 0, 0);
+        context.setRecordMetadata("topic", 0, 0, new RecordHeaders(), 0);
 
         valueGetterSupplier.put("lhs1", "lhsValue");
         final long[] oldHash = Murmur3.hash128(STRING_SERIALIZER.serialize("topic-join-resolver", "oldLhsValue"));
-        processor.process(new Record<>("lhs1", new SubscriptionResponseWrapper<>(oldHash, "rhsValue"), 0));
-        final List<MockProcessorContext.CapturedForward<? extends String, ? extends String>> forwarded = context.forwarded();
+        processor.process("lhs1", new SubscriptionResponseWrapper<>(oldHash, "rhsValue"));
+        final List<MockProcessorContext.CapturedForward> forwarded = context.forwarded();
         assertThat(forwarded, empty());
     }
 
@@ -107,15 +108,15 @@ public class SubscriptionResolverJoinProcessorSupplierTest {
                 JOINER,
                 leftJoin
             );
-        final Processor<String, SubscriptionResponseWrapper<String>, String, String> processor = processorSupplier.get();
-        final MockProcessorContext<String, String> context = new MockProcessorContext<>();
+        final org.apache.kafka.streams.processor.Processor<String, SubscriptionResponseWrapper<String>> processor = processorSupplier.get();
+        final MockProcessorContext context = new MockProcessorContext();
         processor.init(context);
-        context.setRecordMetadata("topic", 0, 0);
+        context.setRecordMetadata("topic", 0, 0, new RecordHeaders(), 0);
 
         valueGetterSupplier.put("lhs1", null);
         final long[] hash = Murmur3.hash128(STRING_SERIALIZER.serialize("topic-join-resolver", "lhsValue"));
-        processor.process(new Record<>("lhs1", new SubscriptionResponseWrapper<>(hash, "rhsValue"), 0));
-        final List<MockProcessorContext.CapturedForward<? extends String, ? extends String>> forwarded = context.forwarded();
+        processor.process("lhs1", new SubscriptionResponseWrapper<>(hash, "rhsValue"));
+        final List<MockProcessorContext.CapturedForward> forwarded = context.forwarded();
         assertThat(forwarded, empty());
     }
 
@@ -132,17 +133,17 @@ public class SubscriptionResolverJoinProcessorSupplierTest {
                 JOINER,
                 leftJoin
             );
-        final Processor<String, SubscriptionResponseWrapper<String>, String, String> processor = processorSupplier.get();
-        final MockProcessorContext<String, String> context = new MockProcessorContext<>();
+        final org.apache.kafka.streams.processor.Processor<String, SubscriptionResponseWrapper<String>> processor = processorSupplier.get();
+        final MockProcessorContext context = new MockProcessorContext();
         processor.init(context);
-        context.setRecordMetadata("topic", 0, 0);
+        context.setRecordMetadata("topic", 0, 0, new RecordHeaders(), 0);
 
         valueGetterSupplier.put("lhs1", "lhsValue");
         final long[] hash = Murmur3.hash128(STRING_SERIALIZER.serialize("topic-join-resolver", "lhsValue"));
-        processor.process(new Record<>("lhs1", new SubscriptionResponseWrapper<>(hash, "rhsValue"), 0));
-        final List<MockProcessorContext.CapturedForward<? extends String, ? extends String>> forwarded = context.forwarded();
+        processor.process("lhs1", new SubscriptionResponseWrapper<>(hash, "rhsValue"));
+        final List<MockProcessorContext.CapturedForward> forwarded = context.forwarded();
         assertThat(forwarded.size(), is(1));
-        assertThat(forwarded.get(0).record(), is(new Record<>("lhs1", "(lhsValue,rhsValue)", 0)));
+        assertThat(forwarded.get(0).keyValue(), is(new KeyValue<>("lhs1", "(lhsValue,rhsValue)")));
     }
 
     @Test
@@ -158,17 +159,17 @@ public class SubscriptionResolverJoinProcessorSupplierTest {
                 JOINER,
                 leftJoin
             );
-        final Processor<String, SubscriptionResponseWrapper<String>, String, String> processor = processorSupplier.get();
-        final MockProcessorContext<String, String> context = new MockProcessorContext<>();
+        final org.apache.kafka.streams.processor.Processor<String, SubscriptionResponseWrapper<String>> processor = processorSupplier.get();
+        final MockProcessorContext context = new MockProcessorContext();
         processor.init(context);
-        context.setRecordMetadata("topic", 0, 0);
+        context.setRecordMetadata("topic", 0, 0, new RecordHeaders(), 0);
 
         valueGetterSupplier.put("lhs1", "lhsValue");
         final long[] hash = Murmur3.hash128(STRING_SERIALIZER.serialize("topic-join-resolver", "lhsValue"));
-        processor.process(new Record<>("lhs1", new SubscriptionResponseWrapper<>(hash, null), 0));
-        final List<MockProcessorContext.CapturedForward<? extends String, ? extends String>> forwarded = context.forwarded();
+        processor.process("lhs1", new SubscriptionResponseWrapper<>(hash, null));
+        final List<MockProcessorContext.CapturedForward> forwarded = context.forwarded();
         assertThat(forwarded.size(), is(1));
-        assertThat(forwarded.get(0).record(), is(new Record<>("lhs1", null, 0)));
+        assertThat(forwarded.get(0).keyValue(), is(new KeyValue<>("lhs1", null)));
     }
 
     @Test
@@ -184,17 +185,17 @@ public class SubscriptionResolverJoinProcessorSupplierTest {
                 JOINER,
                 leftJoin
             );
-        final Processor<String, SubscriptionResponseWrapper<String>, String, String> processor = processorSupplier.get();
-        final MockProcessorContext<String, String> context = new MockProcessorContext<>();
+        final org.apache.kafka.streams.processor.Processor<String, SubscriptionResponseWrapper<String>> processor = processorSupplier.get();
+        final MockProcessorContext context = new MockProcessorContext();
         processor.init(context);
-        context.setRecordMetadata("topic", 0, 0);
+        context.setRecordMetadata("topic", 0, 0, new RecordHeaders(), 0);
 
         valueGetterSupplier.put("lhs1", "lhsValue");
         final long[] hash = Murmur3.hash128(STRING_SERIALIZER.serialize("topic-join-resolver", "lhsValue"));
-        processor.process(new Record<>("lhs1", new SubscriptionResponseWrapper<>(hash, null), 0));
-        final List<MockProcessorContext.CapturedForward<? extends String, ? extends String>> forwarded = context.forwarded();
+        processor.process("lhs1", new SubscriptionResponseWrapper<>(hash, null));
+        final List<MockProcessorContext.CapturedForward> forwarded = context.forwarded();
         assertThat(forwarded.size(), is(1));
-        assertThat(forwarded.get(0).record(), is(new Record<>("lhs1", "(lhsValue,null)", 0)));
+        assertThat(forwarded.get(0).keyValue(), is(new KeyValue<>("lhs1", "(lhsValue,null)")));
     }
 
     @Test
@@ -210,16 +211,16 @@ public class SubscriptionResolverJoinProcessorSupplierTest {
                 JOINER,
                 leftJoin
             );
-        final Processor<String, SubscriptionResponseWrapper<String>, String, String> processor = processorSupplier.get();
-        final MockProcessorContext<String, String> context = new MockProcessorContext<>();
+        final org.apache.kafka.streams.processor.Processor<String, SubscriptionResponseWrapper<String>> processor = processorSupplier.get();
+        final MockProcessorContext context = new MockProcessorContext();
         processor.init(context);
-        context.setRecordMetadata("topic", 0, 0);
+        context.setRecordMetadata("topic", 0, 0, new RecordHeaders(), 0);
 
         valueGetterSupplier.put("lhs1", null);
         final long[] hash = null;
-        processor.process(new Record<>("lhs1", new SubscriptionResponseWrapper<>(hash, null), 0));
-        final List<MockProcessorContext.CapturedForward<? extends String, ? extends String>> forwarded = context.forwarded();
+        processor.process("lhs1", new SubscriptionResponseWrapper<>(hash, null));
+        final List<MockProcessorContext.CapturedForward> forwarded = context.forwarded();
         assertThat(forwarded.size(), is(1));
-        assertThat(forwarded.get(0).record(), is(new Record<>("lhs1", null, 0)));
+        assertThat(forwarded.get(0).keyValue(), is(new KeyValue<>("lhs1", null)));
     }
 }

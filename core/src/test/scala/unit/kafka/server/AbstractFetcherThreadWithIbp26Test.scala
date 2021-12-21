@@ -17,12 +17,10 @@
 
 package kafka.server
 
-import org.apache.kafka.common.Uuid
-
 class AbstractFetcherThreadWithIbp26Test extends AbstractFetcherThreadTest {
 
   override val truncateOnFetch = false
   override val version = 11
-  override val topicIds = Map.empty[String, Uuid]
+  override val topicIds = java.util.Collections.emptyMap()
 
 }

@@ -25,6 +25,7 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.kafka.common.security.authenticator.TestJaasConfig;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.easymock.EasyMock;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -40,11 +41,8 @@ import java.util.Map;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.Response;
 
+import static org.easymock.EasyMock.replay;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class JaasBasicAuthFilterTest {
 
@@ -55,133 +53,110 @@ public class JaasBasicAuthFilterTest {
     public void testSuccess() throws IOException {
         File credentialFile = setupPropertyLoginFile(true);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", credentialFile.getPath());
-        ContainerRequestContext requestContext = setMock("Basic", "user", "password");
+        ContainerRequestContext requestContext = setMock("Basic", "user", "password", false);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
     }
 
     @Test
     public void testEmptyCredentialsFile() throws IOException {
         File credentialFile = setupPropertyLoginFile(false);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", credentialFile.getPath());
-        ContainerRequestContext requestContext = setMock("Basic", "user", "password");
+        ContainerRequestContext requestContext = setMock("Basic", "user", "password", false);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testBadCredential() throws IOException {
         File credentialFile = setupPropertyLoginFile(true);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", credentialFile.getPath());
-        ContainerRequestContext requestContext = setMock("Basic", "user1", "password");
+        ContainerRequestContext requestContext = setMock("Basic", "user1", "password", true);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).abortWith(any(Response.class));
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testBadPassword() throws IOException {
         File credentialFile = setupPropertyLoginFile(true);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", credentialFile.getPath());
-        ContainerRequestContext requestContext = setMock("Basic", "user", "password1");
+        ContainerRequestContext requestContext = setMock("Basic", "user", "password1", true);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).abortWith(any(Response.class));
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testUnknownBearer() throws IOException {
         File credentialFile = setupPropertyLoginFile(true);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", credentialFile.getPath());
-        ContainerRequestContext requestContext = setMock("Unknown", "user", "password");
+        ContainerRequestContext requestContext = setMock("Unknown", "user", "password", true);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).abortWith(any(Response.class));
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testUnknownLoginModule() throws IOException {
         File credentialFile = setupPropertyLoginFile(true);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect1", credentialFile.getPath());
-        ContainerRequestContext requestContext = setMock("Basic", "user", "password");
+        ContainerRequestContext requestContext = setMock("Basic", "user", "password", true);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).abortWith(any(Response.class));
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testUnknownCredentialsFile() throws IOException {
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", "/tmp/testcrednetial");
-        ContainerRequestContext requestContext = setMock("Basic", "user", "password");
+        ContainerRequestContext requestContext = setMock("Basic", "user", "password", true);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).abortWith(any(Response.class));
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testNoFileOption() throws IOException {
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", null);
-        ContainerRequestContext requestContext = setMock("Basic", "user", "password");
+        ContainerRequestContext requestContext = setMock("Basic", "user", "password", true);
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).abortWith(any(Response.class));
-        verify(requestContext).getMethod();
-        verify(requestContext).getHeaderString(JaasBasicAuthFilter.AUTHORIZATION);
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testPostWithoutAppropriateCredential() throws IOException {
-        UriInfo uriInfo = mock(UriInfo.class);
-        when(uriInfo.getPath()).thenReturn("connectors/connName/tasks");
+        UriInfo uriInfo = EasyMock.strictMock(UriInfo.class);
+        EasyMock.expect(uriInfo.getPath()).andReturn("connectors/connName/tasks");
 
-        ContainerRequestContext requestContext = mock(ContainerRequestContext.class);
-        when(requestContext.getMethod()).thenReturn(HttpMethod.POST);
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
+        ContainerRequestContext requestContext = EasyMock.strictMock(ContainerRequestContext.class);
+        EasyMock.expect(requestContext.getMethod()).andReturn(HttpMethod.POST);
+        EasyMock.expect(requestContext.getUriInfo()).andReturn(uriInfo);
+
+        replay(uriInfo, requestContext);
 
         File credentialFile = setupPropertyLoginFile(true);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect1", credentialFile.getPath());
 
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(uriInfo).getPath();
-        verify(requestContext).getMethod();
-        verify(requestContext).getUriInfo();
+        EasyMock.verify(requestContext);
     }
 
     @Test
     public void testPostNotChangingConnectorTask() throws IOException {
-        UriInfo uriInfo = mock(UriInfo.class);
-        when(uriInfo.getPath()).thenReturn("local:randomport/connectors/connName");
+        UriInfo uriInfo = EasyMock.strictMock(UriInfo.class);
+        EasyMock.expect(uriInfo.getPath()).andReturn("local:randomport/connectors/connName");
 
-        ContainerRequestContext requestContext = mock(ContainerRequestContext.class);
-        when(requestContext.getMethod()).thenReturn(HttpMethod.POST);
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
+        ContainerRequestContext requestContext = EasyMock.strictMock(ContainerRequestContext.class);
+        EasyMock.expect(requestContext.getMethod()).andReturn(HttpMethod.POST);
+        EasyMock.expect(requestContext.getUriInfo()).andReturn(uriInfo);
         String authHeader = "Basic" + Base64.getEncoder().encodeToString(("user" + ":" + "password").getBytes());
-        when(requestContext.getHeaderString(JaasBasicAuthFilter.AUTHORIZATION))
-            .thenReturn(authHeader);
+        EasyMock.expect(requestContext.getHeaderString(JaasBasicAuthFilter.AUTHORIZATION))
+            .andReturn(authHeader);
+        requestContext.abortWith(EasyMock.anyObject(Response.class));
+        EasyMock.expectLastCall();
+
+        replay(uriInfo, requestContext);
 
         File credentialFile = setupPropertyLoginFile(true);
         JaasBasicAuthFilter jaasBasicAuthFilter = setupJaasFilter("KafkaConnect", credentialFile.getPath());
 
         jaasBasicAuthFilter.filter(requestContext);
-
-        verify(requestContext).abortWith(any(Response.class));
-        verify(requestContext).getUriInfo();
-        verify(requestContext).getUriInfo();
+        EasyMock.verify(requestContext);
     }
 
     @Test
@@ -202,11 +177,16 @@ public class JaasBasicAuthFilterTest {
         return authorization + " " + Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
     }
 
-    private ContainerRequestContext setMock(String authorization, String username, String password) {
-        ContainerRequestContext requestContext = mock(ContainerRequestContext.class);
-        when(requestContext.getMethod()).thenReturn(HttpMethod.GET);
-        when(requestContext.getHeaderString(JaasBasicAuthFilter.AUTHORIZATION))
-            .thenReturn(authHeader(authorization, username, password));
+    private ContainerRequestContext setMock(String authorization, String username, String password, boolean exceptionCase) {
+        ContainerRequestContext requestContext = EasyMock.strictMock(ContainerRequestContext.class);
+        EasyMock.expect(requestContext.getMethod()).andReturn(HttpMethod.GET);
+        EasyMock.expect(requestContext.getHeaderString(JaasBasicAuthFilter.AUTHORIZATION))
+            .andReturn(authHeader(authorization, username, password));
+        if (exceptionCase) {
+            requestContext.abortWith(EasyMock.anyObject(Response.class));
+            EasyMock.expectLastCall();
+        }
+        replay(requestContext);
         return requestContext;
     }
 

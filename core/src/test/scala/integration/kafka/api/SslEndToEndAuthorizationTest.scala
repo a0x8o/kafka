@@ -26,7 +26,7 @@ import org.apache.kafka.common.network.Mode
 import org.apache.kafka.common.security.auth._
 import org.apache.kafka.common.security.authenticator.DefaultKafkaPrincipalBuilder
 import org.apache.kafka.common.utils.Java
-import org.junit.jupiter.api.{BeforeEach, TestInfo}
+import org.junit.jupiter.api.BeforeEach
 
 object SslEndToEndAuthorizationTest {
   class TestPrincipalBuilder extends DefaultKafkaPrincipalBuilder(null, null) {
@@ -70,9 +70,9 @@ class SslEndToEndAuthorizationTest extends EndToEndAuthorizationTest {
   override val clientPrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, s"O=A client,CN=$clientCn")
   override val kafkaPrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "server")
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
+  override def setUp(): Unit = {
     startSasl(jaasSections(List.empty, None, ZkSasl))
-    super.setUp(testInfo)
+    super.setUp()
   }
 
   override def clientSecurityProps(certAlias: String): Properties = {

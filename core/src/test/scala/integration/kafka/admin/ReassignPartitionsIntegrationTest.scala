@@ -24,7 +24,7 @@ import kafka.api.KAFKA_2_7_IV1
 import kafka.server.{IsrChangePropagationConfig, KafkaConfig, KafkaServer, ZkIsrManager}
 import kafka.utils.Implicits._
 import kafka.utils.TestUtils
-import kafka.server.QuorumTestHarness
+import kafka.zk.ZooKeeperTestHarness
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, AlterConfigOp, ConfigEntry, DescribeLogDirsResult, NewTopic}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.config.ConfigResource
@@ -39,7 +39,7 @@ import scala.collection.{Map, Seq, mutable}
 import scala.jdk.CollectionConverters._
 
 @Timeout(300)
-class ReassignPartitionsIntegrationTest extends QuorumTestHarness {
+class ReassignPartitionsIntegrationTest extends ZooKeeperTestHarness {
 
   var cluster: ReassignPartitionsTestCluster = null
 

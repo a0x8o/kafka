@@ -19,6 +19,7 @@ package org.apache.kafka.streams.kstream.internals;
 import java.util.TreeMap;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.utils.Bytes;
+import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.errors.TopologyException;
 import org.apache.kafka.streams.kstream.GlobalKTable;
@@ -50,6 +51,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -206,10 +208,8 @@ public class InternalStreamsBuilder implements InternalNameProvider {
                                                        final org.apache.kafka.streams.processor.api.ProcessorSupplier<KIn, VIn, Void, Void> stateUpdateSupplier) {
         // explicitly disable logging for global stores
         storeBuilder.withLoggingDisabled();
-
-        final NamedInternal named = new NamedInternal(consumed.name());
-        final String sourceName = named.suffixWithOrElseGet(TABLE_SOURCE_SUFFIX, this, KStreamImpl.SOURCE_NAME);
-        final String processorName = named.orElseGenerateWithPrefix(this, KTableImpl.SOURCE_NAME);
+        final String sourceName = newProcessorName(KStreamImpl.SOURCE_NAME);
+        final String processorName = newProcessorName(KTableImpl.SOURCE_NAME);
 
         final GraphNode globalStoreNode = new GlobalStoreNode<>(
             storeBuilder,
@@ -270,17 +270,13 @@ public class InternalStreamsBuilder implements InternalNameProvider {
 
     // use this method for testing only
     public void buildAndOptimizeTopology() {
-        buildAndOptimizeTopology(false);
+        buildAndOptimizeTopology(null);
     }
 
-    public void buildAndOptimizeTopology(final boolean optimizeTopology) {
+    public void buildAndOptimizeTopology(final Properties props) {
 
         mergeDuplicateSourceNodes();
-        if (optimizeTopology) {
-            LOG.debug("Optimizing the Kafka Streams graph for repartition nodes");
-            optimizeKTableSourceTopics();
-            maybeOptimizeRepartitionOperations();
-        }
+        maybePerformOptimizations(props);
 
         final PriorityQueue<GraphNode> graphNodePriorityQueue = new PriorityQueue<>(5, Comparator.comparing(GraphNode::buildPriority));
 
@@ -347,6 +343,15 @@ public class InternalStreamsBuilder implements InternalNameProvider {
                     }
                 }
             }
+        }
+    }
+
+    private void maybePerformOptimizations(final Properties props) {
+
+        if (props != null && StreamsConfig.OPTIMIZE.equals(props.getProperty(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG))) {
+            LOG.debug("Optimizing the Kafka Streams graph for repartition nodes");
+            optimizeKTableSourceTopics();
+            maybeOptimizeRepartitionOperations();
         }
     }
 

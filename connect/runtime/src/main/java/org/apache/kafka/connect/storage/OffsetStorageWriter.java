@@ -89,8 +89,9 @@ public class OffsetStorageWriter {
      * @param partition the partition to store an offset for
      * @param offset the offset
      */
-    public synchronized void offset(Map<String, Object> partition, Map<String, Object> offset) {
-        data.put(partition, offset);
+    @SuppressWarnings("unchecked")
+    public synchronized void offset(Map<String, ?> partition, Map<String, ?> offset) {
+        data.put((Map<String, Object>) partition, (Map<String, Object>) offset);
     }
 
     private boolean flushing() {

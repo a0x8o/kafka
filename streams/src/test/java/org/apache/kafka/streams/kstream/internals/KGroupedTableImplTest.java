@@ -34,9 +34,9 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
 import org.apache.kafka.streams.TestInputTopic;
 import org.apache.kafka.test.MockAggregator;
-import org.apache.kafka.test.MockApiProcessorSupplier;
 import org.apache.kafka.test.MockInitializer;
 import org.apache.kafka.test.MockMapper;
+import org.apache.kafka.test.MockProcessorSupplier;
 import org.apache.kafka.test.MockReducer;
 import org.apache.kafka.test.StreamsTestUtils;
 import org.junit.Before;
@@ -126,8 +126,9 @@ public class KGroupedTableImplTest {
             Materialized.as(INVALID_STORE_NAME)));
     }
 
-    private MockApiProcessorSupplier<String, Integer, Void, Void> getReducedResults(final KTable<String, Integer> inputKTable) {
-        final MockApiProcessorSupplier<String, Integer, Void, Void> supplier = new MockApiProcessorSupplier<>();
+    @SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+    private MockProcessorSupplier<String, Integer> getReducedResults(final KTable<String, Integer> inputKTable) {
+        final MockProcessorSupplier<String, Integer> supplier = new MockProcessorSupplier<>();
         inputKTable
             .toStream()
             .process(supplier);
@@ -172,7 +173,7 @@ public class KGroupedTableImplTest {
                 MockReducer.INTEGER_SUBTRACTOR,
                 Materialized.as("reduced"));
 
-        final MockApiProcessorSupplier<String, Integer, Void, Void> supplier = getReducedResults(reduced);
+        final MockProcessorSupplier<String, Integer> supplier = getReducedResults(reduced);
         try (final TopologyTestDriver driver = new TopologyTestDriver(builder.build(), props)) {
             assertReduced(supplier.theCapturedProcessor().lastValueAndTimestampPerKey(), topic, driver);
             assertEquals(reduced.queryableStoreName(), "reduced");
@@ -194,7 +195,7 @@ public class KGroupedTableImplTest {
             .groupBy(intProjection)
             .reduce(MockReducer.INTEGER_ADDER, MockReducer.INTEGER_SUBTRACTOR);
 
-        final MockApiProcessorSupplier<String, Integer, Void, Void> supplier = getReducedResults(reduced);
+        final MockProcessorSupplier<String, Integer> supplier = getReducedResults(reduced);
         try (final TopologyTestDriver driver = new TopologyTestDriver(builder.build(), props)) {
             assertReduced(supplier.theCapturedProcessor().lastValueAndTimestampPerKey(), topic, driver);
             assertNull(reduced.queryableStoreName());
@@ -218,7 +219,7 @@ public class KGroupedTableImplTest {
                     .withKeySerde(Serdes.String())
                     .withValueSerde(Serdes.Integer()));
 
-        final MockApiProcessorSupplier<String, Integer, Void, Void> supplier = getReducedResults(reduced);
+        final MockProcessorSupplier<String, Integer> supplier = getReducedResults(reduced);
         try (final TopologyTestDriver driver = new TopologyTestDriver(builder.build(), props)) {
             assertReduced(supplier.theCapturedProcessor().lastValueAndTimestampPerKey(), topic, driver);
             {

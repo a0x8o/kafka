@@ -47,7 +47,6 @@ import org.apache.kafka.common.protocol.types.Type;
  * cooperative rebalancing. See the <a href="https://kafka.apache.org/documentation/#upgrade_240_notable">upgrade guide</a> for details.
  */
 public class CooperativeStickyAssignor extends AbstractStickyAssignor {
-    public static final String COOPERATIVE_STICKY_ASSIGNOR_NAME = "cooperative-sticky";
 
     // these schemas are used for preserving useful metadata for the assignment, such as the last stable generation
     private static final String GENERATION_KEY_NAME = "generation";
@@ -58,7 +57,7 @@ public class CooperativeStickyAssignor extends AbstractStickyAssignor {
 
     @Override
     public String name() {
-        return COOPERATIVE_STICKY_ASSIGNOR_NAME;
+        return "cooperative-sticky";
     }
 
     @Override

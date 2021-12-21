@@ -61,10 +61,24 @@ class ZooKeeperClient(connectString: String,
                       time: Time,
                       metricGroup: String,
                       metricType: String,
-                      private[zookeeper] val clientConfig: ZKClientConfig,
-                      name: String) extends Logging with KafkaMetricsGroup {
+                      name: Option[String],
+                      zkClientConfig: Option[ZKClientConfig]) extends Logging with KafkaMetricsGroup {
 
-  this.logIdent = s"[ZooKeeperClient $name] "
+  def this(connectString: String,
+           sessionTimeoutMs: Int,
+           connectionTimeoutMs: Int,
+           maxInFlightRequests: Int,
+           time: Time,
+           metricGroup: String,
+           metricType: String) = {
+    this(connectString, sessionTimeoutMs, connectionTimeoutMs, maxInFlightRequests, time, metricGroup, metricType, None,
+      None)
+  }
+
+  this.logIdent = name match {
+    case Some(n) => s"[ZooKeeperClient $n] "
+    case _ => "[ZooKeeperClient] "
+  }
   private val initializationLock = new ReentrantReadWriteLock()
   private val isConnectedOrExpiredLock = new ReentrantLock()
   private val isConnectedOrExpiredCondition = isConnectedOrExpiredLock.newCondition()
@@ -95,10 +109,13 @@ class ZooKeeperClient(connectString: String,
     }
   }
 
+  private val clientConfig = zkClientConfig getOrElse new ZKClientConfig()
+
   info(s"Initializing a new session to $connectString.")
   // Fail-fast if there's an error during construction (so don't call initialize, which retries forever)
   @volatile private var zooKeeper = new ZooKeeper(connectString, sessionTimeoutMs, ZooKeeperClientWatcher,
     clientConfig)
+  private[zookeeper] def getClientConfig = clientConfig
 
   newGauge("SessionState", () => connectionState.toString)
 
@@ -419,7 +436,7 @@ class ZooKeeperClient(connectString: String,
     }, delayMs, period = -1L, unit = TimeUnit.MILLISECONDS)
   }
 
-  private def threadPrefix: String = name.replaceAll("\\s", "") + "-"
+  private def threadPrefix: String = name.map(n => n.replaceAll("\\s", "") + "-").getOrElse("")
 
   // package level visibility for testing only
   private[zookeeper] object ZooKeeperClientWatcher extends Watcher {
@@ -433,14 +450,14 @@ class ZooKeeperClient(connectString: String,
             isConnectedOrExpiredCondition.signalAll()
           }
           if (state == KeeperState.AuthFailed) {
-            error(s"Auth failed, initialized=$isFirstConnectionEstablished connectionState=$connectionState")
+            error("Auth failed.")
             stateChangeHandlers.values.foreach(_.onAuthFailure())
 
             // If this is during initial startup, we fail fast. Otherwise, schedule retry.
             val initialized = inLock(isConnectedOrExpiredLock) {
               isFirstConnectionEstablished
             }
-            if (initialized && !connectionState.isAlive)
+            if (initialized)
               scheduleReinitialize("auth-failed", "Reinitializing due to auth failure.", RetryBackoffMs)
           } else if (state == KeeperState.Expired) {
             scheduleReinitialize("session-expired", "Session expired.", delayMs = 0L)

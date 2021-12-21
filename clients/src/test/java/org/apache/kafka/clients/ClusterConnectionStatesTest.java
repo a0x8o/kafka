@@ -90,35 +90,31 @@ public class ClusterConnectionStatesTest {
     @Test
     public void testClusterConnectionStateChanges() {
         assertTrue(connectionStates.canConnect(nodeId1, time.milliseconds()));
-        assertEquals(0, connectionStates.connectionDelay(nodeId1, time.milliseconds()));
 
         // Start connecting to Node and check state
         connectionStates.connecting(nodeId1, time.milliseconds(), "localhost");
-        assertEquals(ConnectionState.CONNECTING, connectionStates.connectionState(nodeId1));
+        assertEquals(connectionStates.connectionState(nodeId1), ConnectionState.CONNECTING);
         assertTrue(connectionStates.isConnecting(nodeId1));
         assertFalse(connectionStates.isReady(nodeId1, time.milliseconds()));
         assertFalse(connectionStates.isBlackedOut(nodeId1, time.milliseconds()));
         assertFalse(connectionStates.hasReadyNodes(time.milliseconds()));
-        long connectionDelay = connectionStates.connectionDelay(nodeId1, time.milliseconds());
-        double connectionDelayDelta = connectionSetupTimeoutMs * connectionSetupTimeoutJitter;
-        assertEquals(connectionSetupTimeoutMs, connectionDelay, connectionDelayDelta);
 
         time.sleep(100);
 
         // Successful connection
         connectionStates.ready(nodeId1);
-        assertEquals(ConnectionState.READY, connectionStates.connectionState(nodeId1));
+        assertEquals(connectionStates.connectionState(nodeId1), ConnectionState.READY);
         assertTrue(connectionStates.isReady(nodeId1, time.milliseconds()));
         assertTrue(connectionStates.hasReadyNodes(time.milliseconds()));
         assertFalse(connectionStates.isConnecting(nodeId1));
         assertFalse(connectionStates.isBlackedOut(nodeId1, time.milliseconds()));
-        assertEquals(Long.MAX_VALUE, connectionStates.connectionDelay(nodeId1, time.milliseconds()));
+        assertEquals(connectionStates.connectionDelay(nodeId1, time.milliseconds()), Long.MAX_VALUE);
 
         time.sleep(15000);
 
         // Disconnected from broker
         connectionStates.disconnected(nodeId1, time.milliseconds());
-        assertEquals(ConnectionState.DISCONNECTED, connectionStates.connectionState(nodeId1));
+        assertEquals(connectionStates.connectionState(nodeId1), ConnectionState.DISCONNECTED);
         assertTrue(connectionStates.isDisconnected(nodeId1));
         assertTrue(connectionStates.isBlackedOut(nodeId1, time.milliseconds()));
         assertFalse(connectionStates.isConnecting(nodeId1));

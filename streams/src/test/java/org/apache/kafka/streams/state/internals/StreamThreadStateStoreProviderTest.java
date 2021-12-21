@@ -45,7 +45,6 @@ import org.apache.kafka.streams.processor.internals.StreamThread;
 import org.apache.kafka.streams.processor.internals.StreamsProducer;
 import org.apache.kafka.streams.processor.internals.Task;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
-import org.apache.kafka.streams.processor.internals.namedtopology.TopologyConfig;
 import org.apache.kafka.streams.state.QueryableStoreTypes;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.apache.kafka.streams.state.ReadOnlySessionStore;
@@ -443,7 +442,7 @@ public class StreamThreadStateStoreProviderTest {
             partitions,
             topology,
             clientSupplier.consumer,
-            new TopologyConfig(null, streamsConfig, new Properties()).getTaskConfig(),
+            streamsConfig,
             streamsMetrics,
             stateDirectory,
             EasyMock.createNiceMock(ThreadCache.class),

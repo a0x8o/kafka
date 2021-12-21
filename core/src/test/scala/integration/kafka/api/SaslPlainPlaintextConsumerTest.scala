@@ -19,7 +19,7 @@ import kafka.server.KafkaConfig
 import kafka.utils.{JaasTestUtils, TestUtils}
 import org.apache.kafka.common.network.ListenerName
 import org.apache.kafka.common.security.auth.SecurityProtocol
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 
 class SaslPlainPlaintextConsumerTest extends BaseConsumerTest with SaslSetup {
   override protected def listenerName = new ListenerName("CLIENT")
@@ -28,7 +28,7 @@ class SaslPlainPlaintextConsumerTest extends BaseConsumerTest with SaslSetup {
   private val kafkaServerJaasEntryName =
     s"${listenerName.value.toLowerCase(Locale.ROOT)}.${JaasTestUtils.KafkaServerContextName}"
   this.serverConfig.setProperty(KafkaConfig.ZkEnableSecureAclsProp, "false")
-  // disable secure acls of zkClient in QuorumTestHarness
+  // disable secure acls of zkClient in ZooKeeperTestHarness
   override protected def zkAclsEnabled = Some(false)
   override protected def securityProtocol = SecurityProtocol.SASL_PLAINTEXT
   override protected lazy val trustStoreFile = Some(File.createTempFile("truststore", ".jks"))
@@ -36,9 +36,9 @@ class SaslPlainPlaintextConsumerTest extends BaseConsumerTest with SaslSetup {
   override protected val clientSaslProperties = Some(kafkaClientSaslProperties(kafkaClientSaslMechanism))
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
+  override def setUp(): Unit = {
     startSasl(jaasSections(kafkaServerSaslMechanisms, Some(kafkaClientSaslMechanism), Both, kafkaServerJaasEntryName))
-    super.setUp(testInfo)
+    super.setUp()
   }
 
   @AfterEach

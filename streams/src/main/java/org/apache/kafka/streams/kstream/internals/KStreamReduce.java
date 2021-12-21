@@ -18,11 +18,6 @@ package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.streams.kstream.Reducer;
-import org.apache.kafka.streams.processor.api.ContextualProcessor;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.Record;
-import org.apache.kafka.streams.processor.api.RecordMetadata;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.state.TimestampedKeyValueStore;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
@@ -32,8 +27,8 @@ import org.slf4j.LoggerFactory;
 import static org.apache.kafka.streams.processor.internals.metrics.TaskMetrics.droppedRecordsSensor;
 import static org.apache.kafka.streams.state.ValueAndTimestamp.getValueOrNull;
 
-public class KStreamReduce<K, V> implements KStreamAggProcessorSupplier<K, V, K, V> {
-
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+public class KStreamReduce<K, V> implements KStreamAggProcessorSupplier<K, K, V, V> {
     private static final Logger LOG = LoggerFactory.getLogger(KStreamReduce.class);
 
     private final String storeName;
@@ -47,7 +42,7 @@ public class KStreamReduce<K, V> implements KStreamAggProcessorSupplier<K, V, K,
     }
 
     @Override
-    public Processor<K, V, K, Change<V>> get() {
+    public org.apache.kafka.streams.processor.Processor<K, V> get() {
         return new KStreamReduceProcessor();
     }
 
@@ -57,13 +52,13 @@ public class KStreamReduce<K, V> implements KStreamAggProcessorSupplier<K, V, K,
     }
 
 
-    private class KStreamReduceProcessor extends ContextualProcessor<K, V, K, Change<V>> {
+    private class KStreamReduceProcessor extends org.apache.kafka.streams.processor.AbstractProcessor<K, V> {
         private TimestampedKeyValueStore<K, V> store;
         private TimestampedTupleForwarder<K, V> tupleForwarder;
         private Sensor droppedRecordsSensor;
 
         @Override
-        public void init(final ProcessorContext<K, Change<V>> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             super.init(context);
             droppedRecordsSensor = droppedRecordsSensor(
                 Thread.currentThread().getName(),
@@ -79,43 +74,33 @@ public class KStreamReduce<K, V> implements KStreamAggProcessorSupplier<K, V, K,
         }
 
         @Override
-        public void process(final Record<K, V> record) {
+        public void process(final K key, final V value) {
             // If the key or value is null we don't need to proceed
-            if (record.key() == null || record.value() == null) {
-                if (context().recordMetadata().isPresent()) {
-                    final RecordMetadata recordMetadata = context().recordMetadata().get();
-                    LOG.warn(
-                        "Skipping record due to null key or value. "
-                            + "topic=[{}] partition=[{}] offset=[{}]",
-                        recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset()
-                    );
-                } else {
-                    LOG.warn(
-                        "Skipping record due to null key. Topic, partition, and offset not known."
-                    );
-                }
+            if (key == null || value == null) {
+                LOG.warn(
+                    "Skipping record due to null key or value. key=[{}] value=[{}] topic=[{}] partition=[{}] offset=[{}]",
+                    key, value, context().topic(), context().partition(), context().offset()
+                );
                 droppedRecordsSensor.record();
                 return;
             }
 
-            final ValueAndTimestamp<V> oldAggAndTimestamp = store.get(record.key());
+            final ValueAndTimestamp<V> oldAggAndTimestamp = store.get(key);
             final V oldAgg = getValueOrNull(oldAggAndTimestamp);
 
             final V newAgg;
             final long newTimestamp;
 
             if (oldAgg == null) {
-                newAgg = record.value();
-                newTimestamp = record.timestamp();
+                newAgg = value;
+                newTimestamp = context().timestamp();
             } else {
-                newAgg = reducer.apply(oldAgg, record.value());
-                newTimestamp = Math.max(record.timestamp(), oldAggAndTimestamp.timestamp());
+                newAgg = reducer.apply(oldAgg, value);
+                newTimestamp = Math.max(context().timestamp(), oldAggAndTimestamp.timestamp());
             }
 
-            store.put(record.key(), ValueAndTimestamp.make(newAgg, newTimestamp));
-            tupleForwarder.maybeForward(
-                record.withValue(new Change<>(newAgg, sendOldValues ? oldAgg : null))
-                    .withTimestamp(newTimestamp));
+            store.put(key, ValueAndTimestamp.make(newAgg, newTimestamp));
+            tupleForwarder.maybeForward(key, newAgg, sendOldValues ? oldAgg : null, newTimestamp);
         }
     }
 
@@ -139,7 +124,7 @@ public class KStreamReduce<K, V> implements KStreamAggProcessorSupplier<K, V, K,
         private TimestampedKeyValueStore<K, V> store;
 
         @Override
-        public void init(final ProcessorContext<?, ?> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             store = context.getStateStore(storeName);
         }
 

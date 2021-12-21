@@ -22,7 +22,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import kafka.api.{ApiVersion, LeaderAndIsr}
 import kafka.cluster.{Broker, EndPoint}
 import kafka.log.LogConfig
-import kafka.server.{ConfigType, KafkaConfig, QuorumTestHarness}
+import kafka.server.{ConfigType, KafkaConfig}
 import kafka.utils.CoreUtils
 import org.apache.kafka.common.{TopicPartition, Uuid}
 import org.apache.kafka.common.network.ListenerName
@@ -31,7 +31,7 @@ import org.apache.kafka.common.security.token.delegation.TokenInformation
 import org.apache.kafka.common.utils.{SecurityUtils, Time}
 import org.apache.zookeeper.KeeperException.{Code, NoAuthException, NoNodeException, NodeExistsException}
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -51,12 +51,11 @@ import org.apache.kafka.common.resource.ResourceType.{GROUP, TOPIC}
 import org.apache.kafka.common.security.JaasUtils
 import org.apache.zookeeper.ZooDefs
 import org.apache.zookeeper.client.ZKClientConfig
-import org.apache.zookeeper.common.ZKConfig
 import org.apache.zookeeper.data.Stat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
-class KafkaZkClientTest extends QuorumTestHarness {
+class KafkaZkClientTest extends ZooKeeperTestHarness {
 
   private val group = "my-group"
   private val topic1 = "topic1"
@@ -73,12 +72,11 @@ class KafkaZkClientTest extends QuorumTestHarness {
   var expiredSessionZkClient: ExpiredKafkaZkClient = _
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    super.setUp(testInfo)
+  override def setUp(): Unit = {
+    super.setUp()
     zkClient.createControllerEpochRaw(1)
     otherZkClient = KafkaZkClient(zkConnect, zkAclsEnabled.getOrElse(JaasUtils.isZkSaslEnabled), zkSessionTimeout,
-      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, name = "KafkaZkClient",
-      zkClientConfig = new ZKClientConfig)
+      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM)
     expiredSessionZkClient = ExpiredKafkaZkClient(zkConnect, zkAclsEnabled.getOrElse(JaasUtils.isZkSaslEnabled),
       zkSessionTimeout, zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM)
   }
@@ -105,15 +103,15 @@ class KafkaZkClientTest extends QuorumTestHarness {
     val propVal = "org.apache.zookeeper.ClientCnxnSocketNetty"
     KafkaConfig.setZooKeeperClientProperty(clientConfig, propKey, propVal)
     val client = KafkaZkClient(zkConnect, zkAclsEnabled.getOrElse(JaasUtils.isZkSaslEnabled), zkSessionTimeout,
-      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, name = "KafkaZkClient", zkClientConfig = clientConfig)
+      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, zkClientConfig = Some(clientConfig))
     try {
-      assertEquals(Some(propVal), KafkaConfig.zooKeeperClientProperty(client.currentZooKeeper.getClientConfig, propKey))
+      assertEquals(Some(propVal), KafkaConfig.getZooKeeperClientProperty(client.currentZooKeeper.getClientConfig, propKey))
       // For a sanity check, make sure a bad client connection socket class name generates an exception
       val badClientConfig = new ZKClientConfig()
       KafkaConfig.setZooKeeperClientProperty(badClientConfig, propKey, propVal + "BadClassName")
       assertThrows(classOf[Exception],
         () => KafkaZkClient(zkConnect, zkAclsEnabled.getOrElse(JaasUtils.isZkSaslEnabled), zkSessionTimeout,
-          zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, name = "KafkaZkClientTest", zkClientConfig = badClientConfig))
+          zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, zkClientConfig = Some(badClientConfig)))
     } finally {
       client.close()
     }
@@ -123,9 +121,9 @@ class KafkaZkClientTest extends QuorumTestHarness {
   @ValueSource(booleans = Array(true, false))
   def testChroot(createChrootIfNecessary: Boolean): Unit = {
     val chroot = "/chroot"
+    val clientConfig = new ZKClientConfig()
     val client = KafkaZkClient(zkConnect + chroot, zkAclsEnabled.getOrElse(JaasUtils.isZkSaslEnabled), zkSessionTimeout,
-      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, name = "KafkaZkClientTest",
-      zkClientConfig = new ZKClientConfig, createChrootIfNecessary = createChrootIfNecessary)
+      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, zkClientConfig = Some(clientConfig), createChrootIfNecessary = createChrootIfNecessary)
     try {
       client.createTopLevelPaths()
       if (!createChrootIfNecessary) {
@@ -160,8 +158,7 @@ class KafkaZkClientTest extends QuorumTestHarness {
     // this client doesn't have create permission to the root and chroot, but the chroot already exists
     // Expect that no exception thrown
     val chrootClient = KafkaZkClient(zkConnect + chroot, zkAclsEnabled.getOrElse(JaasUtils.isZkSaslEnabled), zkSessionTimeout,
-      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, name = "KafkaZkClientTest",
-      zkClientConfig = new ZKClientConfig, createChrootIfNecessary = true)
+      zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, createChrootIfNecessary = true)
     chrootClient.close()
   }
 
@@ -1343,33 +1340,6 @@ class KafkaZkClientTest extends QuorumTestHarness {
     assertEquals(ZooDefs.Ids.READ_ACL_UNSAFE.asScala, zkClient.getAcl(mockPath))
   }
 
-  @Test
-  def testJuteMaxBufffer(): Unit = {
-
-    def assertJuteMaxBufferConfig(clientConfig: ZKClientConfig, expectedValue: String): Unit = {
-      val client = KafkaZkClient(zkConnect, zkAclsEnabled.getOrElse(JaasUtils.isZkSaslEnabled), zkSessionTimeout,
-        zkConnectionTimeout, zkMaxInFlightRequests, Time.SYSTEM, name = "KafkaZkClient",
-        zkClientConfig = clientConfig)
-      try assertEquals(expectedValue, client.currentZooKeeper.getClientConfig.getProperty(ZKConfig.JUTE_MAXBUFFER))
-      finally client.close()
-    }
-
-    // default case
-    assertEquals("4194304", zkClient.currentZooKeeper.getClientConfig.getProperty(ZKConfig.JUTE_MAXBUFFER))
-
-    // Value set directly on ZKClientConfig takes precedence over system property
-    System.setProperty(ZKConfig.JUTE_MAXBUFFER, (3000 * 1024).toString)
-    try {
-      val clientConfig1 = new ZKClientConfig
-      clientConfig1.setProperty(ZKConfig.JUTE_MAXBUFFER, (2000 * 1024).toString)
-      assertJuteMaxBufferConfig(clientConfig1, expectedValue = "2048000")
-
-      // System property value is used if value is not set in ZKClientConfig
-      assertJuteMaxBufferConfig(new ZKClientConfig, expectedValue = "3072000")
-
-    } finally System.clearProperty(ZKConfig.JUTE_MAXBUFFER)
-  }
-
   class ExpiredKafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean, time: Time)
     extends KafkaZkClient(zooKeeperClient, isSecure, time) {
     // Overwriting this method from the parent class to force the client to re-register the Broker.
@@ -1395,7 +1365,7 @@ class KafkaZkClientTest extends QuorumTestHarness {
               metricGroup: String = "kafka.server",
               metricType: String = "SessionExpireListener") = {
       val zooKeeperClient = new ZooKeeperClient(connectString, sessionTimeoutMs, connectionTimeoutMs, maxInFlightRequests,
-        time, metricGroup, metricType, new ZKClientConfig, "ExpiredKafkaZkClient")
+        time, metricGroup, metricType)
       new ExpiredKafkaZkClient(zooKeeperClient, isSecure, time)
     }
   }

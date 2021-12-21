@@ -58,7 +58,12 @@ class BrokerMetadataListener(
   /**
    * The highest metadata offset that we've seen.  Written only from the event queue thread.
    */
-  @volatile var _highestOffset = -1L
+  @volatile var _highestMetadataOffset = -1L
+
+  /**
+   * The highest metadata log epoch that we've seen. Written only from the event queue thread.
+   */
+  private var _highestEpoch = -1
 
   /**
    * The highest metadata log time that we've seen. Written only from the event queue thread.
@@ -96,7 +101,7 @@ class BrokerMetadataListener(
   /**
    * Returns the highest metadata-offset. Thread-safe.
    */
-  def highestMetadataOffset: Long = _highestOffset
+  def highestMetadataOffset(): Long = _highestMetadataOffset
 
   /**
    * Handle new metadata records.
@@ -108,7 +113,7 @@ class BrokerMetadataListener(
       extends EventQueue.FailureLoggingEvent(log) {
     override def run(): Unit = {
       val results = try {
-        val loadResults = loadBatches(_delta, reader, None, None, None)
+        val loadResults = loadBatches(_delta, reader)
         if (isDebugEnabled) {
           debug(s"Loaded new commits: ${loadResults}")
         }
@@ -116,12 +121,15 @@ class BrokerMetadataListener(
       } finally {
         reader.close()
       }
-      _publisher.foreach(publish)
+      _publisher.foreach(publish(_, results.highestMetadataOffset))
 
       snapshotter.foreach { snapshotter =>
         _bytesSinceLastSnapshot = _bytesSinceLastSnapshot + results.numBytes
         if (shouldSnapshot()) {
-          if (snapshotter.maybeStartSnapshot(_highestTimestamp, _delta.apply())) {
+          if (snapshotter.maybeStartSnapshot(results.highestMetadataOffset,
+            _highestEpoch,
+            _highestTimestamp,
+            _delta.apply())) {
             _bytesSinceLastSnapshot = 0L
           }
         }
@@ -142,74 +150,48 @@ class BrokerMetadataListener(
   class HandleSnapshotEvent(reader: SnapshotReader[ApiMessageAndVersion])
     extends EventQueue.FailureLoggingEvent(log) {
     override def run(): Unit = {
-      try {
+      val results = try {
         info(s"Loading snapshot ${reader.snapshotId().offset}-${reader.snapshotId().epoch}.")
         _delta = new MetadataDelta(_image) // Discard any previous deltas.
-        val loadResults = loadBatches(
-          _delta,
-          reader,
-          Some(reader.lastContainedLogTimestamp),
-          Some(reader.lastContainedLogOffset),
-          Some(reader.lastContainedLogEpoch)
-        )
+        val loadResults = loadBatches(_delta, reader)
         _delta.finishSnapshot()
         info(s"Loaded snapshot ${reader.snapshotId().offset}-${reader.snapshotId().epoch}: " +
           s"${loadResults}")
+        loadResults
       } finally {
         reader.close()
       }
-      _publisher.foreach(publish)
+      _publisher.foreach(publish(_, results.highestMetadataOffset))
     }
   }
 
-  case class BatchLoadResults(numBatches: Int, numRecords: Int, elapsedUs: Long, numBytes: Long) {
+  case class BatchLoadResults(numBatches: Int,
+                              numRecords: Int,
+                              elapsedUs: Long,
+                              numBytes: Long,
+                              highestMetadataOffset: Long) {
     override def toString(): String = {
       s"${numBatches} batch(es) with ${numRecords} record(s) in ${numBytes} bytes " +
         s"ending at offset ${highestMetadataOffset} in ${elapsedUs} microseconds"
     }
   }
 
-  /**
-   * Load and replay the batches to the metadata delta.
-   *
-   * When loading and replay a snapshot the appendTimestamp and snapshotId parameter should be provided.
-   * In a snapshot the append timestamp, offset and epoch reported by the batch is independent of the ones
-   * reported by the metadata log.
-   *
-   * @param delta metadata delta on which to replay the records
-   * @param iterator sequence of metadata record bacthes to replay
-   * @param lastAppendTimestamp optional append timestamp to use instead of the batches timestamp
-   * @param lastCommittedOffset optional offset to use instead of the batches offset
-   * @param lastCommittedEpoch optional epoch to use instead of the batches epoch
-   */
-  private def loadBatches(
-    delta: MetadataDelta,
-    iterator: util.Iterator[Batch[ApiMessageAndVersion]],
-    lastAppendTimestamp: Option[Long],
-    lastCommittedOffset: Option[Long],
-    lastCommittedEpoch: Option[Int]
-  ): BatchLoadResults = {
+  private def loadBatches(delta: MetadataDelta,
+                          iterator: util.Iterator[Batch[ApiMessageAndVersion]]): BatchLoadResults = {
     val startTimeNs = time.nanoseconds()
     var numBatches = 0
     var numRecords = 0
+    var batch: Batch[ApiMessageAndVersion] = null
     var numBytes = 0L
-
     while (iterator.hasNext()) {
-      val batch = iterator.next()
-
-      val epoch = lastCommittedEpoch.getOrElse(batch.epoch())
-      _highestTimestamp = lastAppendTimestamp.getOrElse(batch.appendTimestamp())
-
+      batch = iterator.next()
       var index = 0
       batch.records().forEach { messageAndVersion =>
         if (isTraceEnabled) {
           trace("Metadata batch %d: processing [%d/%d]: %s.".format(batch.lastOffset, index + 1,
             batch.records().size(), messageAndVersion.message().toString()))
         }
-
-        _highestOffset  = lastCommittedOffset.getOrElse(batch.baseOffset() + index)
-
-        delta.replay(highestMetadataOffset, epoch, messageAndVersion.message())
+        delta.replay(messageAndVersion.message())
         numRecords += 1
         index += 1
       }
@@ -217,11 +199,18 @@ class BrokerMetadataListener(
       metadataBatchSizeHist.update(batch.records().size())
       numBatches = numBatches + 1
     }
-
+    val newHighestMetadataOffset = if (batch == null) {
+      _highestMetadataOffset
+    } else {
+      _highestMetadataOffset = batch.lastOffset()
+      _highestEpoch = batch.epoch()
+      _highestTimestamp = batch.appendTimestamp()
+      batch.lastOffset()
+    }
     val endTimeNs = time.nanoseconds()
     val elapsedUs = TimeUnit.MICROSECONDS.convert(endTimeNs - startTimeNs, TimeUnit.NANOSECONDS)
     batchProcessingTimeHist.update(elapsedUs)
-    BatchLoadResults(numBatches, numRecords, elapsedUs, numBytes)
+    BatchLoadResults(numBatches, numRecords, elapsedUs, numBytes, newHighestMetadataOffset)
   }
 
   def startPublishing(publisher: MetadataPublisher): CompletableFuture[Void] = {
@@ -236,9 +225,9 @@ class BrokerMetadataListener(
 
     override def run(): Unit = {
       _publisher = Some(publisher)
-      log.info(s"Starting to publish metadata events at offset ${highestMetadataOffset}.")
+      log.info(s"Starting to publish metadata events at offset ${_highestMetadataOffset}.")
       try {
-        publish(publisher)
+        publish(publisher, _highestMetadataOffset)
         future.complete(null)
       } catch {
         case e: Throwable =>
@@ -248,11 +237,12 @@ class BrokerMetadataListener(
     }
   }
 
-  private def publish(publisher: MetadataPublisher): Unit = {
+  private def publish(publisher: MetadataPublisher,
+                      newHighestMetadataOffset: Long): Unit = {
     val delta = _delta
     _image = _delta.apply()
     _delta = new MetadataDelta(_image)
-    publisher.publish(delta, _image)
+    publisher.publish(newHighestMetadataOffset, delta, _image)
   }
 
   override def handleLeaderChange(leaderAndEpoch: LeaderAndEpoch): Unit = {

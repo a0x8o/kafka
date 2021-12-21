@@ -98,7 +98,6 @@ import java.util.TreeSet;
  * </ul>
  */
 public class RoundRobinAssignor extends AbstractPartitionAssignor {
-    public static final String ROUNDROBIN_ASSIGNOR_NAME = "roundrobin";
 
     @Override
     public Map<String, List<TopicPartition>> assign(Map<String, Integer> partitionsPerTopic,
@@ -139,7 +138,7 @@ public class RoundRobinAssignor extends AbstractPartitionAssignor {
 
     @Override
     public String name() {
-        return ROUNDROBIN_ASSIGNOR_NAME;
+        return "roundrobin";
     }
 
 }

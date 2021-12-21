@@ -18,15 +18,16 @@
 package kafka.log
 
 import java.io.PrintWriter
-
 import com.yammer.metrics.core.{Gauge, MetricName}
 import kafka.metrics.{KafkaMetricsGroup, KafkaYammerMetrics}
 import kafka.utils.{MockTime, TestUtils}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.record.{CompressionType, RecordBatch}
+import org.apache.kafka.test.TestUtils.DEFAULT_MAX_WAIT_MS
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, Test}
+import org.junit.jupiter.api.{AfterEach, Test, Timeout}
 
+import java.util.concurrent.TimeUnit
 import scala.collection.{Iterable, Seq}
 import scala.jdk.CollectionConverters._
 
@@ -45,6 +46,7 @@ class LogCleanerIntegrationTest extends AbstractLogCleanerIntegrationTest with K
     TestUtils.clearYammerMetrics()
   }
 
+  @Timeout(value = DEFAULT_MAX_WAIT_MS, unit = TimeUnit.MILLISECONDS)
   @Test
   def testMarksPartitionsAsOfflineAndPopulatesUncleanableMetrics(): Unit = {
     val largeMessageKey = 20
@@ -85,21 +87,6 @@ class LogCleanerIntegrationTest extends AbstractLogCleanerIntegrationTest with K
     assertTrue(uncleanablePartitions.contains(topicPartitions(0)))
     assertTrue(uncleanablePartitions.contains(topicPartitions(1)))
     assertFalse(uncleanablePartitions.contains(topicPartitions(2)))
-
-    // Delete one partition
-    cleaner.logs.remove(topicPartitions(0))
-    TestUtils.waitUntilTrue(
-      () => {
-        time.sleep(1000)
-        uncleanablePartitionsCountGauge.value() == 1
-      },
-      "There should be 1 uncleanable partitions",
-      2000L)
-
-    val uncleanablePartitions2 = cleaner.cleanerManager.uncleanablePartitions(uncleanableDirectory)
-    assertFalse(uncleanablePartitions2.contains(topicPartitions(0)))
-    assertTrue(uncleanablePartitions2.contains(topicPartitions(1)))
-    assertFalse(uncleanablePartitions2.contains(topicPartitions(2)))
   }
 
   private def getGauge[T](filter: MetricName => Boolean): Gauge[T] = {
@@ -199,8 +186,7 @@ class LogCleanerIntegrationTest extends AbstractLogCleanerIntegrationTest with K
     }
   }
 
-  private def writeKeyDups(numKeys: Int, numDups: Int, log: UnifiedLog, codec: CompressionType, timestamp: Long,
-                           startValue: Int, step: Int): Seq[(Int, Int)] = {
+  private def writeKeyDups(numKeys: Int, numDups: Int, log: UnifiedLog, codec: CompressionType, timestamp: Long, startValue: Int, step: Int): Seq[(Int, Int)] = {
     var valCounter = startValue
     for (_ <- 0 until numDups; key <- 0 until numKeys) yield {
       val curValue = valCounter

@@ -30,7 +30,7 @@ import org.apache.kafka.common.errors.{TopicExistsException, UnknownTopicOrParti
 import org.apache.kafka.common.resource.ResourceType
 import org.apache.kafka.common.utils.Utils
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo, Timeout}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, Timeout}
 
 import scala.jdk.CollectionConverters._
 import scala.collection.Seq
@@ -51,8 +51,8 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
   var client: Admin = _
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    super.setUp(testInfo)
+  override def setUp(): Unit = {
+    super.setUp()
     waitUntilBrokerMetadataIsPropagated(servers)
   }
 

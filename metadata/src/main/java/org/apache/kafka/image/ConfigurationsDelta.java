@@ -96,11 +96,4 @@ public final class ConfigurationsDelta {
         }
         return new ConfigurationsImage(newData);
     }
-
-    @Override
-    public String toString() {
-        return "ConfigurationsDelta(" +
-            "changes=" + changes +
-            ')';
-    }
 }

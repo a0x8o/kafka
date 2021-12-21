@@ -33,9 +33,6 @@ import java.util.Objects;
  */
 public final class StateSerdes<K, V> {
 
-    public static final int TIMESTAMP_SIZE = 8;
-    public static final int BOOLEAN_SIZE = 1;
-
     /**
      * Create a new instance of {@link StateSerdes} for the given state name and key-/value-type classes.
      *

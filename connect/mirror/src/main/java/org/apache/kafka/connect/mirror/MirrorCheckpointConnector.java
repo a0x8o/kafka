@@ -19,7 +19,6 @@ package org.apache.kafka.connect.mirror;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.source.SourceConnector;
@@ -119,7 +118,7 @@ public class MirrorCheckpointConnector extends SourceConnector {
 
     @Override
     public String version() {
-        return AppInfoParser.getVersion();
+        return "1";
     }
 
     private void refreshConsumerGroups()

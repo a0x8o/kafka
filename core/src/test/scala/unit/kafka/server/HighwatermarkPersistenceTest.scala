@@ -24,6 +24,7 @@ import org.apache.kafka.common.utils.Utils
 import org.junit.jupiter.api._
 import org.junit.jupiter.api.Assertions._
 import kafka.utils.{KafkaScheduler, MockTime, TestUtils}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import kafka.cluster.Partition
 import kafka.server.metadata.MockConfigRepository
@@ -62,16 +63,9 @@ class HighwatermarkPersistenceTest {
     val time = new MockTime
     val quotaManager = QuotaFactory.instantiate(configs.head, metrics, time, "")
     // create replica manager
-    val replicaManager = new ReplicaManager(
-      metrics = metrics,
-      config = configs.head,
-      time = time,
-      scheduler = scheduler,
-      logManager = logManagers.head,
-      quotaManagers = quotaManager,
-      metadataCache = MetadataCache.zkMetadataCache(configs.head.brokerId),
-      logDirFailureChannel = logDirFailureChannels.head,
-      alterIsrManager = alterIsrManager)
+    val replicaManager = new ReplicaManager(configs.head, metrics, time, None, scheduler,
+      logManagers.head, new AtomicBoolean(false), quotaManager,
+      new BrokerTopicStats, MetadataCache.zkMetadataCache(configs.head.brokerId), logDirFailureChannels.head, alterIsrManager)
     replicaManager.startup()
     try {
       replicaManager.checkpointHighWatermarks()
@@ -118,16 +112,9 @@ class HighwatermarkPersistenceTest {
     val time = new MockTime
     val quotaManager = QuotaFactory.instantiate(configs.head, metrics, time, "")
     // create replica manager
-    val replicaManager = new ReplicaManager(
-      metrics = metrics,
-      config = configs.head,
-      time = time,
-      scheduler = scheduler,
-      logManager = logManagers.head,
-      quotaManagers = quotaManager,
-      metadataCache = MetadataCache.zkMetadataCache(configs.head.brokerId),
-      logDirFailureChannel = logDirFailureChannels.head,
-      alterIsrManager = alterIsrManager)
+    val replicaManager = new ReplicaManager(configs.head, metrics, time, None,
+      scheduler, logManagers.head, new AtomicBoolean(false), quotaManager,
+      new BrokerTopicStats, MetadataCache.zkMetadataCache(configs.head.brokerId), logDirFailureChannels.head, alterIsrManager)
     replicaManager.startup()
     try {
       replicaManager.checkpointHighWatermarks()

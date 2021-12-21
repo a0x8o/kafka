@@ -18,11 +18,7 @@ package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.streams.kstream.ValueJoiner;
-import org.apache.kafka.streams.processor.api.ContextualProcessor;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.Record;
-import org.apache.kafka.streams.processor.api.RecordMetadata;
+import org.apache.kafka.streams.processor.To;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
 import org.slf4j.Logger;
@@ -32,39 +28,40 @@ import static org.apache.kafka.streams.processor.internals.metrics.TaskMetrics.d
 import static org.apache.kafka.streams.processor.internals.RecordQueue.UNKNOWN;
 import static org.apache.kafka.streams.state.ValueAndTimestamp.getValueOrNull;
 
-class KTableKTableLeftJoin<K, V1, V2, VOut> extends KTableKTableAbstractJoin<K, V1, V2, VOut> {
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+class KTableKTableLeftJoin<K, R, V1, V2> extends KTableKTableAbstractJoin<K, R, V1, V2> {
     private static final Logger LOG = LoggerFactory.getLogger(KTableKTableLeftJoin.class);
 
     KTableKTableLeftJoin(final KTableImpl<K, ?, V1> table1,
                          final KTableImpl<K, ?, V2> table2,
-                         final ValueJoiner<? super V1, ? super V2, ? extends VOut> joiner) {
+                         final ValueJoiner<? super V1, ? super V2, ? extends R> joiner) {
         super(table1, table2, joiner);
     }
 
     @Override
-    public Processor<K, Change<V1>, K, Change<VOut>> get() {
+    public org.apache.kafka.streams.processor.Processor<K, Change<V1>> get() {
         return new KTableKTableLeftJoinProcessor(valueGetterSupplier2.get());
     }
 
     @Override
-    public KTableValueGetterSupplier<K, VOut> view() {
+    public KTableValueGetterSupplier<K, R> view() {
         return new KTableKTableLeftJoinValueGetterSupplier(valueGetterSupplier1, valueGetterSupplier2);
     }
 
-    private class KTableKTableLeftJoinValueGetterSupplier extends KTableKTableAbstractJoinValueGetterSupplier<K, VOut, V1, V2> {
+    private class KTableKTableLeftJoinValueGetterSupplier extends KTableKTableAbstractJoinValueGetterSupplier<K, R, V1, V2> {
 
         KTableKTableLeftJoinValueGetterSupplier(final KTableValueGetterSupplier<K, V1> valueGetterSupplier1,
                                                 final KTableValueGetterSupplier<K, V2> valueGetterSupplier2) {
             super(valueGetterSupplier1, valueGetterSupplier2);
         }
 
-        public KTableValueGetter<K, VOut> get() {
+        public KTableValueGetter<K, R> get() {
             return new KTableKTableLeftJoinValueGetter(valueGetterSupplier1.get(), valueGetterSupplier2.get());
         }
     }
 
 
-    private class KTableKTableLeftJoinProcessor extends ContextualProcessor<K, Change<V1>, K, Change<VOut>> {
+    private class KTableKTableLeftJoinProcessor extends org.apache.kafka.streams.processor.AbstractProcessor<K, Change<V1>> {
 
         private final KTableValueGetter<K, V2> valueGetter;
         private Sensor droppedRecordsSensor;
@@ -74,7 +71,7 @@ class KTableKTableLeftJoin<K, V1, V2, VOut> extends KTableKTableAbstractJoin<K, 
         }
 
         @Override
-        public void init(final ProcessorContext<K, Change<VOut>> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             super.init(context);
             droppedRecordsSensor = droppedRecordsSensor(
                 Thread.currentThread().getName(),
@@ -85,35 +82,27 @@ class KTableKTableLeftJoin<K, V1, V2, VOut> extends KTableKTableAbstractJoin<K, 
         }
 
         @Override
-        public void process(final Record<K, Change<V1>> record) {
+        public void process(final K key, final Change<V1> change) {
             // we do join iff keys are equal, thus, if key is null we cannot join and just ignore the record
-            if (record.key() == null) {
-                if (context().recordMetadata().isPresent()) {
-                    final RecordMetadata recordMetadata = context().recordMetadata().get();
-                    LOG.warn(
-                        "Skipping record due to null key. "
-                            + "topic=[{}] partition=[{}] offset=[{}]",
-                        recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset()
-                    );
-                } else {
-                    LOG.warn(
-                        "Skipping record due to null key. Topic, partition, and offset not known."
-                    );
-                }
+            if (key == null) {
+                LOG.warn(
+                    "Skipping record due to null key. change=[{}] topic=[{}] partition=[{}] offset=[{}]",
+                    change, context().topic(), context().partition(), context().offset()
+                );
                 droppedRecordsSensor.record();
                 return;
             }
 
-            VOut newValue = null;
+            R newValue = null;
             final long resultTimestamp;
-            VOut oldValue = null;
+            R oldValue = null;
 
-            final ValueAndTimestamp<V2> valueAndTimestampRight = valueGetter.get(record.key());
+            final ValueAndTimestamp<V2> valueAndTimestampRight = valueGetter.get(key);
             final V2 value2 = getValueOrNull(valueAndTimestampRight);
             final long timestampRight;
 
             if (value2 == null) {
-                if (record.value().newValue == null && record.value().oldValue == null) {
+                if (change.newValue == null && change.oldValue == null) {
                     return;
                 }
                 timestampRight = UNKNOWN;
@@ -121,17 +110,17 @@ class KTableKTableLeftJoin<K, V1, V2, VOut> extends KTableKTableAbstractJoin<K, 
                 timestampRight = valueAndTimestampRight.timestamp();
             }
 
-            resultTimestamp = Math.max(record.timestamp(), timestampRight);
+            resultTimestamp = Math.max(context().timestamp(), timestampRight);
 
-            if (record.value().newValue != null) {
-                newValue = joiner.apply(record.value().newValue, value2);
+            if (change.newValue != null) {
+                newValue = joiner.apply(change.newValue, value2);
             }
 
-            if (sendOldValues && record.value().oldValue != null) {
-                oldValue = joiner.apply(record.value().oldValue, value2);
+            if (sendOldValues && change.oldValue != null) {
+                oldValue = joiner.apply(change.oldValue, value2);
             }
 
-            context().forward(record.withValue(new Change<>(newValue, oldValue)).withTimestamp(resultTimestamp));
+            context().forward(key, new Change<>(newValue, oldValue), To.all().withTimestamp(resultTimestamp));
         }
 
         @Override
@@ -140,7 +129,7 @@ class KTableKTableLeftJoin<K, V1, V2, VOut> extends KTableKTableAbstractJoin<K, 
         }
     }
 
-    private class KTableKTableLeftJoinValueGetter implements KTableValueGetter<K, VOut> {
+    private class KTableKTableLeftJoinValueGetter implements KTableValueGetter<K, R> {
 
         private final KTableValueGetter<K, V1> valueGetter1;
         private final KTableValueGetter<K, V2> valueGetter2;
@@ -152,13 +141,13 @@ class KTableKTableLeftJoin<K, V1, V2, VOut> extends KTableKTableAbstractJoin<K, 
         }
 
         @Override
-        public void init(final ProcessorContext<?, ?> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             valueGetter1.init(context);
             valueGetter2.init(context);
         }
 
         @Override
-        public ValueAndTimestamp<VOut> get(final K key) {
+        public ValueAndTimestamp<R> get(final K key) {
             final ValueAndTimestamp<V1> valueAndTimestamp1 = valueGetter1.get(key);
             final V1 value1 = getValueOrNull(valueAndTimestamp1);
 

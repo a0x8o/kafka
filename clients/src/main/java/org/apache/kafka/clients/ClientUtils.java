@@ -33,7 +33,6 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.kafka.common.utils.Utils.getHost;
 import static org.apache.kafka.common.utils.Utils.getPort;
@@ -108,10 +107,7 @@ public final class ClientUtils {
 
     static List<InetAddress> resolve(String host, HostResolver hostResolver) throws UnknownHostException {
         InetAddress[] addresses = hostResolver.resolve(host);
-        List<InetAddress> result = filterPreferredAddresses(addresses);
-        if (log.isDebugEnabled())
-            log.debug("Resolved host {} as {}", host, result.stream().map(i -> i.getHostAddress()).collect(Collectors.joining(",")));
-        return result;
+        return filterPreferredAddresses(addresses);
     }
 
     /**

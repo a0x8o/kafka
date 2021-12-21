@@ -69,14 +69,14 @@ public class ProcessorParameters<KIn, VIn, KOut, VOut> {
     }
 
     @SuppressWarnings("unchecked")
-    <KR, VR> KTableProcessorSupplier<KIn, VIn, KR, VR> kTableProcessorSupplier() {
+    <VR> KTableProcessorSupplier<KIn, VIn, VR> kTableProcessorSupplier() {
         // This cast always works because KTableProcessorSupplier hasn't been converted yet.
-        return (KTableProcessorSupplier<KIn, VIn, KR, VR>) processorSupplier;
+        return (KTableProcessorSupplier<KIn, VIn, VR>) oldProcessorSupplier;
     }
 
     @SuppressWarnings("unchecked")
     KTableKTableJoinMerger<KIn, VIn> kTableKTableJoinMergerProcessorSupplier() {
-        return (KTableKTableJoinMerger<KIn, VIn>) processorSupplier;
+        return (KTableKTableJoinMerger<KIn, VIn>) oldProcessorSupplier;
     }
 
     public String processorName() {

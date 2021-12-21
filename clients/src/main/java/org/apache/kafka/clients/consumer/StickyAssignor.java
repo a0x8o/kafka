@@ -174,7 +174,6 @@ import org.apache.kafka.common.utils.CollectionUtils;
  * {@link ConsumerPartitionAssignor.RebalanceProtocol} for a detailed explanation of cooperative rebalancing.
  */
 public class StickyAssignor extends AbstractStickyAssignor {
-    public static final String STICKY_ASSIGNOR_NAME = "sticky";
 
     // these schemas are used for preserving consumer's previously assigned partitions
     // list and sending it as user data to the leader during a rebalance
@@ -197,7 +196,7 @@ public class StickyAssignor extends AbstractStickyAssignor {
 
     @Override
     public String name() {
-        return STICKY_ASSIGNOR_NAME;
+        return "sticky";
     }
 
     @Override

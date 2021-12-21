@@ -22,11 +22,6 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.kstream.ValueJoiner;
 import org.apache.kafka.streams.kstream.internals.KTableValueGetter;
 import org.apache.kafka.streams.kstream.internals.KTableValueGetterSupplier;
-import org.apache.kafka.streams.processor.api.ContextualProcessor;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.ProcessorSupplier;
-import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
 import org.apache.kafka.streams.state.internals.Murmur3;
 
@@ -42,7 +37,8 @@ import java.util.function.Supplier;
  * @param <VO> Type of foreign values
  * @param <VR> Type of joined result of primary and foreign values
  */
-public class SubscriptionResolverJoinProcessorSupplier<K, V, VO, VR> implements ProcessorSupplier<K, SubscriptionResponseWrapper<VO>, K, VR> {
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+public class SubscriptionResolverJoinProcessorSupplier<K, V, VO, VR> implements org.apache.kafka.streams.processor.ProcessorSupplier<K, SubscriptionResponseWrapper<VO>> {
     private final KTableValueGetterSupplier<K, V> valueGetterSupplier;
     private final Serializer<V> constructionTimeValueSerializer;
     private final Supplier<String> valueHashSerdePseudoTopicSupplier;
@@ -62,8 +58,8 @@ public class SubscriptionResolverJoinProcessorSupplier<K, V, VO, VR> implements 
     }
 
     @Override
-    public Processor<K, SubscriptionResponseWrapper<VO>, K, VR> get() {
-        return new ContextualProcessor<K, SubscriptionResponseWrapper<VO>, K, VR>() {
+    public org.apache.kafka.streams.processor.Processor<K, SubscriptionResponseWrapper<VO>> get() {
+        return new org.apache.kafka.streams.processor.AbstractProcessor<K, SubscriptionResponseWrapper<VO>>() {
             private String valueHashSerdePseudoTopic;
             private Serializer<V> runtimeValueSerializer = constructionTimeValueSerializer;
 
@@ -71,7 +67,7 @@ public class SubscriptionResolverJoinProcessorSupplier<K, V, VO, VR> implements 
 
             @SuppressWarnings("unchecked")
             @Override
-            public void init(final ProcessorContext<K, VR> context) {
+            public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
                 super.init(context);
                 valueHashSerdePseudoTopic = valueHashSerdePseudoTopicSupplier.get();
                 valueGetter = valueGetterSupplier.get();
@@ -82,31 +78,31 @@ public class SubscriptionResolverJoinProcessorSupplier<K, V, VO, VR> implements 
             }
 
             @Override
-            public void process(final Record<K, SubscriptionResponseWrapper<VO>> record) {
-                if (record.value().getVersion() != SubscriptionResponseWrapper.CURRENT_VERSION) {
+            public void process(final K key, final SubscriptionResponseWrapper<VO> value) {
+                if (value.getVersion() != SubscriptionResponseWrapper.CURRENT_VERSION) {
                     //Guard against modifications to SubscriptionResponseWrapper. Need to ensure that there is
                     //compatibility with previous versions to enable rolling upgrades. Must develop a strategy for
                     //upgrading from older SubscriptionWrapper versions to newer versions.
                     throw new UnsupportedVersionException("SubscriptionResponseWrapper is of an incompatible version.");
                 }
-                final ValueAndTimestamp<V> currentValueWithTimestamp = valueGetter.get(record.key());
+                final ValueAndTimestamp<V> currentValueWithTimestamp = valueGetter.get(key);
 
                 final long[] currentHash = currentValueWithTimestamp == null ?
                     null :
                     Murmur3.hash128(runtimeValueSerializer.serialize(valueHashSerdePseudoTopic, currentValueWithTimestamp.value()));
 
-                final long[] messageHash = record.value().getOriginalValueHash();
+                final long[] messageHash = value.getOriginalValueHash();
 
                 //If this value doesn't match the current value from the original table, it is stale and should be discarded.
                 if (java.util.Arrays.equals(messageHash, currentHash)) {
                     final VR result;
 
-                    if (record.value().getForeignValue() == null && (!leftJoin || currentValueWithTimestamp == null)) {
+                    if (value.getForeignValue() == null && (!leftJoin || currentValueWithTimestamp == null)) {
                         result = null; //Emit tombstone
                     } else {
-                        result = joiner.apply(currentValueWithTimestamp == null ? null : currentValueWithTimestamp.value(), record.value().getForeignValue());
+                        result = joiner.apply(currentValueWithTimestamp == null ? null : currentValueWithTimestamp.value(), value.getForeignValue());
                     }
-                    context().forward(record.withValue(result));
+                    context().forward(key, result);
                 }
             }
         };

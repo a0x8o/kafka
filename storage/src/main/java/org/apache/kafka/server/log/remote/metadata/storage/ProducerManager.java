@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * This class is responsible for publishing messages into the remote log metadata topic partitions.
@@ -51,45 +50,37 @@ public class ProducerManager implements Closeable {
         topicPartitioner = rlmmTopicPartitioner;
     }
 
-    /**
-     * Returns {@link CompletableFuture} which will complete only after publishing of the given {@code remoteLogMetadata}
-     * is considered complete.
-     *
-     * @param remoteLogMetadata RemoteLogMetadata to be published
-     * @return
-     */
-    public CompletableFuture<RecordMetadata> publishMessage(RemoteLogMetadata remoteLogMetadata) {
-        CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
-
+    public RecordMetadata publishMessage(RemoteLogMetadata remoteLogMetadata) throws KafkaException {
         TopicIdPartition topicIdPartition = remoteLogMetadata.topicIdPartition();
         int metadataPartitionNum = topicPartitioner.metadataPartition(topicIdPartition);
         log.debug("Publishing metadata message of partition:[{}] into metadata topic partition:[{}] with payload: [{}]",
-                  topicIdPartition, metadataPartitionNum, remoteLogMetadata);
+                topicIdPartition, metadataPartitionNum, remoteLogMetadata);
         if (metadataPartitionNum >= rlmmConfig.metadataTopicPartitionsCount()) {
             // This should never occur as long as metadata partitions always remain the same.
             throw new KafkaException("Chosen partition no " + metadataPartitionNum +
                                              " must be less than the partition count: " + rlmmConfig.metadataTopicPartitionsCount());
         }
 
+        ProducerCallback callback = new ProducerCallback();
         try {
-            Callback callback = new Callback() {
-                @Override
-                public void onCompletion(RecordMetadata metadata,
-                                         Exception exception) {
-                    if (exception != null) {
-                        future.completeExceptionally(exception);
-                    } else {
-                        future.complete(metadata);
-                    }
-                }
-            };
             producer.send(new ProducerRecord<>(rlmmConfig.remoteLogMetadataTopicName(), metadataPartitionNum, null,
-                                               serde.serialize(remoteLogMetadata)), callback);
-        } catch (Exception ex) {
-            future.completeExceptionally(ex);
+                    serde.serialize(remoteLogMetadata)), callback).get();
+        } catch (KafkaException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new KafkaException("Exception occurred while publishing message for topicIdPartition: " + topicIdPartition, e);
         }
 
-        return future;
+        if (callback.exception() == null) {
+            return callback.recordMetadata();
+        } else {
+            Exception ex = callback.exception();
+            if (ex instanceof KafkaException) {
+                throw (KafkaException) ex;
+            } else {
+                throw new KafkaException(ex);
+            }
+        }
     }
 
     public void close() {
@@ -99,4 +90,24 @@ public class ProducerManager implements Closeable {
             log.error("Error encountered while closing the producer", e);
         }
     }
+
+    private static class ProducerCallback implements Callback {
+        private volatile RecordMetadata recordMetadata;
+        private volatile Exception exception;
+
+        @Override
+        public void onCompletion(RecordMetadata recordMetadata, Exception exception) {
+            this.recordMetadata = recordMetadata;
+            this.exception = exception;
+        }
+
+        public RecordMetadata recordMetadata() {
+            return recordMetadata;
+        }
+
+        public Exception exception() {
+            return exception;
+        }
+    }
+
 }

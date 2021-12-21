@@ -19,8 +19,6 @@ package org.apache.kafka.clients.admin;
 
 import org.apache.kafka.common.annotation.InterfaceStability;
 
-import java.util.Objects;
-
 /**
  * Options for {@link Admin#listTopics()}.
  *
@@ -59,25 +57,5 @@ public class ListTopicsOptions extends AbstractOptions<ListTopicsOptions> {
      */
     public boolean shouldListInternal() {
         return listInternal;
-    }
-
-    @Override
-    public String toString() {
-        return "ListTopicsOptions(" +
-            "listInternal=" + listInternal +
-            ')';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ListTopicsOptions that = (ListTopicsOptions) o;
-        return listInternal == that.listInternal;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(listInternal);
     }
 }

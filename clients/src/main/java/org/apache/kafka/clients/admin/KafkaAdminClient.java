@@ -22,8 +22,6 @@ import org.apache.kafka.clients.ClientRequest;
 import org.apache.kafka.clients.ClientResponse;
 import org.apache.kafka.clients.ClientUtils;
 import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.clients.DefaultHostResolver;
-import org.apache.kafka.clients.HostResolver;
 import org.apache.kafka.clients.KafkaClient;
 import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.StaleMetadataException;
@@ -467,11 +465,6 @@ public class KafkaAdminClient extends AdminClient {
     }
 
     static KafkaAdminClient createInternal(AdminClientConfig config, TimeoutProcessorFactory timeoutProcessorFactory) {
-        return createInternal(config, timeoutProcessorFactory, null);
-    }
-
-    static KafkaAdminClient createInternal(AdminClientConfig config, TimeoutProcessorFactory timeoutProcessorFactory,
-                                           HostResolver hostResolver) {
         Metrics metrics = null;
         NetworkClient networkClient = null;
         Time time = Time.SYSTEM;
@@ -510,9 +503,8 @@ public class KafkaAdminClient extends AdminClient {
             selector = new Selector(config.getLong(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG),
                     metrics, time, metricGrpPrefix, channelBuilder, logContext);
             networkClient = new NetworkClient(
-                metadataManager.updater(),
-                null,
                 selector,
+                metadataManager.updater(),
                 clientId,
                 1,
                 config.getLong(AdminClientConfig.RECONNECT_BACKOFF_MS_CONFIG),
@@ -525,9 +517,7 @@ public class KafkaAdminClient extends AdminClient {
                 time,
                 true,
                 apiVersions,
-                null,
-                logContext,
-                (hostResolver == null) ? new DefaultHostResolver() : hostResolver);
+                logContext);
             return new KafkaAdminClient(config, clientId, time, metadataManager, metrics, networkClient,
                 timeoutProcessorFactory, logContext);
         } catch (Throwable exc) {
@@ -3188,8 +3178,7 @@ public class KafkaAdminClient extends AdminClient {
                 DescribeConsumerGroupsHandler.newFuture(groupIds);
         DescribeConsumerGroupsHandler handler = new DescribeConsumerGroupsHandler(options.includeAuthorizedOperations(), logContext);
         invokeDriver(handler, future, options.timeoutMs);
-        return new DescribeConsumerGroupsResult(future.all().entrySet().stream()
-                .collect(Collectors.toMap(entry -> entry.getKey().idValue, Map.Entry::getValue)));
+        return new DescribeConsumerGroupsResult(future.all());
     }
 
     /**
@@ -3389,8 +3378,7 @@ public class KafkaAdminClient extends AdminClient {
                 DeleteConsumerGroupsHandler.newFuture(groupIds);
         DeleteConsumerGroupsHandler handler = new DeleteConsumerGroupsHandler(logContext);
         invokeDriver(handler, future, options.timeoutMs);
-        return new DeleteConsumerGroupsResult(future.all().entrySet().stream()
-                .collect(Collectors.toMap(entry -> entry.getKey().idValue, Map.Entry::getValue)));
+        return new DeleteConsumerGroupsResult(future.all());
     }
 
     @Override

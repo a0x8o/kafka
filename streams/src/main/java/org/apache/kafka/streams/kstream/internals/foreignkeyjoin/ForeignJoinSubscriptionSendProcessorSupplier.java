@@ -21,12 +21,6 @@ import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.kstream.internals.Change;
-import org.apache.kafka.streams.processor.api.ContextualProcessor;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.ProcessorSupplier;
-import org.apache.kafka.streams.processor.api.Record;
-import org.apache.kafka.streams.processor.api.RecordMetadata;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.processor.internals.metrics.TaskMetrics;
 import org.apache.kafka.streams.state.internals.Murmur3;
@@ -42,7 +36,8 @@ import static org.apache.kafka.streams.kstream.internals.foreignkeyjoin.Subscrip
 import static org.apache.kafka.streams.kstream.internals.foreignkeyjoin.SubscriptionWrapper.Instruction.PROPAGATE_NULL_IF_NO_FK_VAL_AVAILABLE;
 import static org.apache.kafka.streams.kstream.internals.foreignkeyjoin.SubscriptionWrapper.Instruction.PROPAGATE_ONLY_IF_FK_VAL_AVAILABLE;
 
-public class ForeignJoinSubscriptionSendProcessorSupplier<K, KO, V> implements ProcessorSupplier<K, Change<V>, KO, SubscriptionWrapper<K>> {
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+public class ForeignJoinSubscriptionSendProcessorSupplier<K, KO, V> implements org.apache.kafka.streams.processor.ProcessorSupplier<K, Change<V>> {
     private static final Logger LOG = LoggerFactory.getLogger(ForeignJoinSubscriptionSendProcessorSupplier.class);
 
     private final Function<V, KO> foreignKeyExtractor;
@@ -67,11 +62,11 @@ public class ForeignJoinSubscriptionSendProcessorSupplier<K, KO, V> implements P
     }
 
     @Override
-    public Processor<K, Change<V>, KO, SubscriptionWrapper<K>> get() {
+    public org.apache.kafka.streams.processor.Processor<K, Change<V>> get() {
         return new UnbindChangeProcessor();
     }
 
-    private class UnbindChangeProcessor extends ContextualProcessor<K, Change<V>, KO, SubscriptionWrapper<K>> {
+    private class UnbindChangeProcessor extends org.apache.kafka.streams.processor.AbstractProcessor<K, Change<V>> {
 
         private Sensor droppedRecordsSensor;
         private String foreignKeySerdeTopic;
@@ -79,7 +74,7 @@ public class ForeignJoinSubscriptionSendProcessorSupplier<K, KO, V> implements P
 
         @SuppressWarnings("unchecked")
         @Override
-        public void init(final ProcessorContext<KO, SubscriptionWrapper<K>> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             super.init(context);
             foreignKeySerdeTopic = foreignKeySerdeTopicSupplier.get();
             valueSerdeTopic = valueSerdeTopicSupplier.get();
@@ -98,44 +93,28 @@ public class ForeignJoinSubscriptionSendProcessorSupplier<K, KO, V> implements P
         }
 
         @Override
-        public void process(final Record<K, Change<V>> record) {
-            final long[] currentHash = record.value().newValue == null ?
+        public void process(final K key, final Change<V> change) {
+            final long[] currentHash = change.newValue == null ?
                 null :
-                Murmur3.hash128(valueSerializer.serialize(valueSerdeTopic, record.value().newValue));
+                Murmur3.hash128(valueSerializer.serialize(valueSerdeTopic, change.newValue));
 
-            if (record.value().oldValue != null) {
-                final KO oldForeignKey = foreignKeyExtractor.apply(record.value().oldValue);
+            if (change.oldValue != null) {
+                final KO oldForeignKey = foreignKeyExtractor.apply(change.oldValue);
                 if (oldForeignKey == null) {
-                    if (context().recordMetadata().isPresent()) {
-                        final RecordMetadata recordMetadata = context().recordMetadata().get();
-                        LOG.warn(
-                            "Skipping record due to null foreign key. "
-                                + "topic=[{}] partition=[{}] offset=[{}]",
-                            recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset()
-                        );
-                    } else {
-                        LOG.warn(
-                            "Skipping record due to null foreign key. Topic, partition, and offset not known."
-                        );
-                    }
+                    LOG.warn(
+                        "Skipping record due to null foreign key. value=[{}] topic=[{}] partition=[{}] offset=[{}]",
+                        change.oldValue, context().topic(), context().partition(), context().offset()
+                    );
                     droppedRecordsSensor.record();
                     return;
                 }
-                if (record.value().newValue != null) {
-                    final KO newForeignKey = foreignKeyExtractor.apply(record.value().newValue);
+                if (change.newValue != null) {
+                    final KO newForeignKey = foreignKeyExtractor.apply(change.newValue);
                     if (newForeignKey == null) {
-                        if (context().recordMetadata().isPresent()) {
-                            final RecordMetadata recordMetadata = context().recordMetadata().get();
-                            LOG.warn(
-                                "Skipping record due to null foreign key. "
-                                    + "topic=[{}] partition=[{}] offset=[{}]",
-                                recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset()
-                            );
-                        } else {
-                            LOG.warn(
-                                "Skipping record due to null foreign key. Topic, partition, and offset not known."
-                            );
-                        }
+                        LOG.warn(
+                            "Skipping record due to null foreign key. value=[{}] topic=[{}] partition=[{}] offset=[{}]",
+                            change.newValue, context().topic(), context().partition(), context().offset()
+                        );
                         droppedRecordsSensor.record();
                         return;
                     }
@@ -147,23 +126,17 @@ public class ForeignJoinSubscriptionSendProcessorSupplier<K, KO, V> implements P
                     if (!Arrays.equals(serialNewForeignKey, serialOldForeignKey)) {
                         //Different Foreign Key - delete the old key value and propagate the new one.
                         //Delete it from the oldKey's state store
-                        context().forward(
-                            record.withKey(oldForeignKey)
-                                .withValue(new SubscriptionWrapper<>(currentHash, DELETE_KEY_NO_PROPAGATE, record.key())));
+                        context().forward(oldForeignKey, new SubscriptionWrapper<>(currentHash, DELETE_KEY_NO_PROPAGATE, key));
                         //Add to the newKey's state store. Additionally, propagate null if no FK is found there,
                         //since we must "unset" any output set by the previous FK-join. This is true for both INNER
                         //and LEFT join.
                     }
-                    context().forward(
-                        record.withKey(newForeignKey)
-                            .withValue(new SubscriptionWrapper<>(currentHash, PROPAGATE_NULL_IF_NO_FK_VAL_AVAILABLE, record.key())));
+                    context().forward(newForeignKey, new SubscriptionWrapper<>(currentHash, PROPAGATE_NULL_IF_NO_FK_VAL_AVAILABLE, key));
                 } else {
                     //A simple propagatable delete. Delete from the state store and propagate the delete onwards.
-                    context().forward(
-                        record.withKey(oldForeignKey)
-                           .withValue(new SubscriptionWrapper<>(currentHash, DELETE_KEY_AND_PROPAGATE, record.key())));
+                    context().forward(oldForeignKey, new SubscriptionWrapper<>(currentHash, DELETE_KEY_AND_PROPAGATE, key));
                 }
-            } else if (record.value().newValue != null) {
+            } else if (change.newValue != null) {
                 //change.oldValue is null, which means it was deleted at least once before, or it is brand new.
                 //In either case, we only need to propagate if the FK_VAL is available, as the null from the delete would
                 //have been propagated otherwise.
@@ -175,25 +148,15 @@ public class ForeignJoinSubscriptionSendProcessorSupplier<K, KO, V> implements P
                 } else {
                     instruction = PROPAGATE_ONLY_IF_FK_VAL_AVAILABLE;
                 }
-                final KO newForeignKey = foreignKeyExtractor.apply(record.value().newValue);
+                final KO newForeignKey = foreignKeyExtractor.apply(change.newValue);
                 if (newForeignKey == null) {
-                    if (context().recordMetadata().isPresent()) {
-                        final RecordMetadata recordMetadata = context().recordMetadata().get();
-                        LOG.warn(
-                            "Skipping record due to null foreign key. "
-                                + "topic=[{}] partition=[{}] offset=[{}]",
-                            recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset()
-                        );
-                    } else {
-                        LOG.warn(
-                            "Skipping record due to null foreign key. Topic, partition, and offset not known."
-                        );
-                    }
+                    LOG.warn(
+                        "Skipping record due to null foreign key. value=[{}] topic=[{}] partition=[{}] offset=[{}]",
+                        change.newValue, context().topic(), context().partition(), context().offset()
+                    );
                     droppedRecordsSensor.record();
                 } else {
-                    context().forward(
-                        record.withKey(newForeignKey)
-                            .withValue(new SubscriptionWrapper<>(currentHash, instruction, record.key())));
+                    context().forward(newForeignKey, new SubscriptionWrapper<>(currentHash, instruction, key));
                 }
             }
         }

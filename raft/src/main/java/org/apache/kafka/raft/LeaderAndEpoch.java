@@ -22,7 +22,6 @@ import java.util.OptionalInt;
 public class LeaderAndEpoch {
     private final OptionalInt leaderId;
     private final int epoch;
-    public static final LeaderAndEpoch UNKNOWN = new LeaderAndEpoch(OptionalInt.empty(), 0);
 
     public LeaderAndEpoch(OptionalInt leaderId, int epoch) {
         this.leaderId = Objects.requireNonNull(leaderId);

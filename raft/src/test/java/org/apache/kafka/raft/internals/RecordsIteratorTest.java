@@ -59,7 +59,7 @@ public final class RecordsIteratorTest {
 
     @ParameterizedTest
     @MethodSource("emptyRecords")
-    void testEmptyRecords(Records records) {
+    void testEmptyRecords(Records records) throws IOException {
         testIterator(Collections.emptyList(), records);
     }
 

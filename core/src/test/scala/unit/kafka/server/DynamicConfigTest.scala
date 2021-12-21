@@ -18,13 +18,13 @@ package kafka.server
 
 import kafka.admin.AdminOperationException
 import kafka.utils.CoreUtils._
-import kafka.server.QuorumTestHarness
+import kafka.zk.ZooKeeperTestHarness
 import org.apache.kafka.common.config._
 import org.apache.kafka.common.config.internals.QuotaConfigs
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
-class DynamicConfigTest extends QuorumTestHarness {
+class DynamicConfigTest extends ZooKeeperTestHarness {
   private final val nonExistentConfig: String = "some.config.that.does.not.exist"
   private final val someValue: String = "some interesting value"
 

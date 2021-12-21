@@ -20,11 +20,9 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.Windowed;
-import org.apache.kafka.streams.kstream.internals.Change;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
-import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.ProcessorStateManager;
@@ -56,7 +54,7 @@ class CachingWindowStore
 
     private String cacheName;
     private boolean sendOldValues;
-    private InternalProcessorContext<?, ?> context;
+    private InternalProcessorContext context;
     private StateSerdes<Bytes, byte[]> bytesSerdes;
     private CacheFlushListener<byte[], byte[]> flushListener;
 
@@ -84,7 +82,7 @@ class CachingWindowStore
         super.init(context, root);
     }
 
-    private void initInternal(final InternalProcessorContext<?, ?> context) {
+    private void initInternal(final InternalProcessorContext context) {
         this.context = context;
         final String topic = ProcessorStateManager.storeChangelogTopic(context.applicationId(), name(),  context.taskId().topologyName());
 
@@ -102,7 +100,7 @@ class CachingWindowStore
     }
 
     private void putAndMaybeForward(final ThreadCache.DirtyEntry entry,
-                                    final InternalProcessorContext<?, ?> context) {
+                                    final InternalProcessorContext context) {
         final byte[] binaryWindowKey = cacheFunction.key(entry.key()).get();
         final Windowed<Bytes> windowedKeyBytes = WindowKeySchema.fromStoreBytesKey(binaryWindowKey, windowSize);
         final long windowStartTimestamp = windowedKeyBytes.window().start();
@@ -122,11 +120,10 @@ class CachingWindowStore
                 context.setRecordContext(entry.entry().context());
                 try {
                     flushListener.apply(
-                        new Record<>(
-                            binaryWindowKey,
-                            new Change<>(rawNewValue, sendOldValues ? rawOldValue : null),
-                            entry.entry().context().timestamp(),
-                            entry.entry().context().headers()));
+                        binaryWindowKey,
+                        rawNewValue,
+                        sendOldValues ? rawOldValue : null,
+                        entry.entry().context().timestamp());
                 } finally {
                     context.setRecordContext(current);
                 }
@@ -247,7 +244,7 @@ class CachingWindowStore
                                                            final Bytes keyTo,
                                                            final long timeFrom,
                                                            final long timeTo) {
-        if (keyFrom != null && keyTo != null && keyFrom.compareTo(keyTo) > 0) {
+        if (keyFrom.compareTo(keyTo) > 0) {
             LOG.warn("Returning empty iterator for fetch with invalid key range: from > to. " +
                 "This may be due to range arguments set in the wrong order, " +
                 "or serdes that don't preserve ordering when lexicographically comparing the serialized bytes. " +
@@ -269,8 +266,8 @@ class CachingWindowStore
             new CacheIteratorWrapper(keyFrom, keyTo, timeFrom, timeTo, true) :
             context.cache().range(
                 cacheName,
-                keyFrom == null ? null : cacheFunction.cacheKey(keySchema.lowerRange(keyFrom, timeFrom)),
-                keyTo == null ? null : cacheFunction.cacheKey(keySchema.upperRange(keyTo, timeTo))
+                cacheFunction.cacheKey(keySchema.lowerRange(keyFrom, timeFrom)),
+                cacheFunction.cacheKey(keySchema.upperRange(keyTo, timeTo))
             );
 
         final HasNextCondition hasNextCondition = keySchema.hasNextCondition(keyFrom, keyTo, timeFrom, timeTo);
@@ -292,7 +289,7 @@ class CachingWindowStore
                                                                    final Bytes keyTo,
                                                                    final long timeFrom,
                                                                    final long timeTo) {
-        if (keyFrom != null && keyTo != null && keyFrom.compareTo(keyTo) > 0) {
+        if (keyFrom.compareTo(keyTo) > 0) {
             LOG.warn("Returning empty iterator for fetch with invalid key range: from > to. "
                 + "This may be due to serdes that don't preserve ordering when lexicographically comparing the serialized bytes. " +
                 "Note that the built-in numerical serdes do not follow this for negative numbers");
@@ -313,8 +310,8 @@ class CachingWindowStore
             new CacheIteratorWrapper(keyFrom, keyTo, timeFrom, timeTo, false) :
             context.cache().reverseRange(
                 cacheName,
-                keyFrom == null ? null : cacheFunction.cacheKey(keySchema.lowerRange(keyFrom, timeFrom)),
-                keyTo == null ? null : cacheFunction.cacheKey(keySchema.upperRange(keyTo, timeTo))
+                cacheFunction.cacheKey(keySchema.lowerRange(keyFrom, timeFrom)),
+                cacheFunction.cacheKey(keySchema.upperRange(keyTo, timeTo))
             );
 
         final HasNextCondition hasNextCondition = keySchema.hasNextCondition(keyFrom, keyTo, timeFrom, timeTo);
@@ -576,14 +573,12 @@ class CachingWindowStore
                 throw new IllegalStateException("Error iterating over segments: segment interval has changed");
             }
 
-            if (keyFrom != null && keyTo != null && keyFrom.equals(keyTo)) {
+            if (keyFrom.equals(keyTo)) {
                 cacheKeyFrom = cacheFunction.cacheKey(segmentLowerRangeFixedSize(keyFrom, lowerRangeEndTime));
                 cacheKeyTo = cacheFunction.cacheKey(segmentUpperRangeFixedSize(keyTo, upperRangeEndTime));
             } else {
-                cacheKeyFrom = keyFrom == null ? null :
-                    cacheFunction.cacheKey(keySchema.lowerRange(keyFrom, lowerRangeEndTime), currentSegmentId);
-                cacheKeyTo = keyTo == null ? null :
-                    cacheFunction.cacheKey(keySchema.upperRange(keyTo, timeTo), currentSegmentId);
+                cacheKeyFrom = cacheFunction.cacheKey(keySchema.lowerRange(keyFrom, lowerRangeEndTime), currentSegmentId);
+                cacheKeyTo = cacheFunction.cacheKey(keySchema.upperRange(keyTo, timeTo), currentSegmentId);
             }
         }
 

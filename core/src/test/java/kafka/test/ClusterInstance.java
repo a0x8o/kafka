@@ -95,11 +95,5 @@ public interface ClusterInstance {
 
     void stop();
 
-    void shutdownBroker(int brokerId);
-
-    void startBroker(int brokerId);
-
     void rollingBrokerRestart();
-
-    void waitForReadyBrokers() throws InterruptedException;
 }

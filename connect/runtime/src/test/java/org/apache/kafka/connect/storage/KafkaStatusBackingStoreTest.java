@@ -33,9 +33,14 @@ import org.apache.kafka.connect.runtime.WorkerConfig;
 import org.apache.kafka.connect.runtime.distributed.DistributedConfig;
 import org.apache.kafka.connect.util.ConnectorTaskId;
 import org.apache.kafka.connect.util.KafkaBasedLog;
+import org.easymock.Capture;
+import org.easymock.EasyMock;
+import org.easymock.EasyMockSupport;
+import org.easymock.Mock;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
+import org.junit.runner.RunWith;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,21 +48,20 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.newCapture;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("unchecked")
-public class KafkaStatusBackingStoreTest {
+@RunWith(PowerMockRunner.class)
+public class KafkaStatusBackingStoreTest extends EasyMockSupport {
 
     private static final String STATUS_TOPIC = "status-topic";
     private static final String WORKER_ID = "localhost:8083";
@@ -65,10 +69,12 @@ public class KafkaStatusBackingStoreTest {
     private static final ConnectorTaskId TASK = new ConnectorTaskId(CONNECTOR, 0);
 
     private KafkaStatusBackingStore store;
-    private final KafkaBasedLog<String, byte[]> kafkaBasedLog = mock(KafkaBasedLog.class);
-
-    Converter converter = mock(Converter.class);
-    WorkerConfig workerConfig = mock(WorkerConfig.class);
+    @Mock
+    Converter converter;
+    @Mock
+    private KafkaBasedLog<String, byte[]> kafkaBasedLog;
+    @Mock
+    WorkerConfig workerConfig;
 
     @Before
     public void setup() {
@@ -77,62 +83,83 @@ public class KafkaStatusBackingStoreTest {
 
     @Test
     public void misconfigurationOfStatusBackingStore() {
-        when(workerConfig.getString(DistributedConfig.STATUS_STORAGE_TOPIC_CONFIG)).thenReturn(null);
-        when(workerConfig.getString(DistributedConfig.STATUS_STORAGE_TOPIC_CONFIG)).thenReturn("   ");
+        expect(workerConfig.getString(DistributedConfig.STATUS_STORAGE_TOPIC_CONFIG)).andReturn(null);
+        expect(workerConfig.getString(DistributedConfig.STATUS_STORAGE_TOPIC_CONFIG)).andReturn("   ");
+        replayAll();
 
         Exception e = assertThrows(ConfigException.class, () -> store.configure(workerConfig));
         assertEquals("Must specify topic for connector status.", e.getMessage());
         e = assertThrows(ConfigException.class, () -> store.configure(workerConfig));
         assertEquals("Must specify topic for connector status.", e.getMessage());
+        verifyAll();
     }
 
     @Test
     public void putConnectorState() {
         byte[] value = new byte[0];
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class))).thenReturn(value);
+        expect(converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class)))
+                .andStubReturn(value);
 
-        doAnswer(invocation -> {
-            ((Callback) invocation.getArgument(2)).onCompletion(null, null);
-            return null;
-        }).when(kafkaBasedLog).send(eq("status-connector-conn"), eq(value), any(Callback.class));
+        final Capture<Callback> callbackCapture = newCapture();
+        kafkaBasedLog.send(eq("status-connector-conn"), eq(value), capture(callbackCapture));
+        expectLastCall()
+                .andAnswer(() -> {
+                    callbackCapture.getValue().onCompletion(null, null);
+                    return null;
+                });
+        replayAll();
 
         ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.RUNNING, WORKER_ID, 0);
         store.put(status);
 
         // state is not visible until read back from the log
         assertNull(store.get(CONNECTOR));
+
+        verifyAll();
     }
 
     @Test
     public void putConnectorStateRetriableFailure() {
         byte[] value = new byte[0];
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class))).thenReturn(value);
+        expect(converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class)))
+                .andStubReturn(value);
 
-        doAnswer(invocation -> {
-            ((Callback) invocation.getArgument(2)).onCompletion(null, new TimeoutException());
-            return null;
-        }).doAnswer(invocation -> {
-            ((Callback) invocation.getArgument(2)).onCompletion(null, null);
-            return null;
-        })
-        .when(kafkaBasedLog).send(eq("status-connector-conn"), eq(value), any(Callback.class));
+        final Capture<Callback> callbackCapture = newCapture();
+        kafkaBasedLog.send(eq("status-connector-conn"), eq(value), capture(callbackCapture));
+        expectLastCall()
+                .andAnswer(() -> {
+                    callbackCapture.getValue().onCompletion(null, new TimeoutException());
+                    return null;
+                })
+                .andAnswer(() -> {
+                    callbackCapture.getValue().onCompletion(null, null);
+                    return null;
+                });
+        replayAll();
 
         ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.RUNNING, WORKER_ID, 0);
         store.put(status);
 
         // state is not visible until read back from the log
         assertNull(store.get(CONNECTOR));
+
+        verifyAll();
     }
 
     @Test
     public void putConnectorStateNonRetriableFailure() {
         byte[] value = new byte[0];
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class))).thenReturn(value);
+        expect(converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class)))
+                .andStubReturn(value);
 
-        doAnswer(invocation -> {
-            ((Callback) invocation.getArgument(2)).onCompletion(null, new UnknownServerException());
-            return null;
-        }).when(kafkaBasedLog).send(eq("status-connector-conn"), eq(value), any(Callback.class));
+        final Capture<Callback> callbackCapture = newCapture();
+        kafkaBasedLog.send(eq("status-connector-conn"), eq(value), capture(callbackCapture));
+        expectLastCall()
+                .andAnswer(() -> {
+                    callbackCapture.getValue().onCompletion(null, new UnknownServerException());
+                    return null;
+                });
+        replayAll();
 
         // the error is logged and ignored
         ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.RUNNING, WORKER_ID, 0);
@@ -140,6 +167,8 @@ public class KafkaStatusBackingStoreTest {
 
         // state is not visible until read back from the log
         assertNull(store.get(CONNECTOR));
+
+        verifyAll();
     }
 
     @Test
@@ -153,29 +182,43 @@ public class KafkaStatusBackingStoreTest {
         statusMap.put("state", "RUNNING");
         statusMap.put("generation", 1L);
 
-        when(converter.toConnectData(STATUS_TOPIC, value)).thenReturn(new SchemaAndValue(null, statusMap));
+        expect(converter.toConnectData(STATUS_TOPIC, value))
+                .andReturn(new SchemaAndValue(null, statusMap));
+
+        // we're verifying that there is no call to KafkaBasedLog.send
+
+        replayAll();
 
         store.read(consumerRecord(0, "status-connector-conn", value));
         store.putSafe(new ConnectorStatus(CONNECTOR, ConnectorStatus.State.UNASSIGNED, WORKER_ID, 0));
 
-        verify(kafkaBasedLog, never()).send(anyString(), any(), any(Callback.class));
         ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.RUNNING, otherWorkerId, 1);
         assertEquals(status, store.get(CONNECTOR));
+
+        verifyAll();
     }
 
     @Test
     public void putSafeWithNoPreviousValueIsPropagated() {
         final byte[] value = new byte[0];
-        ArgumentCaptor<Struct> captor = ArgumentCaptor.forClass(Struct.class);
 
-        kafkaBasedLog.send(eq("status-connector-" + CONNECTOR), eq(value), any(Callback.class));
+        final Capture<Struct> statusValueStruct = newCapture();
+        converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), capture(statusValueStruct));
+        EasyMock.expectLastCall().andReturn(value);
+
+        kafkaBasedLog.send(eq("status-connector-" + CONNECTOR), eq(value), anyObject(Callback.class));
+        expectLastCall();
+
+        replayAll();
+
         final ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.FAILED, WORKER_ID, 0);
         store.putSafe(status);
 
-        verify(converter).fromConnectData(eq(STATUS_TOPIC), any(Schema.class), captor.capture());
-        assertEquals(status.state().toString(), captor.getValue().get(KafkaStatusBackingStore.STATE_KEY_NAME));
-        assertEquals(status.workerId(), captor.getValue().get(KafkaStatusBackingStore.WORKER_ID_KEY_NAME));
-        assertEquals(status.generation(), captor.getValue().get(KafkaStatusBackingStore.GENERATION_KEY_NAME));
+        verifyAll();
+
+        assertEquals(status.state().toString(), statusValueStruct.getValue().get(KafkaStatusBackingStore.STATE_KEY_NAME));
+        assertEquals(status.workerId(), statusValueStruct.getValue().get(KafkaStatusBackingStore.WORKER_ID_KEY_NAME));
+        assertEquals(status.generation(), statusValueStruct.getValue().get(KafkaStatusBackingStore.GENERATION_KEY_NAME));
     }
 
     @Test
@@ -193,24 +236,31 @@ public class KafkaStatusBackingStoreTest {
         secondStatusRead.put("state", "UNASSIGNED");
         secondStatusRead.put("generation", 0L);
 
-        when(converter.toConnectData(STATUS_TOPIC, value))
-                .thenReturn(new SchemaAndValue(null, firstStatusRead))
-                .thenReturn(new SchemaAndValue(null, secondStatusRead));
+        expect(converter.toConnectData(STATUS_TOPIC, value))
+                .andReturn(new SchemaAndValue(null, firstStatusRead))
+                .andReturn(new SchemaAndValue(null, secondStatusRead));
 
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class)))
-                .thenReturn(value);
+        expect(converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class)))
+                .andStubReturn(value);
 
-        doAnswer(invocation -> {
-            ((Callback) invocation.getArgument(2)).onCompletion(null, null);
-            store.read(consumerRecord(1, "status-connector-conn", value));
-            return null;
-        }).when(kafkaBasedLog).send(eq("status-connector-conn"), eq(value), any(Callback.class));
+        final Capture<Callback> callbackCapture = newCapture();
+        kafkaBasedLog.send(eq("status-connector-conn"), eq(value), capture(callbackCapture));
+        expectLastCall()
+                .andAnswer(() -> {
+                    callbackCapture.getValue().onCompletion(null, null);
+                    store.read(consumerRecord(1, "status-connector-conn", value));
+                    return null;
+                });
+
+        replayAll();
 
         store.read(consumerRecord(0, "status-connector-conn", value));
         store.putSafe(new ConnectorStatus(CONNECTOR, ConnectorStatus.State.UNASSIGNED, WORKER_ID, 0));
 
         ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.UNASSIGNED, WORKER_ID, 0);
         assertEquals(status, store.get(CONNECTOR));
+
+        verifyAll();
     }
 
     @Test
@@ -229,24 +279,30 @@ public class KafkaStatusBackingStoreTest {
         secondStatusRead.put("state", "UNASSIGNED");
         secondStatusRead.put("generation", 0L);
 
-        when(converter.toConnectData(STATUS_TOPIC, value))
-                .thenReturn(new SchemaAndValue(null, firstStatusRead))
-                .thenReturn(new SchemaAndValue(null, secondStatusRead));
+        expect(converter.toConnectData(STATUS_TOPIC, value))
+                .andReturn(new SchemaAndValue(null, firstStatusRead))
+                .andReturn(new SchemaAndValue(null, secondStatusRead));
 
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class)))
-                .thenReturn(value);
+        expect(converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class)))
+                .andStubReturn(value);
 
-        doAnswer(invocation -> {
-            ((Callback) invocation.getArgument(2)).onCompletion(null, null);
-            store.read(consumerRecord(1, "status-connector-conn", value));
-            return null;
-        }).when(kafkaBasedLog).send(eq("status-connector-conn"), eq(value), any(Callback.class));
+        final Capture<Callback> callbackCapture = newCapture();
+        kafkaBasedLog.send(eq("status-connector-conn"), eq(value), capture(callbackCapture));
+        expectLastCall()
+                .andAnswer(() -> {
+                    callbackCapture.getValue().onCompletion(null, null);
+                    store.read(consumerRecord(1, "status-connector-conn", value));
+                    return null;
+                });
+        replayAll();
 
         store.read(consumerRecord(0, "status-connector-conn", value));
 
         ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.UNASSIGNED, WORKER_ID, 0);
         store.put(status);
         assertEquals(status, store.get(CONNECTOR));
+
+        verifyAll();
     }
 
     @Test
@@ -258,32 +314,41 @@ public class KafkaStatusBackingStoreTest {
         statusMap.put("state", "RUNNING");
         statusMap.put("generation", 0L);
 
-        when(converter.toConnectData(STATUS_TOPIC, value))
-                .thenReturn(new SchemaAndValue(null, statusMap));
+        expect(converter.toConnectData(STATUS_TOPIC, value))
+                .andReturn(new SchemaAndValue(null, statusMap));
+
+        replayAll();
 
         store.read(consumerRecord(0, "status-connector-conn", value));
 
         ConnectorStatus status = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.RUNNING, WORKER_ID, 0);
         assertEquals(status, store.get(CONNECTOR));
+
+        verifyAll();
     }
 
     @Test
     public void putTaskState() {
         byte[] value = new byte[0];
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class)))
-                .thenReturn(value);
+        expect(converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class)))
+                .andStubReturn(value);
 
-        doAnswer(invocation -> {
-            ((Callback) invocation.getArgument(2)).onCompletion(null, null);
-            store.read(consumerRecord(1, "status-connector-conn", value));
-            return null;
-        }).when(kafkaBasedLog).send(eq("status-task-conn-0"), eq(value), any(Callback.class));
+        final Capture<Callback> callbackCapture = newCapture();
+        kafkaBasedLog.send(eq("status-task-conn-0"), eq(value), capture(callbackCapture));
+        expectLastCall()
+                .andAnswer(() -> {
+                    callbackCapture.getValue().onCompletion(null, null);
+                    return null;
+                });
+        replayAll();
 
         TaskStatus status = new TaskStatus(TASK, TaskStatus.State.RUNNING, WORKER_ID, 0);
         store.put(status);
 
         // state is not visible until read back from the log
         assertNull(store.get(TASK));
+
+        verifyAll();
     }
 
     @Test
@@ -295,13 +360,17 @@ public class KafkaStatusBackingStoreTest {
         statusMap.put("state", "RUNNING");
         statusMap.put("generation", 0L);
 
-        when(converter.toConnectData(STATUS_TOPIC, value))
-                .thenReturn(new SchemaAndValue(null, statusMap));
+        expect(converter.toConnectData(STATUS_TOPIC, value))
+                .andReturn(new SchemaAndValue(null, statusMap));
+
+        replayAll();
 
         store.read(consumerRecord(0, "status-task-conn-0", value));
 
         TaskStatus status = new TaskStatus(TASK, TaskStatus.State.RUNNING, WORKER_ID, 0);
         assertEquals(status, store.get(TASK));
+
+        verifyAll();
     }
 
     @Test
@@ -312,9 +381,19 @@ public class KafkaStatusBackingStoreTest {
         statusMap.put("state", "RUNNING");
         statusMap.put("generation", 0L);
 
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class))).thenReturn(value);
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class))).thenReturn(value);
-        when(converter.toConnectData(STATUS_TOPIC, value)).thenReturn(new SchemaAndValue(null, statusMap));
+        converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class));
+        EasyMock.expectLastCall().andReturn(value);
+        kafkaBasedLog.send(eq("status-connector-" + CONNECTOR), eq(value), anyObject(Callback.class));
+        expectLastCall();
+
+        converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class));
+        EasyMock.expectLastCall().andReturn(value);
+        kafkaBasedLog.send(eq("status-task-conn-0"), eq(value), anyObject(Callback.class));
+        expectLastCall();
+
+        expect(converter.toConnectData(STATUS_TOPIC, value)).andReturn(new SchemaAndValue(null, statusMap));
+
+        replayAll();
 
         ConnectorStatus connectorStatus = new ConnectorStatus(CONNECTOR, ConnectorStatus.State.RUNNING, WORKER_ID, 0);
         store.put(connectorStatus);
@@ -322,14 +401,12 @@ public class KafkaStatusBackingStoreTest {
         store.put(taskStatus);
         store.read(consumerRecord(0, "status-task-conn-0", value));
 
-        verify(kafkaBasedLog).send(eq("status-connector-" + CONNECTOR), eq(value), any(Callback.class));
-        verify(kafkaBasedLog).send(eq("status-task-conn-0"), eq(value), any(Callback.class));
-
         assertEquals(new HashSet<>(Collections.singletonList(CONNECTOR)), store.connectors());
         assertEquals(new HashSet<>(Collections.singletonList(taskStatus)), new HashSet<>(store.getAll(CONNECTOR)));
         store.read(consumerRecord(0, "status-connector-conn", null));
         assertTrue(store.connectors().isEmpty());
         assertTrue(store.getAll(CONNECTOR).isEmpty());
+        verifyAll();
     }
 
     @Test
@@ -340,18 +417,23 @@ public class KafkaStatusBackingStoreTest {
         statusMap.put("state", "RUNNING");
         statusMap.put("generation", 0L);
 
-        when(converter.fromConnectData(eq(STATUS_TOPIC), any(Schema.class), any(Struct.class))).thenReturn(value);
-        when(converter.toConnectData(STATUS_TOPIC, value)).thenReturn(new SchemaAndValue(null, statusMap));
+        converter.fromConnectData(eq(STATUS_TOPIC), anyObject(Schema.class), anyObject(Struct.class));
+        EasyMock.expectLastCall().andReturn(value);
+        kafkaBasedLog.send(eq("status-task-conn-0"), eq(value), anyObject(Callback.class));
+        expectLastCall();
+
+        expect(converter.toConnectData(STATUS_TOPIC, value)).andReturn(new SchemaAndValue(null, statusMap));
+
+        replayAll();
 
         TaskStatus taskStatus = new TaskStatus(TASK, TaskStatus.State.RUNNING, WORKER_ID, 0);
         store.put(taskStatus);
         store.read(consumerRecord(0, "status-task-conn-0", value));
 
-        verify(kafkaBasedLog).send(eq("status-task-conn-0"), eq(value), any(Callback.class));
-
         assertEquals(new HashSet<>(Collections.singletonList(taskStatus)), new HashSet<>(store.getAll(CONNECTOR)));
         store.read(consumerRecord(0, "status-task-conn-0", null));
         assertTrue(store.getAll(CONNECTOR).isEmpty());
+        verifyAll();
     }
 
     private static ConsumerRecord<String, byte[]> consumerRecord(long offset, String key, byte[] value) {

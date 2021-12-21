@@ -126,7 +126,7 @@ public class MirrorSourceTask extends SourceTask {
    
     @Override
     public String version() {
-        return new MirrorSourceConnector().version();
+        return "1";
     }
 
     @Override

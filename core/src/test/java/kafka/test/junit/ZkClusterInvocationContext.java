@@ -21,13 +21,12 @@ import kafka.api.IntegrationTestHarness;
 import kafka.network.SocketServer;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
-import kafka.test.ClusterConfig;
-import kafka.test.ClusterInstance;
-import kafka.utils.EmptyTestInfo;
 import kafka.utils.TestUtils;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+import kafka.test.ClusterConfig;
+import kafka.test.ClusterInstance;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback;
 import org.junit.jupiter.api.extension.Extension;
@@ -45,7 +44,6 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Wraps a {@link IntegrationTestHarness} inside lifecycle methods for a test invocation. Each instance of this
@@ -195,7 +193,7 @@ public class ZkClusterInvocationContext implements TestTemplateInvocationContext
 
         @Override
         public Collection<SocketServer> brokerSocketServers() {
-            return servers()
+            return JavaConverters.asJavaCollection(clusterReference.get().servers()).stream()
                     .map(KafkaServer::socketServer)
                     .collect(Collectors.toList());
         }
@@ -207,7 +205,7 @@ public class ZkClusterInvocationContext implements TestTemplateInvocationContext
 
         @Override
         public Collection<SocketServer> controllerSocketServers() {
-            return servers()
+            return JavaConverters.asJavaCollection(clusterReference.get().servers()).stream()
                 .filter(broker -> broker.kafkaController().isActive())
                 .map(KafkaServer::socketServer)
                 .collect(Collectors.toList());
@@ -215,7 +213,7 @@ public class ZkClusterInvocationContext implements TestTemplateInvocationContext
 
         @Override
         public SocketServer anyBrokerSocketServer() {
-            return servers()
+            return JavaConverters.asJavaCollection(clusterReference.get().servers()).stream()
                 .map(KafkaServer::socketServer)
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No broker SocketServers found"));
@@ -223,7 +221,7 @@ public class ZkClusterInvocationContext implements TestTemplateInvocationContext
 
         @Override
         public SocketServer anyControllerSocketServer() {
-            return servers()
+            return JavaConverters.asJavaCollection(clusterReference.get().servers()).stream()
                 .filter(broker -> broker.kafkaController().isActive())
                 .map(KafkaServer::socketServer)
                 .findFirst()
@@ -253,7 +251,7 @@ public class ZkClusterInvocationContext implements TestTemplateInvocationContext
         @Override
         public void start() {
             if (started.compareAndSet(false, true)) {
-                clusterReference.get().setUp(new EmptyTestInfo());
+                clusterReference.get().setUp();
             }
         }
 
@@ -262,16 +260,6 @@ public class ZkClusterInvocationContext implements TestTemplateInvocationContext
             if (stopped.compareAndSet(false, true)) {
                 clusterReference.get().tearDown();
             }
-        }
-
-        @Override
-        public void shutdownBroker(int brokerId) {
-            findBrokerOrThrow(brokerId).shutdown();
-        }
-
-        @Override
-        public void startBroker(int brokerId) {
-            findBrokerOrThrow(brokerId).startup();
         }
 
         @Override
@@ -284,25 +272,5 @@ public class ZkClusterInvocationContext implements TestTemplateInvocationContext
             }
             clusterReference.get().restartDeadBrokers(true);
         }
-
-        @Override
-        public void waitForReadyBrokers() throws InterruptedException {
-            org.apache.kafka.test.TestUtils.waitForCondition(() -> {
-                int numRegisteredBrokers = clusterReference.get().zkClient().getAllBrokersInCluster().size();
-                return numRegisteredBrokers == config.numBrokers();
-            }, "Timed out while waiting for brokers to become ready");
-        }
-
-        private KafkaServer findBrokerOrThrow(int brokerId) {
-            return servers()
-                .filter(server -> server.config().brokerId() == brokerId)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown brokerId " + brokerId));
-        }
-
-        private Stream<KafkaServer> servers() {
-            return JavaConverters.asJavaCollection(clusterReference.get().servers()).stream();
-        }
-
     }
 }

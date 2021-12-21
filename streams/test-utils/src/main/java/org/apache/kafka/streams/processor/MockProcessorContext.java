@@ -125,10 +125,9 @@ public class MockProcessorContext implements ProcessorContext, RecordCollector.S
     public static class CapturedForward {
         private final String childName;
         private final long timestamp;
-        private final Headers headers;
         private final KeyValue keyValue;
 
-        private CapturedForward(final KeyValue keyValue, final To to, final Headers headers) {
+        private CapturedForward(final To to, final KeyValue keyValue) {
             if (keyValue == null) {
                 throw new IllegalArgumentException();
             }
@@ -136,7 +135,6 @@ public class MockProcessorContext implements ProcessorContext, RecordCollector.S
             this.childName = to.childName;
             this.timestamp = to.timestamp;
             this.keyValue = keyValue;
-            this.headers = headers;
         }
 
         /**
@@ -176,10 +174,6 @@ public class MockProcessorContext implements ProcessorContext, RecordCollector.S
                 ", timestamp=" + timestamp +
                 ", keyValue=" + keyValue +
                 '}';
-        }
-
-        public Headers headers() {
-            return this.headers;
         }
     }
 
@@ -504,9 +498,8 @@ public class MockProcessorContext implements ProcessorContext, RecordCollector.S
     public <K, V> void forward(final K key, final V value, final To to) {
         capturedForwards.add(
             new CapturedForward(
-                new KeyValue<>(key, value),
                 to.timestamp == -1 ? to.withTimestamp(recordTimestamp == null ? -1 : recordTimestamp) : to,
-                headers
+                new KeyValue<>(key, value)
             )
         );
     }

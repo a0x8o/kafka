@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.Collections.emptyMap;
 
@@ -82,8 +81,8 @@ public class DirectoryConfigProvider implements ConfigProvider {
             if (!Files.isDirectory(dir)) {
                 log.warn("The path {} is not a directory", path);
             } else {
-                try (Stream<Path> stream = Files.list(dir)) {
-                    map = stream
+                try {
+                    map = Files.list(dir)
                         .filter(fileFilter)
                         .collect(Collectors.toMap(
                             p -> p.getFileName().toString(),

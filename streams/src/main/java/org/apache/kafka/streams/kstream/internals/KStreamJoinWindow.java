@@ -16,14 +16,10 @@
  */
 package org.apache.kafka.streams.kstream.internals;
 
-import org.apache.kafka.streams.processor.api.ContextualProcessor;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.ProcessorSupplier;
-import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.state.WindowStore;
 
-class KStreamJoinWindow<K, V> implements ProcessorSupplier<K, V, K, V> {
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+class KStreamJoinWindow<K, V> implements org.apache.kafka.streams.processor.ProcessorSupplier<K, V> {
 
     private final String windowName;
 
@@ -32,30 +28,32 @@ class KStreamJoinWindow<K, V> implements ProcessorSupplier<K, V, K, V> {
     }
 
     @Override
-    public Processor<K, V, K, V> get() {
+    public org.apache.kafka.streams.processor.Processor<K, V> get() {
         return new KStreamJoinWindowProcessor();
     }
 
-    private class KStreamJoinWindowProcessor extends ContextualProcessor<K, V, K, V> {
+    private class KStreamJoinWindowProcessor extends org.apache.kafka.streams.processor.AbstractProcessor<K, V> {
 
         private WindowStore<K, V> window;
 
+        @SuppressWarnings("unchecked")
         @Override
-        public void init(final ProcessorContext<K, V> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             super.init(context);
 
-            window = context.getStateStore(windowName);
+            window = (WindowStore<K, V>) context.getStateStore(windowName);
         }
 
         @Override
-        public void process(final Record<K, V> record) {
+        public void process(final K key, final V value) {
             // if the key is null, we do not need to put the record into window store
             // since it will never be considered for join operations
-            if (record.key() != null) {
-                context().forward(record);
+            if (key != null) {
+                context().forward(key, value);
                 // Every record basically starts a new window. We're using a window store mostly for the retention.
-                window.put(record.key(), record.value(), record.timestamp());
+                window.put(key, value, context().timestamp());
             }
         }
     }
+
 }

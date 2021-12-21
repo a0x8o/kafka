@@ -72,10 +72,8 @@ import org.apache.kafka.raft.internals.ThresholdPurgatory;
 import org.apache.kafka.server.common.serialization.RecordSerde;
 import org.apache.kafka.snapshot.RawSnapshotReader;
 import org.apache.kafka.snapshot.RawSnapshotWriter;
-import org.apache.kafka.snapshot.RecordsSnapshotReader;
-import org.apache.kafka.snapshot.RecordsSnapshotWriter;
-import org.apache.kafka.snapshot.SnapshotWriter;
 import org.apache.kafka.snapshot.SnapshotReader;
+import org.apache.kafka.snapshot.SnapshotWriter;
 import org.slf4j.Logger;
 
 import java.util.Collections;
@@ -333,7 +331,7 @@ public class KafkaRaftClient<T> implements RaftClient<T> {
 
     private Optional<SnapshotReader<T>> latestSnapshot() {
         return log.latestSnapshot().map(reader ->
-            RecordsSnapshotReader.of(reader, serde, BufferSupplier.create(), MAX_BATCH_SIZE_BYTES)
+            SnapshotReader.of(reader, serde, BufferSupplier.create(), MAX_BATCH_SIZE_BYTES)
         );
     }
 
@@ -2349,7 +2347,7 @@ public class KafkaRaftClient<T> implements RaftClient<T> {
         int committedEpoch,
         long lastContainedLogTime
     ) {
-        return RecordsSnapshotWriter.createWithHeader(
+        return SnapshotWriter.createWithHeader(
                 () -> log.createNewSnapshot(new OffsetAndEpoch(committedOffset + 1, committedEpoch)),
                 MAX_BATCH_SIZE_BYTES,
                 memoryPool,
@@ -2434,7 +2432,7 @@ public class KafkaRaftClient<T> implements RaftClient<T> {
             return listener;
         }
 
-        private enum Ops {
+        private static enum Ops {
             REGISTER, UNREGISTER
         }
 
@@ -2450,7 +2448,7 @@ public class KafkaRaftClient<T> implements RaftClient<T> {
     private final class ListenerContext implements CloseListener<BatchReader<T>> {
         private final RaftClient.Listener<T> listener;
         // This field is used only by the Raft IO thread
-        private LeaderAndEpoch lastFiredLeaderChange = LeaderAndEpoch.UNKNOWN;
+        private LeaderAndEpoch lastFiredLeaderChange = new LeaderAndEpoch(OptionalInt.empty(), 0);
 
         // These fields are visible to both the Raft IO thread and the listener
         // and are protected through synchronization on this ListenerContext instance

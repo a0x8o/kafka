@@ -26,14 +26,14 @@ import ExecutionContext.Implicits._
 
 import kafka.common.{InconsistentBrokerMetadataException, InconsistentClusterIdException}
 import kafka.utils.TestUtils
-import kafka.server.QuorumTestHarness
+import kafka.zk.ZooKeeperTestHarness
 
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 import org.apache.kafka.test.TestUtils.isValidClusterId
 
 
-class ServerGenerateClusterIdTest extends QuorumTestHarness {
+class ServerGenerateClusterIdTest extends ZooKeeperTestHarness {
   var config1: KafkaConfig = null
   var config2: KafkaConfig = null
   var config3: KafkaConfig = null
@@ -41,8 +41,8 @@ class ServerGenerateClusterIdTest extends QuorumTestHarness {
   val brokerMetaPropsFile = "meta.properties"
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    super.setUp(testInfo)
+  override def setUp(): Unit = {
+    super.setUp()
     config1 = KafkaConfig.fromProps(TestUtils.createBrokerConfig(1, zkConnect))
     config2 = KafkaConfig.fromProps(TestUtils.createBrokerConfig(2, zkConnect))
     config3 = KafkaConfig.fromProps(TestUtils.createBrokerConfig(3, zkConnect))

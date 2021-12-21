@@ -81,11 +81,4 @@ public final class ClientQuotasDelta {
         }
         return new ClientQuotasImage(newEntities);
     }
-
-    @Override
-    public String toString() {
-        return "ClientQuotasDelta(" +
-            "changes=" + changes +
-            ')';
-    }
 }

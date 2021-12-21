@@ -75,8 +75,6 @@ import org.apache.kafka.raft.BatchReader;
 import org.apache.kafka.raft.LeaderAndEpoch;
 import org.apache.kafka.raft.OffsetAndEpoch;
 import org.apache.kafka.raft.RaftClient;
-import org.apache.kafka.server.policy.AlterConfigPolicy;
-import org.apache.kafka.server.policy.CreateTopicPolicy;
 import org.apache.kafka.snapshot.SnapshotReader;
 import org.apache.kafka.snapshot.SnapshotWriter;
 import org.apache.kafka.timeline.SnapshotRegistry;
@@ -138,9 +136,6 @@ public final class QuorumController implements Controller {
         private long snapshotMaxNewRecordBytes = Long.MAX_VALUE;
         private long sessionTimeoutNs = NANOSECONDS.convert(18, TimeUnit.SECONDS);
         private ControllerMetrics controllerMetrics = null;
-        private Optional<CreateTopicPolicy> createTopicPolicy = Optional.empty();
-        private Optional<AlterConfigPolicy> alterConfigPolicy = Optional.empty();
-        private ConfigurationValidator configurationValidator = ConfigurationValidator.NO_OP;
 
         public Builder(int nodeId) {
             this.nodeId = nodeId;
@@ -206,21 +201,6 @@ public final class QuorumController implements Controller {
             return this;
         }
 
-        public Builder setCreateTopicPolicy(Optional<CreateTopicPolicy> createTopicPolicy) {
-            this.createTopicPolicy = createTopicPolicy;
-            return this;
-        }
-
-        public Builder setAlterConfigPolicy(Optional<AlterConfigPolicy> alterConfigPolicy) {
-            this.alterConfigPolicy = alterConfigPolicy;
-            return this;
-        }
-
-        public Builder setConfigurationValidator(ConfigurationValidator configurationValidator) {
-            this.configurationValidator = configurationValidator;
-            return this;
-        }
-
         @SuppressWarnings("unchecked")
         public QuorumController build() throws Exception {
             if (raftClient == null) {
@@ -238,20 +218,17 @@ public final class QuorumController implements Controller {
             }
             KafkaEventQueue queue = null;
             try {
-                queue = new KafkaEventQueue(time, logContext, threadNamePrefix + "QuorumController");
+                queue = new KafkaEventQueue(time, logContext, threadNamePrefix);
                 return new QuorumController(logContext, nodeId, queue, time, configDefs,
                     raftClient, supportedFeatures, defaultReplicationFactor,
                     defaultNumPartitions, replicaPlacer, snapshotMaxNewRecordBytes,
-                    sessionTimeoutNs, controllerMetrics, createTopicPolicy,
-                    alterConfigPolicy, configurationValidator);
+                    sessionTimeoutNs, controllerMetrics);
             } catch (Exception e) {
                 Utils.closeQuietly(queue, "event queue");
                 throw e;
             }
         }
     }
-
-    public static final String CONTROLLER_THREAD_SUFFIX = "QuorumControllerEventHandler";
 
     private static final String ACTIVE_CONTROLLER_EXCEPTION_TEXT_PREFIX =
         "The active controller appears to be node ";
@@ -727,7 +704,7 @@ public final class QuorumController implements Controller {
                     if (isActiveController) {
                         throw new IllegalStateException(
                             String.format(
-                                "Asked to load snapshot (%s) when it is the active controller (%s)",
+                                "Asked to load snasphot (%s) when it is the active controller (%s)",
                                 reader.snapshotId(),
                                 curClaimEpoch
                             )
@@ -1118,10 +1095,7 @@ public final class QuorumController implements Controller {
                              ReplicaPlacer replicaPlacer,
                              long snapshotMaxNewRecordBytes,
                              long sessionTimeoutNs,
-                             ControllerMetrics controllerMetrics,
-                             Optional<CreateTopicPolicy> createTopicPolicy,
-                             Optional<AlterConfigPolicy> alterConfigPolicy,
-                             ConfigurationValidator configurationValidator) {
+                             ControllerMetrics controllerMetrics) {
         this.logContext = logContext;
         this.log = logContext.logger(QuorumController.class);
         this.nodeId = nodeId;
@@ -1131,16 +1105,16 @@ public final class QuorumController implements Controller {
         this.snapshotRegistry = new SnapshotRegistry(logContext);
         this.purgatory = new ControllerPurgatory();
         this.configurationControl = new ConfigurationControlManager(logContext,
-            snapshotRegistry, configDefs, alterConfigPolicy, configurationValidator);
+            snapshotRegistry, configDefs);
         this.clientQuotaControlManager = new ClientQuotaControlManager(snapshotRegistry);
         this.clusterControl = new ClusterControlManager(logContext, time,
-            snapshotRegistry, sessionTimeoutNs, replicaPlacer, controllerMetrics);
+            snapshotRegistry, sessionTimeoutNs, replicaPlacer);
         this.featureControl = new FeatureControlManager(supportedFeatures, snapshotRegistry);
         this.producerIdControlManager = new ProducerIdControlManager(clusterControl, snapshotRegistry);
         this.snapshotMaxNewRecordBytes = snapshotMaxNewRecordBytes;
         this.replicationControl = new ReplicationControlManager(snapshotRegistry,
             logContext, defaultReplicationFactor, defaultNumPartitions,
-            configurationControl, clusterControl, controllerMetrics, createTopicPolicy);
+            configurationControl, clusterControl, controllerMetrics);
         this.raftClient = raftClient;
         this.metaLogListener = new QuorumMetaLogListener();
         this.curClaimEpoch = -1;

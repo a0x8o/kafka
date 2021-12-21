@@ -19,7 +19,7 @@ import java.io.File
 import kafka.server._
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
 import org.apache.kafka.common.utils.Sanitizer
-import org.junit.jupiter.api.{BeforeEach, TestInfo}
+import org.junit.jupiter.api.BeforeEach
 
 class UserClientIdQuotaTest extends BaseQuotaTest {
 
@@ -30,9 +30,9 @@ class UserClientIdQuotaTest extends BaseQuotaTest {
   override def consumerClientId = "QuotasTestConsumer-!@#$%^&*()"
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
+  override def setUp(): Unit = {
     this.serverConfig.setProperty(KafkaConfig.SslClientAuthProp, "required")
-    super.setUp(testInfo)
+    super.setUp()
     quotaTestClients.alterClientQuotas(
       quotaTestClients.clientQuotaAlteration(
         quotaTestClients.clientQuotaEntity(Some(QuotaTestClients.DefaultEntity), Some(QuotaTestClients.DefaultEntity)),

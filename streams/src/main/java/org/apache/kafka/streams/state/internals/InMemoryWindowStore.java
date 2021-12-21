@@ -24,15 +24,9 @@ import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.kstream.internals.TimeWindow;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
-import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.internals.ProcessorContextUtils;
-import org.apache.kafka.streams.processor.internals.StoreToProcessorContextAdapter;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.processor.internals.metrics.TaskMetrics;
-import org.apache.kafka.streams.query.Position;
-import org.apache.kafka.streams.query.PositionBound;
-import org.apache.kafka.streams.query.Query;
-import org.apache.kafka.streams.query.QueryResult;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.WindowStore;
 import org.apache.kafka.streams.state.WindowStoreIterator;
@@ -74,9 +68,6 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
 
     private volatile boolean open = false;
 
-    private final Position position;
-    private StateStoreContext stateStoreContext;
-
     public InMemoryWindowStore(final String name,
                                final long retentionPeriod,
                                final long windowSize,
@@ -87,7 +78,6 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
         this.windowSize = windowSize;
         this.retainDuplicates = retainDuplicates;
         this.metricScope = metricScope;
-        this.position = Position.emptyPosition();
     }
 
     @Override
@@ -117,17 +107,6 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
     }
 
     @Override
-    public void init(final StateStoreContext context,
-                     final StateStore root) {
-        init(StoreToProcessorContextAdapter.adapt(context), root);
-        this.stateStoreContext = context;
-    }
-
-    Position getPosition() {
-        return position;
-    }
-
-    @Override
     public void put(final Bytes key, final byte[] value, final long windowStartTimestamp) {
         removeExpiredSegments();
         observedStreamTime = Math.max(observedStreamTime, windowStartTimestamp);
@@ -152,8 +131,6 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
                 });
             }
         }
-
-        StoreQueryUtils.updatePosition(position, stateStoreContext);
     }
 
     @Override
@@ -236,9 +213,12 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
                                                     final long timeFrom,
                                                     final long timeTo,
                                                     final boolean forward) {
+        Objects.requireNonNull(from, "from key cannot be null");
+        Objects.requireNonNull(to, "to key cannot be null");
+
         removeExpiredSegments();
 
-        if (from != null && to != null && from.compareTo(to) > 0) {
+        if (from.compareTo(to) > 0) {
             LOG.warn("Returning empty iterator for fetch with invalid key range: from > to. " +
                 "This may be due to range arguments set in the wrong order, " +
                 "or serdes that don't preserve ordering when lexicographically comparing the serialized bytes. " +
@@ -351,17 +331,6 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
     }
 
     @Override
-    public <R> QueryResult<R> query(final Query<R> query, final PositionBound positionBound,
-        final boolean collectExecutionInfo) {
-        return StoreQueryUtils.handleBasicQueries(
-            query,
-            positionBound,
-            collectExecutionInfo,
-            this
-        );
-    }
-
-    @Override
     public void flush() {
         // do-nothing since it is in-memory
     }
@@ -428,8 +397,7 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
         final Bytes to = (retainDuplicates && keyTo != null) ? wrapForDups(keyTo, Integer.MAX_VALUE) : keyTo;
 
         final WrappedWindowedKeyValueIterator iterator =
-            new WrappedWindowedKeyValueIterator(
-                from,
+            new WrappedWindowedKeyValueIterator(from,
                 to,
                 segmentIterator,
                 openIterators::remove,
@@ -494,28 +462,11 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
             }
 
             final Bytes key = getKey(next.key);
-            if (isKeyWithinRange(key)) {
+            if (key.compareTo(getKey(keyFrom)) >= 0 && key.compareTo(getKey(keyTo)) <= 0) {
                 return true;
             } else {
                 next = null;
                 return hasNext();
-            }
-        }
-
-        private boolean isKeyWithinRange(final Bytes key) {
-            // split all cases for readability and avoid BooleanExpressionComplexity checkstyle warning
-            if (keyFrom == null && keyTo == null) {
-                // fetch all
-                return true;
-            } else if (keyFrom == null) {
-                // start from the beginning
-                return key.compareTo(getKey(keyTo)) <= 0;
-            } else if (keyTo == null) {
-                // end to the last
-                return key.compareTo(getKey(keyFrom)) >= 0;
-            } else {
-                // key is within the range
-                return key.compareTo(getKey(keyFrom)) >= 0 && key.compareTo(getKey(keyTo)) <= 0;
             }
         }
 
@@ -548,21 +499,10 @@ public class InMemoryWindowStore implements WindowStore<Bytes, byte[]> {
             final Map.Entry<Long, ConcurrentNavigableMap<Bytes, byte[]>> currentSegment = segmentIterator.next();
             currentTime = currentSegment.getKey();
 
-            final ConcurrentNavigableMap<Bytes, byte[]> subMap;
-            if (allKeys) { // keyFrom == null && keyTo == null
-                subMap = currentSegment.getValue();
-            } else if (keyFrom == null) {
-                subMap = currentSegment.getValue().headMap(keyTo, true);
-            } else if (keyTo == null) {
-                subMap = currentSegment.getValue().tailMap(keyFrom, true);
+            if (allKeys) {
+                return currentSegment.getValue().entrySet().iterator();
             } else {
-                subMap = currentSegment.getValue().subMap(keyFrom, true, keyTo, true);
-            }
-
-            if (forward) {
-                return subMap.entrySet().iterator();
-            } else {
-                return subMap.descendingMap().entrySet().iterator();
+                return currentSegment.getValue().subMap(keyFrom, true, keyTo, true).entrySet().iterator();
             }
         }
 

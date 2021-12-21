@@ -14,7 +14,6 @@ package kafka.api
 
 import java.util.Properties
 import java.util.concurrent.ExecutionException
-
 import kafka.api.GroupAuthorizerIntegrationTest._
 import kafka.security.authorizer.AclAuthorizer
 import kafka.security.authorizer.AclEntry.WildcardHost
@@ -31,7 +30,7 @@ import org.apache.kafka.common.resource.{PatternType, Resource, ResourcePattern,
 import org.apache.kafka.common.security.auth.{AuthenticationContext, KafkaPrincipal}
 import org.apache.kafka.common.security.authenticator.DefaultKafkaPrincipalBuilder
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import scala.jdk.CollectionConverters._
 
@@ -76,8 +75,8 @@ class GroupAuthorizerIntegrationTest extends BaseRequestTest {
   }
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    doSetup(testInfo, createOffsetsTopic = false)
+  override def setUp(): Unit = {
+    doSetup(createOffsetsTopic = false)
 
     // Allow inter-broker communication
     TestUtils.addAndVerifyAcls(servers.head,

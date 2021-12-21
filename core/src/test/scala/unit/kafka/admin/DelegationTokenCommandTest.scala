@@ -25,7 +25,7 @@ import kafka.utils.{JaasTestUtils, TestUtils}
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig}
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionException
@@ -41,9 +41,9 @@ class DelegationTokenCommandTest extends BaseRequestTest with SaslSetup {
   override def brokerCount = 1
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
+  override def setUp(): Unit = {
     startSasl(jaasSections(kafkaServerSaslMechanisms, Some(kafkaClientSaslMechanism), KafkaSasl, JaasTestUtils.KafkaServerContextName))
-    super.setUp(testInfo)
+    super.setUp()
   }
 
   override def generateConfigs = {

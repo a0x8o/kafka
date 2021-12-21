@@ -27,7 +27,6 @@ import org.apache.kafka.connect.sink.SinkTask;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,7 +44,7 @@ public class VerifiableSinkTask extends SinkTask {
     private String name; // Connector name
     private int id; // Task ID
 
-    private final Map<TopicPartition, List<Map<String, Object>>> unflushed = new HashMap<>();
+    private ArrayList<Map<String, Object>> unflushed = new ArrayList<>();
 
     @Override
     public String version() {
@@ -81,33 +80,25 @@ public class VerifiableSinkTask extends SinkTask {
                 dataJson = "Bad data can't be written as json: " + e.getMessage();
             }
             System.out.println(dataJson);
-            unflushed.computeIfAbsent(
-                    new TopicPartition(record.topic(), record.kafkaPartition()),
-                    tp -> new ArrayList<>()
-            ).add(data);
+            unflushed.add(data);
         }
     }
 
     @Override
     public void flush(Map<TopicPartition, OffsetAndMetadata> offsets) {
         long nowMs = System.currentTimeMillis();
-        for (TopicPartition topicPartition : offsets.keySet()) {
-            if (!unflushed.containsKey(topicPartition)) {
-                continue;
+        for (Map<String, Object> data : unflushed) {
+            data.put("time_ms", nowMs);
+            data.put("flushed", true);
+            String dataJson;
+            try {
+                dataJson = JSON_SERDE.writeValueAsString(data);
+            } catch (JsonProcessingException e) {
+                dataJson = "Bad data can't be written as json: " + e.getMessage();
             }
-            for (Map<String, Object> data : unflushed.get(topicPartition)) {
-                data.put("time_ms", nowMs);
-                data.put("flushed", true);
-                String dataJson;
-                try {
-                    dataJson = JSON_SERDE.writeValueAsString(data);
-                } catch (JsonProcessingException e) {
-                    dataJson = "Bad data can't be written as json: " + e.getMessage();
-                }
-                System.out.println(dataJson);
-            }
-            unflushed.remove(topicPartition);
+            System.out.println(dataJson);
         }
+        unflushed.clear();
     }
 
     @Override

@@ -21,9 +21,9 @@ import java.util
 import java.util.concurrent.atomic.AtomicReference
 import java.util.{Collections, Optional}
 
+import org.apache.kafka.common.{Endpoint, Uuid}
 import org.apache.kafka.common.metadata.{PartitionChangeRecord, PartitionRecord, RegisterBrokerRecord, TopicRecord}
 import org.apache.kafka.common.utils.Time
-import org.apache.kafka.common.{Endpoint, Uuid}
 import org.apache.kafka.image.{MetadataDelta, MetadataImage}
 import org.apache.kafka.metadata.{BrokerRegistration, RecordTestUtils, VersionRange}
 import org.apache.kafka.server.common.ApiMessageAndVersion
@@ -54,7 +54,7 @@ class BrokerMetadataListenerTest {
           setIncarnationId(Uuid.fromString("GFBwlTcpQUuLYQ2ig05CSg")), 0.toShort))))
       val imageRecords = listener.getImageRecords().get()
       assertEquals(0, imageRecords.size())
-      assertEquals(100L, listener.highestMetadataOffset)
+      assertEquals(100L, listener.highestMetadataOffset())
       listener.handleCommit(RecordTestUtils.mockBatchReader(200L,
         util.Arrays.asList(new ApiMessageAndVersion(new RegisterBrokerRecord().
           setBrokerId(1).
@@ -63,8 +63,10 @@ class BrokerMetadataListenerTest {
           setRack(null).
           setIncarnationId(Uuid.fromString("QkOQtNKVTYatADcaJ28xDg")), 0.toShort))))
       listener.startPublishing(new MetadataPublisher {
-        override def publish(delta: MetadataDelta, newImage: MetadataImage): Unit = {
-          assertEquals(200L, newImage.highestOffsetAndEpoch().offset)
+        override def publish(newHighestMetadataOffset: Long,
+                             delta: MetadataDelta,
+                             newImage: MetadataImage): Unit = {
+          assertEquals(200L, newHighestMetadataOffset)
           assertEquals(new BrokerRegistration(0, 100L,
             Uuid.fromString("GFBwlTcpQUuLYQ2ig05CSg"), Collections.emptyList[Endpoint](),
             Collections.emptyMap[String, VersionRange](), Optional.empty[String](), false),
@@ -88,17 +90,20 @@ class BrokerMetadataListenerTest {
     var prevCommittedEpoch = -1
     var prevLastContainedLogTime = -1L
 
-    override def maybeStartSnapshot(lastContainedLogTime: Long, newImage: MetadataImage): Boolean = {
+    override def maybeStartSnapshot(committedOffset: Long,
+                                    committedEpoch: Int,
+                                    lastContainedLogTime: Long,
+                                    newImage: MetadataImage): Boolean = {
       try {
         if (activeSnapshotOffset == -1L) {
-          assertTrue(prevCommittedOffset <= newImage.highestOffsetAndEpoch().offset)
-          assertTrue(prevCommittedEpoch <= newImage.highestOffsetAndEpoch().epoch)
+          assertTrue(prevCommittedOffset <= committedOffset)
+          assertTrue(prevCommittedEpoch <= committedEpoch)
           assertTrue(prevLastContainedLogTime <= lastContainedLogTime)
-          prevCommittedOffset = newImage.highestOffsetAndEpoch().offset
-          prevCommittedEpoch = newImage.highestOffsetAndEpoch().epoch
+          prevCommittedOffset = committedOffset
+          prevCommittedEpoch = committedEpoch
           prevLastContainedLogTime = lastContainedLogTime
           image = newImage
-          activeSnapshotOffset = newImage.highestOffsetAndEpoch().offset
+          activeSnapshotOffset = committedOffset
           true
         } else {
           false
@@ -112,7 +117,9 @@ class BrokerMetadataListenerTest {
   class MockMetadataPublisher extends MetadataPublisher {
     var image = MetadataImage.EMPTY
 
-    override def publish(delta: MetadataDelta, newImage: MetadataImage): Unit = {
+    override def publish(newHighestMetadataOffset: Long,
+                         delta: MetadataDelta,
+                         newImage: MetadataImage): Unit = {
       image = newImage
     }
   }
@@ -145,10 +152,10 @@ class BrokerMetadataListenerTest {
       registerBrokers(listener, brokerIds, endOffset = 100L)
       createTopicWithOnePartition(listener, replicas = brokerIds, endOffset = 200L)
       listener.getImageRecords().get()
-      assertEquals(200L, listener.highestMetadataOffset)
+      assertEquals(200L, listener.highestMetadataOffset())
 
       generateManyRecords(listener, endOffset = 1000L)
-      assertEquals(1000L, listener.highestMetadataOffset)
+      assertEquals(1000L, listener.highestMetadataOffset())
     } finally {
       listener.close()
     }
@@ -164,7 +171,7 @@ class BrokerMetadataListenerTest {
       registerBrokers(listener, brokerIds, endOffset = 100L)
       createTopicWithOnePartition(listener, replicas = brokerIds, endOffset = 200L)
       listener.getImageRecords().get()
-      assertEquals(200L, listener.highestMetadataOffset)
+      assertEquals(200L, listener.highestMetadataOffset())
 
       // Check that we generate at least one snapshot once we see enough records.
       assertEquals(-1L, snapshotter.prevCommittedOffset)

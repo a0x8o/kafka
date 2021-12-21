@@ -293,9 +293,7 @@ public class DefaultRecord implements Record {
                                          Long logAppendTime) {
         int sizeOfBodyInBytes = ByteUtils.readVarint(buffer);
         if (buffer.remaining() < sizeOfBodyInBytes)
-            throw new InvalidRecordException("Invalid record size: expected " + sizeOfBodyInBytes +
-                " bytes in record payload, but instead the buffer has only " + buffer.remaining() +
-                " remaining bytes.");
+            return null;
 
         int totalSizeInBytes = ByteUtils.sizeOfVarint(sizeOfBodyInBytes) + sizeOfBodyInBytes;
         return readFrom(buffer, totalSizeInBytes, sizeOfBodyInBytes, baseOffset, baseTimestamp,

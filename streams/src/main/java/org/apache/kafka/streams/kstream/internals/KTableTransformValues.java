@@ -19,10 +19,6 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.streams.kstream.ValueTransformerWithKey;
 import org.apache.kafka.streams.kstream.ValueTransformerWithKeySupplier;
-import org.apache.kafka.streams.processor.api.ContextualProcessor;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.ForwardingDisabledProcessorContext;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
@@ -34,14 +30,15 @@ import java.util.Objects;
 import static org.apache.kafka.streams.processor.internals.RecordQueue.UNKNOWN;
 import static org.apache.kafka.streams.state.ValueAndTimestamp.getValueOrNull;
 
-class KTableTransformValues<K, V, VOut> implements KTableProcessorSupplier<K, V, K, VOut> {
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+class KTableTransformValues<K, V, V1> implements KTableProcessorSupplier<K, V, V1> {
     private final KTableImpl<K, ?, V> parent;
-    private final ValueTransformerWithKeySupplier<? super K, ? super V, ? extends VOut> transformerSupplier;
+    private final ValueTransformerWithKeySupplier<? super K, ? super V, ? extends V1> transformerSupplier;
     private final String queryableName;
     private boolean sendOldValues = false;
 
     KTableTransformValues(final KTableImpl<K, ?, V> parent,
-                          final ValueTransformerWithKeySupplier<? super K, ? super V, ? extends VOut> transformerSupplier,
+                          final ValueTransformerWithKeySupplier<? super K, ? super V, ? extends V1> transformerSupplier,
                           final String queryableName) {
         this.parent = Objects.requireNonNull(parent, "parent");
         this.transformerSupplier = Objects.requireNonNull(transformerSupplier, "transformerSupplier");
@@ -49,20 +46,20 @@ class KTableTransformValues<K, V, VOut> implements KTableProcessorSupplier<K, V,
     }
 
     @Override
-    public Processor<K, Change<V>, K, Change<VOut>> get() {
+    public org.apache.kafka.streams.processor.Processor<K, Change<V>> get() {
         return new KTableTransformValuesProcessor(transformerSupplier.get());
     }
 
     @Override
-    public KTableValueGetterSupplier<K, VOut> view() {
+    public KTableValueGetterSupplier<K, V1> view() {
         if (queryableName != null) {
             return new KTableMaterializedValueGetterSupplier<>(queryableName);
         }
 
-        return new KTableValueGetterSupplier<K, VOut>() {
+        return new KTableValueGetterSupplier<K, V1>() {
             final KTableValueGetterSupplier<K, V> parentValueGetterSupplier = parent.valueGetterSupplier();
 
-            public KTableValueGetter<K, VOut> get() {
+            public KTableValueGetter<K, V1> get() {
                 return new KTableTransformValuesGetter(
                     parentValueGetterSupplier.get(),
                     transformerSupplier.get());
@@ -88,20 +85,19 @@ class KTableTransformValues<K, V, VOut> implements KTableProcessorSupplier<K, V,
         return sendOldValues;
     }
 
-    private class KTableTransformValuesProcessor extends ContextualProcessor<K, Change<V>, K, Change<VOut>> {
-        private final ValueTransformerWithKey<? super K, ? super V, ? extends VOut> valueTransformer;
-        private TimestampedKeyValueStore<K, VOut> store;
-        private TimestampedTupleForwarder<K, VOut> tupleForwarder;
+    private class KTableTransformValuesProcessor extends org.apache.kafka.streams.processor.AbstractProcessor<K, Change<V>> {
+        private final ValueTransformerWithKey<? super K, ? super V, ? extends V1> valueTransformer;
+        private TimestampedKeyValueStore<K, V1> store;
+        private TimestampedTupleForwarder<K, V1> tupleForwarder;
 
-        private KTableTransformValuesProcessor(final ValueTransformerWithKey<? super K, ? super V, ? extends VOut> valueTransformer) {
+        private KTableTransformValuesProcessor(final ValueTransformerWithKey<? super K, ? super V, ? extends V1> valueTransformer) {
             this.valueTransformer = Objects.requireNonNull(valueTransformer, "valueTransformer");
         }
 
         @Override
-        public void init(final ProcessorContext<K, Change<VOut>> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             super.init(context);
-            final InternalProcessorContext<K, Change<VOut>> internalProcessorContext = (InternalProcessorContext<K, Change<VOut>>) context;
-            valueTransformer.init(new ForwardingDisabledProcessorContext(internalProcessorContext));
+            valueTransformer.init(new ForwardingDisabledProcessorContext(context));
             if (queryableName != null) {
                 store = context.getStateStore(queryableName);
                 tupleForwarder = new TimestampedTupleForwarder<>(
@@ -113,16 +109,16 @@ class KTableTransformValues<K, V, VOut> implements KTableProcessorSupplier<K, V,
         }
 
         @Override
-        public void process(final Record<K, Change<V>> record) {
-            final VOut newValue = valueTransformer.transform(record.key(), record.value().newValue);
+        public void process(final K key, final Change<V> change) {
+            final V1 newValue = valueTransformer.transform(key, change.newValue);
 
             if (queryableName == null) {
-                final VOut oldValue = sendOldValues ? valueTransformer.transform(record.key(), record.value().oldValue) : null;
-                context().forward(record.withValue(new Change<>(newValue, oldValue)));
+                final V1 oldValue = sendOldValues ? valueTransformer.transform(key, change.oldValue) : null;
+                context().forward(key, new Change<>(newValue, oldValue));
             } else {
-                final VOut oldValue = sendOldValues ? getValueOrNull(store.get(record.key())) : null;
-                store.put(record.key(), ValueAndTimestamp.make(newValue, record.timestamp()));
-                tupleForwarder.maybeForward(record.withValue(new Change<>(newValue, oldValue)));
+                final V1 oldValue = sendOldValues ? getValueOrNull(store.get(key)) : null;
+                store.put(key, ValueAndTimestamp.make(newValue, context().timestamp()));
+                tupleForwarder.maybeForward(key, newValue, oldValue);
             }
         }
 
@@ -133,26 +129,26 @@ class KTableTransformValues<K, V, VOut> implements KTableProcessorSupplier<K, V,
     }
 
 
-    private class KTableTransformValuesGetter implements KTableValueGetter<K, VOut> {
+    private class KTableTransformValuesGetter implements KTableValueGetter<K, V1> {
         private final KTableValueGetter<K, V> parentGetter;
         private InternalProcessorContext internalProcessorContext;
-        private final ValueTransformerWithKey<? super K, ? super V, ? extends VOut> valueTransformer;
+        private final ValueTransformerWithKey<? super K, ? super V, ? extends V1> valueTransformer;
 
         KTableTransformValuesGetter(final KTableValueGetter<K, V> parentGetter,
-                                    final ValueTransformerWithKey<? super K, ? super V, ? extends VOut> valueTransformer) {
+                                    final ValueTransformerWithKey<? super K, ? super V, ? extends V1> valueTransformer) {
             this.parentGetter = Objects.requireNonNull(parentGetter, "parentGetter");
             this.valueTransformer = Objects.requireNonNull(valueTransformer, "valueTransformer");
         }
 
         @Override
-        public void init(final ProcessorContext<?, ?> context) {
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
             internalProcessorContext = (InternalProcessorContext) context;
             parentGetter.init(context);
-            valueTransformer.init(new ForwardingDisabledProcessorContext(internalProcessorContext));
+            valueTransformer.init(new ForwardingDisabledProcessorContext(context));
         }
 
         @Override
-        public ValueAndTimestamp<VOut> get(final K key) {
+        public ValueAndTimestamp<V1> get(final K key) {
             final ValueAndTimestamp<V> valueAndTimestamp = parentGetter.get(key);
 
             final ProcessorRecordContext currentContext = internalProcessorContext.recordContext();
@@ -169,7 +165,7 @@ class KTableTransformValues<K, V, VOut> implements KTableProcessorSupplier<K, V,
                 new RecordHeaders()
             ));
 
-            final ValueAndTimestamp<VOut> result = ValueAndTimestamp.make(
+            final ValueAndTimestamp<V1> result = ValueAndTimestamp.make(
                 valueTransformer.transform(key, getValueOrNull(valueAndTimestamp)),
                 valueAndTimestamp == null ? UNKNOWN : valueAndTimestamp.timestamp());
 

@@ -23,7 +23,7 @@ import kafka.admin.AclCommand.AclCommandOptions
 import kafka.security.authorizer.{AclAuthorizer, AclEntry}
 import kafka.server.{KafkaConfig, KafkaServer}
 import kafka.utils.{Exit, LogCaptureAppender, Logging, TestUtils}
-import kafka.server.QuorumTestHarness
+import kafka.zk.ZooKeeperTestHarness
 import org.apache.kafka.common.acl.{AccessControlEntry, AclOperation, AclPermissionType}
 import org.apache.kafka.common.acl.AclOperation._
 import org.apache.kafka.common.acl.AclPermissionType._
@@ -36,9 +36,9 @@ import org.apache.kafka.common.utils.{AppInfoParser, SecurityUtils}
 import org.apache.kafka.server.authorizer.Authorizer
 import org.apache.log4j.Level
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, TestInfo}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 
-class AclCommandTest extends QuorumTestHarness with Logging {
+class AclCommandTest extends ZooKeeperTestHarness with Logging {
 
   var servers: Seq[KafkaServer] = Seq()
 
@@ -102,8 +102,8 @@ class AclCommandTest extends QuorumTestHarness with Logging {
   private var adminArgs: Array[String] = _
 
   @BeforeEach
-  override def setUp(testInfo: TestInfo): Unit = {
-    super.setUp(testInfo)
+  override def setUp(): Unit = {
+    super.setUp()
 
     brokerProps = TestUtils.createBrokerConfig(0, zkConnect)
     brokerProps.put(KafkaConfig.AuthorizerClassNameProp, classOf[AclAuthorizer].getName)

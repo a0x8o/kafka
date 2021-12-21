@@ -19,28 +19,25 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.kstream.Aggregator;
 import org.apache.kafka.streams.kstream.Initializer;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.state.TimestampedKeyValueStore;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
 
 import static org.apache.kafka.streams.state.ValueAndTimestamp.getValueOrNull;
 
-public class KTableAggregate<KIn, VIn, VAgg> implements
-    KTableProcessorSupplier<KIn, VIn, KIn, VAgg> {
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
+public class KTableAggregate<K, V, T> implements KTableProcessorSupplier<K, V, T> {
 
     private final String storeName;
-    private final Initializer<VAgg> initializer;
-    private final Aggregator<? super KIn, ? super VIn, VAgg> add;
-    private final Aggregator<? super KIn, ? super VIn, VAgg> remove;
+    private final Initializer<T> initializer;
+    private final Aggregator<? super K, ? super V, T> add;
+    private final Aggregator<? super K, ? super V, T> remove;
 
     private boolean sendOldValues = false;
 
     KTableAggregate(final String storeName,
-                    final Initializer<VAgg> initializer,
-                    final Aggregator<? super KIn, ? super VIn, VAgg> add,
-                    final Aggregator<? super KIn, ? super VIn, VAgg> remove) {
+                    final Initializer<T> initializer,
+                    final Aggregator<? super K, ? super V, T> add,
+                    final Aggregator<? super K, ? super V, T> remove) {
         this.storeName = storeName;
         this.initializer = initializer;
         this.add = add;
@@ -55,18 +52,19 @@ public class KTableAggregate<KIn, VIn, VAgg> implements
     }
 
     @Override
-    public Processor<KIn, Change<VIn>, KIn, Change<VAgg>> get() {
+    public org.apache.kafka.streams.processor.Processor<K, Change<V>> get() {
         return new KTableAggregateProcessor();
     }
 
-    private class KTableAggregateProcessor implements Processor<KIn, Change<VIn>, KIn, Change<VAgg>> {
-        private TimestampedKeyValueStore<KIn, VAgg> store;
-        private TimestampedTupleForwarder<KIn, VAgg> tupleForwarder;
+    private class KTableAggregateProcessor extends org.apache.kafka.streams.processor.AbstractProcessor<K, Change<V>> {
+        private TimestampedKeyValueStore<K, T> store;
+        private TimestampedTupleForwarder<K, T> tupleForwarder;
 
         @SuppressWarnings("unchecked")
         @Override
-        public void init(final ProcessorContext<KIn, Change<VAgg>> context) {
-            store = (TimestampedKeyValueStore<KIn, VAgg>) context.getStateStore(storeName);
+        public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
+            super.init(context);
+            store = (TimestampedKeyValueStore<K, T>) context.getStateStore(storeName);
             tupleForwarder = new TimestampedTupleForwarder<>(
                 store,
                 context,
@@ -78,54 +76,52 @@ public class KTableAggregate<KIn, VIn, VAgg> implements
          * @throws StreamsException if key is null
          */
         @Override
-        public void process(final Record<KIn, Change<VIn>> record) {
+        public void process(final K key, final Change<V> value) {
             // the keys should never be null
-            if (record.key() == null) {
+            if (key == null) {
                 throw new StreamsException("Record key for KTable aggregate operator with state " + storeName + " should not be null.");
             }
 
-            final ValueAndTimestamp<VAgg> oldAggAndTimestamp = store.get(record.key());
-            final VAgg oldAgg = getValueOrNull(oldAggAndTimestamp);
-            final VAgg intermediateAgg;
-            long newTimestamp = record.timestamp();
+            final ValueAndTimestamp<T> oldAggAndTimestamp = store.get(key);
+            final T oldAgg = getValueOrNull(oldAggAndTimestamp);
+            final T intermediateAgg;
+            long newTimestamp = context().timestamp();
 
             // first try to remove the old value
-            if (record.value().oldValue != null && oldAgg != null) {
-                intermediateAgg = remove.apply(record.key(), record.value().oldValue, oldAgg);
-                newTimestamp = Math.max(record.timestamp(), oldAggAndTimestamp.timestamp());
+            if (value.oldValue != null && oldAgg != null) {
+                intermediateAgg = remove.apply(key, value.oldValue, oldAgg);
+                newTimestamp = Math.max(context().timestamp(), oldAggAndTimestamp.timestamp());
             } else {
                 intermediateAgg = oldAgg;
             }
 
             // then try to add the new value
-            final VAgg newAgg;
-            if (record.value().newValue != null) {
-                final VAgg initializedAgg;
+            final T newAgg;
+            if (value.newValue != null) {
+                final T initializedAgg;
                 if (intermediateAgg == null) {
                     initializedAgg = initializer.apply();
                 } else {
                     initializedAgg = intermediateAgg;
                 }
 
-                newAgg = add.apply(record.key(), record.value().newValue, initializedAgg);
+                newAgg = add.apply(key, value.newValue, initializedAgg);
                 if (oldAggAndTimestamp != null) {
-                    newTimestamp = Math.max(record.timestamp(), oldAggAndTimestamp.timestamp());
+                    newTimestamp = Math.max(context().timestamp(), oldAggAndTimestamp.timestamp());
                 }
             } else {
                 newAgg = intermediateAgg;
             }
 
             // update the store with the new value
-            store.put(record.key(), ValueAndTimestamp.make(newAgg, newTimestamp));
-            tupleForwarder.maybeForward(
-                record.withValue(new Change<>(newAgg, sendOldValues ? oldAgg : null))
-                    .withTimestamp(newTimestamp));
+            store.put(key, ValueAndTimestamp.make(newAgg, newTimestamp));
+            tupleForwarder.maybeForward(key, newAgg, sendOldValues ? oldAgg : null, newTimestamp);
         }
 
     }
 
     @Override
-    public KTableValueGetterSupplier<KIn, VAgg> view() {
+    public KTableValueGetterSupplier<K, T> view() {
         return new KTableMaterializedValueGetterSupplier<>(storeName);
     }
 }

@@ -26,13 +26,14 @@ import org.apache.kafka.streams.errors.ProcessorStateException;
 import org.apache.kafka.streams.kstream.internals.Change;
 import org.apache.kafka.streams.kstream.internals.WrappingNullableUtils;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.internals.SerdeGetter;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorContextUtils;
 import org.apache.kafka.streams.processor.internals.ProcessorStateManager;
-import org.apache.kafka.streams.processor.internals.SerdeGetter;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -111,7 +112,7 @@ public class MeteredKeyValueStore<K, V>
     @Override
     public void init(final StateStoreContext context,
                      final StateStore root) {
-        this.context = context instanceof InternalProcessorContext ? (InternalProcessorContext<?, ?>) context : null;
+        this.context = context instanceof InternalProcessorContext ? (InternalProcessorContext) context : null;
         taskId = context.taskId();
         initStoreSerde(context);
         streamsMetrics = (StreamsMetricsImpl) context.metrics();
@@ -174,13 +175,28 @@ public class MeteredKeyValueStore<K, V>
         final KeyValueStore<Bytes, byte[]> wrapped = wrapped();
         if (wrapped instanceof CachedStateStore) {
             return ((CachedStateStore<byte[], byte[]>) wrapped).setFlushListener(
-                record -> listener.apply(
-                    record.withKey(serdes.keyFrom(record.key()))
-                        .withValue(new Change<>(
-                            record.value().newValue != null ? serdes.valueFrom(record.value().newValue) : null,
-                            record.value().oldValue != null ? serdes.valueFrom(record.value().oldValue) : null
-                        ))
-                ),
+                new CacheFlushListener<byte[], byte[]>() {
+                    @Override
+                    public void apply(final byte[] rawKey, final byte[] rawNewValue, final byte[] rawOldValue, final long timestamp) {
+                        listener.apply(
+                            serdes.keyFrom(rawKey),
+                            rawNewValue != null ? serdes.valueFrom(rawNewValue) : null,
+                            rawOldValue != null ? serdes.valueFrom(rawOldValue) : null,
+                            timestamp
+                        );
+                    }
+
+                    @Override
+                    public void apply(final Record<byte[], Change<byte[]>> record) {
+                        listener.apply(
+                            record.withKey(serdes.keyFrom(record.key()))
+                            .withValue(new Change<>(
+                                record.value().newValue != null ? serdes.valueFrom(record.value().newValue) : null,
+                                record.value().oldValue != null ? serdes.valueFrom(record.value().oldValue) : null
+                            ))
+                        );
+                    }
+                },
                 sendOldValues);
         }
         return false;

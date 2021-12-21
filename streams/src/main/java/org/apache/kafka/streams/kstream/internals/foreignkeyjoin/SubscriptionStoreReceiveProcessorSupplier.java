@@ -21,12 +21,7 @@ import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.kstream.internals.Change;
-import org.apache.kafka.streams.processor.api.ContextualProcessor;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.ProcessorSupplier;
-import org.apache.kafka.streams.processor.api.Record;
-import org.apache.kafka.streams.processor.api.RecordMetadata;
+import org.apache.kafka.streams.processor.To;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.metrics.TaskMetrics;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -35,8 +30,9 @@ import org.apache.kafka.streams.state.ValueAndTimestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
 public class SubscriptionStoreReceiveProcessorSupplier<K, KO>
-    implements ProcessorSupplier<KO, SubscriptionWrapper<K>, CombinedKey<KO, K>, Change<ValueAndTimestamp<SubscriptionWrapper<K>>>> {
+    implements org.apache.kafka.streams.processor.ProcessorSupplier<KO, SubscriptionWrapper<K>> {
     private static final Logger LOG = LoggerFactory.getLogger(SubscriptionStoreReceiveProcessorSupplier.class);
 
     private final StoreBuilder<TimestampedKeyValueStore<Bytes, SubscriptionWrapper<K>>> storeBuilder;
@@ -51,15 +47,15 @@ public class SubscriptionStoreReceiveProcessorSupplier<K, KO>
     }
 
     @Override
-    public Processor<KO, SubscriptionWrapper<K>, CombinedKey<KO, K>, Change<ValueAndTimestamp<SubscriptionWrapper<K>>>> get() {
+    public org.apache.kafka.streams.processor.Processor<KO, SubscriptionWrapper<K>> get() {
 
-        return new ContextualProcessor<KO, SubscriptionWrapper<K>, CombinedKey<KO, K>, Change<ValueAndTimestamp<SubscriptionWrapper<K>>>>() {
+        return new org.apache.kafka.streams.processor.AbstractProcessor<KO, SubscriptionWrapper<K>>() {
 
             private TimestampedKeyValueStore<Bytes, SubscriptionWrapper<K>> store;
             private Sensor droppedRecordsSensor;
 
             @Override
-            public void init(final ProcessorContext<CombinedKey<KO, K>, Change<ValueAndTimestamp<SubscriptionWrapper<K>>>> context) {
+            public void init(final org.apache.kafka.streams.processor.ProcessorContext context) {
                 super.init(context);
                 final InternalProcessorContext<?, ?> internalProcessorContext = (InternalProcessorContext<?, ?>) context;
 
@@ -74,38 +70,30 @@ public class SubscriptionStoreReceiveProcessorSupplier<K, KO>
             }
 
             @Override
-            public void process(final Record<KO, SubscriptionWrapper<K>> record) {
-                if (record.key() == null) {
-                    if (context().recordMetadata().isPresent()) {
-                        final RecordMetadata recordMetadata = context().recordMetadata().get();
-                        LOG.warn(
-                            "Skipping record due to null foreign key. "
-                                + "topic=[{}] partition=[{}] offset=[{}]",
-                            recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset()
-                        );
-                    } else {
-                        LOG.warn(
-                            "Skipping record due to null foreign key. Topic, partition, and offset not known."
-                        );
-                    }
+            public void process(final KO key, final SubscriptionWrapper<K> value) {
+                if (key == null) {
+                    LOG.warn(
+                        "Skipping record due to null foreign key. value=[{}] topic=[{}] partition=[{}] offset=[{}]",
+                        value, context().topic(), context().partition(), context().offset()
+                    );
                     droppedRecordsSensor.record();
                     return;
                 }
-                if (record.value().getVersion() != SubscriptionWrapper.CURRENT_VERSION) {
+                if (value.getVersion() != SubscriptionWrapper.CURRENT_VERSION) {
                     //Guard against modifications to SubscriptionWrapper. Need to ensure that there is compatibility
                     //with previous versions to enable rolling upgrades. Must develop a strategy for upgrading
                     //from older SubscriptionWrapper versions to newer versions.
                     throw new UnsupportedVersionException("SubscriptionWrapper is of an incompatible version.");
                 }
 
-                final Bytes subscriptionKey = keySchema.toBytes(record.key(), record.value().getPrimaryKey());
+                final Bytes subscriptionKey = keySchema.toBytes(key, value.getPrimaryKey());
 
-                final ValueAndTimestamp<SubscriptionWrapper<K>> newValue = ValueAndTimestamp.make(record.value(), record.timestamp());
+                final ValueAndTimestamp<SubscriptionWrapper<K>> newValue = ValueAndTimestamp.make(value, context().timestamp());
                 final ValueAndTimestamp<SubscriptionWrapper<K>> oldValue = store.get(subscriptionKey);
 
                 //This store is used by the prefix scanner in ForeignJoinSubscriptionProcessorSupplier
-                if (record.value().getInstruction().equals(SubscriptionWrapper.Instruction.DELETE_KEY_AND_PROPAGATE) ||
-                    record.value().getInstruction().equals(SubscriptionWrapper.Instruction.DELETE_KEY_NO_PROPAGATE)) {
+                if (value.getInstruction().equals(SubscriptionWrapper.Instruction.DELETE_KEY_AND_PROPAGATE) ||
+                    value.getInstruction().equals(SubscriptionWrapper.Instruction.DELETE_KEY_NO_PROPAGATE)) {
                     store.delete(subscriptionKey);
                 } else {
                     store.put(subscriptionKey, newValue);
@@ -114,9 +102,9 @@ public class SubscriptionStoreReceiveProcessorSupplier<K, KO>
                 // note: key is non-nullable
                 // note: newValue is non-nullable
                 context().forward(
-                    record.withKey(new CombinedKey<>(record.key(), record.value().getPrimaryKey()))
-                        .withValue(change)
-                        .withTimestamp(newValue.timestamp())
+                    new CombinedKey<>(key, value.getPrimaryKey()),
+                    change,
+                    To.all().withTimestamp(newValue.timestamp())
                 );
             }
         };

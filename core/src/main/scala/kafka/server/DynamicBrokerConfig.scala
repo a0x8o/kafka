@@ -204,19 +204,16 @@ class DynamicBrokerConfig(private val kafkaConfig: KafkaConfig) extends Logging 
   private val reconfigurables = mutable.Buffer[Reconfigurable]()
   private val brokerReconfigurables = mutable.Buffer[BrokerReconfigurable]()
   private val lock = new ReentrantReadWriteLock
-  private var currentConfig: KafkaConfig = null
+  private var currentConfig = kafkaConfig
   private val dynamicConfigPasswordEncoder = maybeCreatePasswordEncoder(kafkaConfig.passwordEncoderSecret)
 
-  private[server] def initialize(zkClientOpt: Option[KafkaZkClient]): Unit = {
+  private[server] def initialize(zkClient: KafkaZkClient): Unit = {
     currentConfig = new KafkaConfig(kafkaConfig.props, false, None)
-
-    zkClientOpt.foreach { zkClient =>
-      val adminZkClient = new AdminZkClient(zkClient)
-      updateDefaultConfig(adminZkClient.fetchEntityConfig(ConfigType.Broker, ConfigEntityName.Default), false)
-      val props = adminZkClient.fetchEntityConfig(ConfigType.Broker, kafkaConfig.brokerId.toString)
-      val brokerConfig = maybeReEncodePasswords(props, adminZkClient)
-      updateBrokerConfig(kafkaConfig.brokerId, brokerConfig)
-    }
+    val adminZkClient = new AdminZkClient(zkClient)
+    updateDefaultConfig(adminZkClient.fetchEntityConfig(ConfigType.Broker, ConfigEntityName.Default))
+    val props = adminZkClient.fetchEntityConfig(ConfigType.Broker, kafkaConfig.brokerId.toString)
+    val brokerConfig = maybeReEncodePasswords(props, adminZkClient)
+    updateBrokerConfig(kafkaConfig.brokerId, brokerConfig)
   }
 
   /**
@@ -291,23 +288,23 @@ class DynamicBrokerConfig(private val kafkaConfig: KafkaConfig) extends Logging 
     dynamicDefaultConfigs.clone()
   }
 
-  private[server] def updateBrokerConfig(brokerId: Int, persistentProps: Properties, doLog: Boolean = true): Unit = CoreUtils.inWriteLock(lock) {
+  private[server] def updateBrokerConfig(brokerId: Int, persistentProps: Properties): Unit = CoreUtils.inWriteLock(lock) {
     try {
       val props = fromPersistentProps(persistentProps, perBrokerConfig = true)
       dynamicBrokerConfigs.clear()
       dynamicBrokerConfigs ++= props.asScala
-      updateCurrentConfig(doLog)
+      updateCurrentConfig()
     } catch {
       case e: Exception => error(s"Per-broker configs of $brokerId could not be applied: ${persistentProps.keys()}", e)
     }
   }
 
-  private[server] def updateDefaultConfig(persistentProps: Properties, doLog: Boolean = true): Unit = CoreUtils.inWriteLock(lock) {
+  private[server] def updateDefaultConfig(persistentProps: Properties): Unit = CoreUtils.inWriteLock(lock) {
     try {
       val props = fromPersistentProps(persistentProps, perBrokerConfig = false)
       dynamicDefaultConfigs.clear()
       dynamicDefaultConfigs ++= props.asScala
-      updateCurrentConfig(doLog)
+      updateCurrentConfig()
     } catch {
       case e: Exception => error(s"Cluster default configs could not be applied: ${persistentProps.keys()}", e)
     }
@@ -514,14 +511,13 @@ class DynamicBrokerConfig(private val kafkaConfig: KafkaConfig) extends Logging 
     }
   }
 
-  private def updateCurrentConfig(doLog: Boolean): Unit = {
+  private def updateCurrentConfig(): Unit = {
     val newProps = mutable.Map[String, String]()
     newProps ++= staticBrokerConfigs
     overrideProps(newProps, dynamicDefaultConfigs)
     overrideProps(newProps, dynamicBrokerConfigs)
-
     val oldConfig = currentConfig
-    val (newConfig, brokerReconfigurablesToUpdate) = processReconfiguration(newProps, validateOnly = false, doLog)
+    val (newConfig, brokerReconfigurablesToUpdate) = processReconfiguration(newProps, validateOnly = false)
     if (newConfig ne currentConfig) {
       currentConfig = newConfig
       kafkaConfig.updateCurrentConfig(newConfig)
@@ -531,8 +527,8 @@ class DynamicBrokerConfig(private val kafkaConfig: KafkaConfig) extends Logging 
     }
   }
 
-  private def processReconfiguration(newProps: Map[String, String], validateOnly: Boolean, doLog: Boolean = false): (KafkaConfig, List[BrokerReconfigurable]) = {
-    val newConfig = new KafkaConfig(newProps.asJava, doLog, None)
+  private def processReconfiguration(newProps: Map[String, String], validateOnly: Boolean): (KafkaConfig, List[BrokerReconfigurable]) = {
+    val newConfig = new KafkaConfig(newProps.asJava, !validateOnly, None)
     val (changeMap, deletedKeySet) = updatedConfigs(newConfig.originalsFromThisConfig, currentConfig.originals)
     if (changeMap.nonEmpty || deletedKeySet.nonEmpty) {
       try {
@@ -723,7 +719,7 @@ class DynamicThreadPool(server: KafkaBroker) extends BrokerReconfigurable {
     if (newConfig.numNetworkThreads != oldConfig.numNetworkThreads)
       server.socketServer.resizeThreadPool(oldConfig.numNetworkThreads, newConfig.numNetworkThreads)
     if (newConfig.numReplicaFetchers != oldConfig.numReplicaFetchers)
-      server.replicaManager.resizeFetcherThreadPool(newConfig.numReplicaFetchers)
+      server.replicaManager.replicaFetcherManager.resizeThreadPool(newConfig.numReplicaFetchers)
     if (newConfig.numRecoveryThreadsPerDataDir != oldConfig.numRecoveryThreadsPerDataDir)
       server.logManager.resizeRecoveryThreadPool(newConfig.numRecoveryThreadsPerDataDir)
     if (newConfig.backgroundThreads != oldConfig.backgroundThreads)
@@ -959,3 +955,6 @@ class DynamicListenerConfig(server: KafkaBroker) extends BrokerReconfigurable wi
     listeners.map(e => (e.listenerName, e)).toMap
 
 }
+
+
+

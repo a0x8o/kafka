@@ -548,12 +548,11 @@ public class KafkaStreamsTest {
         try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier, time)) {
             final int newInitCount = MockMetricsReporter.INIT_COUNT.get();
             final int initDiff = newInitCount - oldInitCount;
-            assertTrue("some reporters including MockMetricsReporter should be initialized by calling on construction", initDiff == 1);
+            assertTrue("some reporters should be initialized by calling on construction", initDiff > 0);
 
             streams.start();
             final int oldCloseCount = MockMetricsReporter.CLOSE_COUNT.get();
             streams.close();
-            assertEquals(streams.state(), KafkaStreams.State.NOT_RUNNING);
             assertEquals(oldCloseCount + initDiff, MockMetricsReporter.CLOSE_COUNT.get());
         }
     }

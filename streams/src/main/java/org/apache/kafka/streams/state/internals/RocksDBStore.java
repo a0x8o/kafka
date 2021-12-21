@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.streams.state.internals;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.Bytes;
@@ -25,15 +24,10 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.errors.InvalidStateStoreException;
 import org.apache.kafka.streams.errors.ProcessorStateException;
+import org.apache.kafka.streams.processor.BatchingStateRestoreCallback;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
-import org.apache.kafka.streams.processor.internals.ChangelogRecordDeserializationHelper;
-import org.apache.kafka.streams.processor.internals.RecordBatchingStateRestoreCallback;
-import org.apache.kafka.streams.query.Position;
-import org.apache.kafka.streams.query.PositionBound;
-import org.apache.kafka.streams.query.Query;
-import org.apache.kafka.streams.query.QueryResult;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.RocksDBConfigSetter;
@@ -73,7 +67,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import static org.apache.kafka.streams.StreamsConfig.InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED;
 import static org.apache.kafka.streams.StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG;
 import static org.apache.kafka.streams.processor.internals.ProcessorContextUtils.getMetricsImpl;
 
@@ -94,10 +87,8 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
     final String name;
     private final String parentDir;
     final Set<KeyValueIterator<Bytes, byte[]>> openIterators = Collections.synchronizedSet(new HashSet<>());
-    private boolean consistencyEnabled = false;
 
-    // VisibleForTesting
-    protected File dbDir;
+    File dbDir;
     RocksDB db;
     RocksDBAccessor dbAccessor;
 
@@ -114,13 +105,9 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
     private final RocksDBMetricsRecorder metricsRecorder;
 
     protected volatile boolean open = false;
-    protected StateStoreContext context;
-    // VisibleForTesting
-    protected Position position;
 
-    // VisibleForTesting
-    public RocksDBStore(final String name,
-                        final String metricsScope) {
+    RocksDBStore(final String name,
+                 final String metricsScope) {
         this(name, DB_FILE_DIR, new RocksDBMetricsRecorder(metricsScope, name));
     }
 
@@ -130,7 +117,6 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         this.name = name;
         this.parentDir = parentDir;
         this.metricsRecorder = metricsRecorder;
-        this.position = Position.emptyPosition();
     }
 
     @SuppressWarnings("unchecked")
@@ -174,7 +160,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         fOptions.setWaitForFlush(true);
 
         final Class<RocksDBConfigSetter> configSetterClass =
-                (Class<RocksDBConfigSetter>) configs.get(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG);
+            (Class<RocksDBConfigSetter>) configs.get(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG);
 
         if (configSetterClass != null) {
             configSetter = Utils.newInstance(configSetterClass);
@@ -182,6 +168,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         }
 
         dbDir = new File(new File(stateDir, parentDir), name);
+
         try {
             Files.createDirectories(dbDir.getParentFile().toPath());
             Files.createDirectories(dbDir.getAbsoluteFile().toPath());
@@ -204,7 +191,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
             userSpecifiedStatistics = true;
         }
         if (!userSpecifiedStatistics &&
-                RecordingLevel.forName((String) configs.get(METRICS_RECORDING_LEVEL_CONFIG)) == RecordingLevel.DEBUG) {
+            RecordingLevel.forName((String) configs.get(METRICS_RECORDING_LEVEL_CONFIG)) == RecordingLevel.DEBUG) {
 
             // metrics recorder will clean up statistics object
             final Statistics statistics = new Statistics();
@@ -220,9 +207,9 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
             metricsRecorder.addValueProviders(name, db, cache, statistics);
         } else if (tableFormatConfig instanceof BlockBasedTableConfig) {
             throw new ProcessorStateException("The used block-based table format configuration does not expose the " +
-                    "block cache. Use the BlockBasedTableConfig instance provided by Options#tableFormatConfig() to configure " +
-                    "the block-based table format of RocksDB. Do not provide a new instance of BlockBasedTableConfig to " +
-                    "the RocksDB options.");
+                "block cache. Use the BlockBasedTableConfig instance provided by Options#tableFormatConfig() to configure " +
+                "the block-based table format of RocksDB. Do not provide a new instance of BlockBasedTableConfig to " +
+                "the RocksDB options.");
         } else {
             metricsRecorder.addValueProviders(name, db, null, statistics);
         }
@@ -231,7 +218,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
     void openRocksDB(final DBOptions dbOptions,
                      final ColumnFamilyOptions columnFamilyOptions) {
         final List<ColumnFamilyDescriptor> columnFamilyDescriptors
-                = Collections.singletonList(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, columnFamilyOptions));
+            = Collections.singletonList(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, columnFamilyOptions));
         final List<ColumnFamilyHandle> columnFamilies = new ArrayList<>(columnFamilyDescriptors.size());
 
         try {
@@ -252,7 +239,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
 
         // value getter should always read directly from rocksDB
         // since it is only for values that are already flushed
-        context.register(root, (RecordBatchingStateRestoreCallback) this::restoreBatch);
+        context.register(root, new RocksDBBatchingRestoreCallback(this));
     }
 
     @Override
@@ -264,12 +251,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
 
         // value getter should always read directly from rocksDB
         // since it is only for values that are already flushed
-        this.context = context;
-        context.register(root, (RecordBatchingStateRestoreCallback) this::restoreBatch);
-        consistencyEnabled = StreamsConfig.InternalConfig.getBoolean(
-                context.appConfigs(),
-                IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
-                false);
+        context.register(root, new RocksDBBatchingRestoreCallback(this));
     }
 
     @Override
@@ -299,8 +281,6 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         Objects.requireNonNull(key, "key cannot be null");
         validateStoreOpen();
         dbAccessor.put(key.get(), value);
-
-        StoreQueryUtils.updatePosition(position, context);
     }
 
     @Override
@@ -318,22 +298,10 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
     public void putAll(final List<KeyValue<Bytes, byte[]>> entries) {
         try (final WriteBatch batch = new WriteBatch()) {
             dbAccessor.prepareBatch(entries, batch);
-            StoreQueryUtils.updatePosition(position, context);
             write(batch);
         } catch (final RocksDBException e) {
             throw new ProcessorStateException("Error while batch writing to store " + name, e);
         }
-    }
-
-    @Override
-    public <R> QueryResult<R> query(final Query<R> query, final PositionBound positionBound,
-                                    final boolean collectExecutionInfo) {
-        return StoreQueryUtils.handleBasicQueries(
-                query,
-                positionBound,
-                collectExecutionInfo,
-                this
-        );
     }
 
     @Override
@@ -402,9 +370,9 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
                                           final boolean forward) {
         if (Objects.nonNull(from) && Objects.nonNull(to) && from.compareTo(to) > 0) {
             log.warn("Returning empty iterator for fetch with invalid key range: from > to. "
-                    + "This may be due to range arguments set in the wrong order, " +
-                    "or serdes that don't preserve ordering when lexicographically comparing the serialized bytes. " +
-                    "Note that the built-in numerical serdes do not follow this for negative numbers");
+                + "This may be due to range arguments set in the wrong order, " +
+                "or serdes that don't preserve ordering when lexicographically comparing the serialized bytes. " +
+                "Note that the built-in numerical serdes do not follow this for negative numbers");
             return KeyValueIterators.emptyIterator();
         }
 
@@ -465,7 +433,6 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         return value < 0;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public synchronized void flush() {
         if (db == null) {
@@ -633,13 +600,13 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
                                                      final Bytes to,
                                                      final boolean forward) {
             return new RocksDBRangeIterator(
-                    name,
-                    db.newIterator(columnFamily),
-                    openIterators,
-                    from,
-                    to,
-                    forward,
-                    true
+                name,
+                db.newIterator(columnFamily),
+                openIterators,
+                from,
+                to,
+                forward,
+                true
             );
         }
 
@@ -668,13 +635,13 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         public KeyValueIterator<Bytes, byte[]> prefixScan(final Bytes prefix) {
             final Bytes to = Bytes.increment(prefix);
             return new RocksDBRangeIterator(
-                    name,
-                    db.newIterator(columnFamily),
-                    openIterators,
-                    prefix,
-                    to,
-                    true,
-                    false
+                name,
+                db.newIterator(columnFamily),
+                openIterators,
+                prefix,
+                to,
+                true,
+                false
             );
         }
 
@@ -713,29 +680,28 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         }
     }
 
-    void restoreBatch(final Collection<ConsumerRecord<byte[], byte[]>> records) {
-        try (final WriteBatch batch = new WriteBatch()) {
-            final List<KeyValue<byte[], byte[]>> keyValues = new ArrayList<>();
-            for (final ConsumerRecord<byte[], byte[]> record : records) {
-                position = ChangelogRecordDeserializationHelper.applyChecksAndUpdatePosition(
-                        record, consistencyEnabled, position);
-                // If version headers are not present or version is V0
-                keyValues.add(new KeyValue<>(record.key(), record.value()));
-            }
-            dbAccessor.prepareBatchForRestore(keyValues, batch);
-            write(batch);
-        } catch (final RocksDBException e) {
-            throw new ProcessorStateException("Error restoring batch to store " + name, e);
+    // not private for testing
+    static class RocksDBBatchingRestoreCallback implements BatchingStateRestoreCallback {
+
+        private final RocksDBStore rocksDBStore;
+
+        RocksDBBatchingRestoreCallback(final RocksDBStore rocksDBStore) {
+            this.rocksDBStore = rocksDBStore;
         }
 
+        @Override
+        public void restoreAll(final Collection<KeyValue<byte[], byte[]>> records) {
+            try (final WriteBatch batch = new WriteBatch()) {
+                rocksDBStore.dbAccessor.prepareBatchForRestore(records, batch);
+                rocksDBStore.write(batch);
+            } catch (final RocksDBException e) {
+                throw new ProcessorStateException("Error restoring batch to store " + rocksDBStore.name, e);
+            }
+        }
     }
 
     // for testing
     public Options getOptions() {
         return userSpecifiedOptions;
-    }
-
-    Position getPosition() {
-        return position;
     }
 }

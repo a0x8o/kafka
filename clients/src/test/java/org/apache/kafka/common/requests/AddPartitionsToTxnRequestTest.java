@@ -17,15 +17,14 @@
 package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.utils.annotation.ApiKeyVersionsSource;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 
 import java.util.Collections;
 import java.util.List;
-import org.junit.jupiter.params.ParameterizedTest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -36,24 +35,26 @@ public class AddPartitionsToTxnRequestTest {
     private static short producerEpoch = 1;
     private static int throttleTimeMs = 10;
 
-    @ParameterizedTest
-    @ApiKeyVersionsSource(apiKey = ApiKeys.ADD_PARTITIONS_TO_TXN)
-    public void testConstructor(short version) {
+    @Test
+    public void testConstructor() {
         List<TopicPartition> partitions = new ArrayList<>();
         partitions.add(new TopicPartition("topic", 0));
         partitions.add(new TopicPartition("topic", 1));
 
         AddPartitionsToTxnRequest.Builder builder = new AddPartitionsToTxnRequest.Builder(transactionalId, producerId, producerEpoch, partitions);
-        AddPartitionsToTxnRequest request = builder.build(version);
 
-        assertEquals(transactionalId, request.data().transactionalId());
-        assertEquals(producerId, request.data().producerId());
-        assertEquals(producerEpoch, request.data().producerEpoch());
-        assertEquals(partitions, request.partitions());
+        for (short version : ApiKeys.ADD_PARTITIONS_TO_TXN.allVersions()) {
+            AddPartitionsToTxnRequest request = builder.build(version);
 
-        AddPartitionsToTxnResponse response = request.getErrorResponse(throttleTimeMs, Errors.UNKNOWN_TOPIC_OR_PARTITION.exception());
+            assertEquals(transactionalId, request.data().transactionalId());
+            assertEquals(producerId, request.data().producerId());
+            assertEquals(producerEpoch, request.data().producerEpoch());
+            assertEquals(partitions, request.partitions());
 
-        assertEquals(Collections.singletonMap(Errors.UNKNOWN_TOPIC_OR_PARTITION, 2), response.errorCounts());
-        assertEquals(throttleTimeMs, response.throttleTimeMs());
+            AddPartitionsToTxnResponse response = request.getErrorResponse(throttleTimeMs, Errors.UNKNOWN_TOPIC_OR_PARTITION.exception());
+
+            assertEquals(Collections.singletonMap(Errors.UNKNOWN_TOPIC_OR_PARTITION, 2), response.errorCounts());
+            assertEquals(throttleTimeMs, response.throttleTimeMs());
+        }
     }
 }

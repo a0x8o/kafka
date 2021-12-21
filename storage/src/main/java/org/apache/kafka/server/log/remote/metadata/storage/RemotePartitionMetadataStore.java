@@ -17,7 +17,6 @@
 package org.apache.kafka.server.log.remote.metadata.storage;
 
 import org.apache.kafka.common.TopicIdPartition;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.server.log.remote.storage.RemoteLogSegmentId;
 import org.apache.kafka.server.log.remote.storage.RemoteLogSegmentMetadata;
 import org.apache.kafka.server.log.remote.storage.RemoteLogSegmentMetadataUpdate;
@@ -29,9 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -45,36 +42,21 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RemotePartitionMetadataStore extends RemotePartitionMetadataEventHandler implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(RemotePartitionMetadataStore.class);
 
-    private final Path logDir;
-
     private Map<TopicIdPartition, RemotePartitionDeleteMetadata> idToPartitionDeleteMetadata =
             new ConcurrentHashMap<>();
 
-    private Map<TopicIdPartition, FileBasedRemoteLogMetadataCache> idToRemoteLogMetadataCache =
+    private Map<TopicIdPartition, RemoteLogMetadataCache> idToRemoteLogMetadataCache =
             new ConcurrentHashMap<>();
-
-    public RemotePartitionMetadataStore(Path logDir) {
-        this.logDir = logDir;
-    }
 
     @Override
     public void handleRemoteLogSegmentMetadata(RemoteLogSegmentMetadata remoteLogSegmentMetadata) {
         log.debug("Adding remote log segment : [{}]", remoteLogSegmentMetadata);
 
-        final RemoteLogSegmentId remoteLogSegmentId = remoteLogSegmentMetadata.remoteLogSegmentId();
-        TopicIdPartition topicIdPartition = remoteLogSegmentId.topicIdPartition();
+        RemoteLogSegmentId remoteLogSegmentId = remoteLogSegmentMetadata.remoteLogSegmentId();
 
-        // This should have been already existing as it is loaded when the partitions are assigned.
-        RemoteLogMetadataCache remoteLogMetadataCache = idToRemoteLogMetadataCache.get(topicIdPartition);
-        if (remoteLogMetadataCache != null) {
-            remoteLogMetadataCache.addCopyInProgressSegment(remoteLogSegmentMetadata);
-        } else {
-            throw new IllegalStateException("No partition metadata found for : " + topicIdPartition);
-        }
-    }
-
-    private Path partitionLogDirectory(TopicPartition topicPartition) {
-        return new File(logDir.toFile(), topicPartition.topic() + "-" + topicPartition.partition()).toPath();
+        idToRemoteLogMetadataCache
+                .computeIfAbsent(remoteLogSegmentId.topicIdPartition(), id -> new RemoteLogMetadataCache())
+                .addCopyInProgressSegment(remoteLogSegmentMetadata);
     }
 
     @Override
@@ -87,10 +69,10 @@ public class RemotePartitionMetadataStore extends RemotePartitionMetadataEventHa
             try {
                 remoteLogMetadataCache.updateRemoteLogSegmentMetadata(rlsmUpdate);
             } catch (RemoteResourceNotFoundException e) {
-                log.warn("Error occurred while updating the remote log segment.", e);
+                log.error("Error occurred while updating the remote log segment.");
             }
         } else {
-            throw new IllegalStateException("No partition metadata found for : " + topicIdPartition);
+            log.error("No partition metadata found for : " + topicIdPartition);
         }
     }
 
@@ -109,27 +91,6 @@ public class RemotePartitionMetadataStore extends RemotePartitionMetadataEventHa
         }
     }
 
-    @Override
-    public void syncLogMetadataSnapshot(TopicIdPartition topicIdPartition,
-                                        int metadataPartition,
-                                        Long metadataPartitionOffset) throws IOException {
-        RemotePartitionDeleteMetadata partitionDeleteMetadata = idToPartitionDeleteMetadata.get(topicIdPartition);
-        if (partitionDeleteMetadata != null) {
-            log.info("Skipping syncing of metadata snapshot as remote partition [{}] is with state: [{}] ", topicIdPartition,
-                     partitionDeleteMetadata);
-        } else {
-            FileBasedRemoteLogMetadataCache remoteLogMetadataCache = idToRemoteLogMetadataCache.get(topicIdPartition);
-            if (remoteLogMetadataCache != null) {
-                remoteLogMetadataCache.flushToFile(metadataPartition, metadataPartitionOffset);
-            }
-        }
-    }
-
-    @Override
-    public void clearTopicPartition(TopicIdPartition topicIdPartition) {
-        idToRemoteLogMetadataCache.remove(topicIdPartition);
-    }
-
     public Iterator<RemoteLogSegmentMetadata> listRemoteLogSegments(TopicIdPartition topicIdPartition)
             throws RemoteStorageException {
         Objects.requireNonNull(topicIdPartition, "topicIdPartition can not be null");
@@ -144,9 +105,9 @@ public class RemotePartitionMetadataStore extends RemotePartitionMetadataEventHa
         return getRemoteLogMetadataCache(topicIdPartition).listRemoteLogSegments(leaderEpoch);
     }
 
-    private FileBasedRemoteLogMetadataCache getRemoteLogMetadataCache(TopicIdPartition topicIdPartition)
+    private RemoteLogMetadataCache getRemoteLogMetadataCache(TopicIdPartition topicIdPartition)
             throws RemoteResourceNotFoundException {
-        FileBasedRemoteLogMetadataCache remoteLogMetadataCache = idToRemoteLogMetadataCache.get(topicIdPartition);
+        RemoteLogMetadataCache remoteLogMetadataCache = idToRemoteLogMetadataCache.get(topicIdPartition);
         if (remoteLogMetadataCache == null) {
             throw new RemoteResourceNotFoundException("No resource found for partition: " + topicIdPartition);
         }
@@ -179,10 +140,4 @@ public class RemotePartitionMetadataStore extends RemotePartitionMetadataEventHa
         idToPartitionDeleteMetadata = Collections.emptyMap();
         idToRemoteLogMetadataCache = Collections.emptyMap();
     }
-
-    public void maybeLoadPartition(TopicIdPartition partition) {
-        idToRemoteLogMetadataCache.computeIfAbsent(partition,
-            topicIdPartition -> new FileBasedRemoteLogMetadataCache(topicIdPartition, partitionLogDirectory(topicIdPartition.topicPartition())));
-    }
-
 }

@@ -25,13 +25,14 @@ import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.kstream.internals.Change;
 import org.apache.kafka.streams.kstream.internals.WrappingNullableUtils;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.internals.SerdeGetter;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorContextUtils;
 import org.apache.kafka.streams.processor.internals.ProcessorStateManager;
-import org.apache.kafka.streams.processor.internals.SerdeGetter;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.SessionStore;
@@ -57,7 +58,7 @@ public class MeteredSessionStore<K, V>
     private Sensor flushSensor;
     private Sensor removeSensor;
     private Sensor e2eLatencySensor;
-    private InternalProcessorContext<?, ?> context;
+    private InternalProcessorContext context;
     private TaskId taskId;
 
 
@@ -77,7 +78,7 @@ public class MeteredSessionStore<K, V>
     @Override
     public void init(final ProcessorContext context,
                      final StateStore root) {
-        this.context = context instanceof InternalProcessorContext ? (InternalProcessorContext<?, ?>) context : null;
+        this.context = context instanceof InternalProcessorContext ? (InternalProcessorContext) context : null;
         taskId = context.taskId();
         initStoreSerde(context);
         streamsMetrics = (StreamsMetricsImpl) context.metrics();
@@ -93,7 +94,7 @@ public class MeteredSessionStore<K, V>
     @Override
     public void init(final StateStoreContext context,
                      final StateStore root) {
-        this.context = context instanceof InternalProcessorContext ? (InternalProcessorContext<?, ?>) context : null;
+        this.context = context instanceof InternalProcessorContext ? (InternalProcessorContext) context : null;
         taskId = context.taskId();
         initStoreSerde(context);
         streamsMetrics = (StreamsMetricsImpl) context.metrics();
@@ -146,13 +147,28 @@ public class MeteredSessionStore<K, V>
         final SessionStore<Bytes, byte[]> wrapped = wrapped();
         if (wrapped instanceof CachedStateStore) {
             return ((CachedStateStore<byte[], byte[]>) wrapped).setFlushListener(
-                record -> listener.apply(
-                    record.withKey(SessionKeySchema.from(record.key(), serdes.keyDeserializer(), serdes.topic()))
-                        .withValue(new Change<>(
-                            record.value().newValue != null ? serdes.valueFrom(record.value().newValue) : null,
-                            record.value().oldValue != null ? serdes.valueFrom(record.value().oldValue) : null
-                        ))
-                ),
+                new CacheFlushListener<byte[], byte[]>() {
+                    @Override
+                    public void apply(final byte[] key, final byte[] newValue, final byte[] oldValue, final long timestamp) {
+                        listener.apply(
+                            SessionKeySchema.from(key, serdes.keyDeserializer(), serdes.topic()),
+                            newValue != null ? serdes.valueFrom(newValue) : null,
+                            oldValue != null ? serdes.valueFrom(oldValue) : null,
+                            timestamp
+                        );
+                    }
+
+                    @Override
+                    public void apply(final Record<byte[], Change<byte[]>> record) {
+                        listener.apply(
+                            record.withKey(SessionKeySchema.from(record.key(), serdes.keyDeserializer(), serdes.topic()))
+                                  .withValue(new Change<>(
+                                      record.value().newValue != null ? serdes.valueFrom(record.value().newValue) : null,
+                                      record.value().oldValue != null ? serdes.valueFrom(record.value().oldValue) : null
+                                  ))
+                        );
+                    }
+                },
                 sendOldValues);
         }
         return false;
@@ -249,6 +265,8 @@ public class MeteredSessionStore<K, V>
     @Override
     public KeyValueIterator<Windowed<K>, V> fetch(final K keyFrom,
                                                   final K keyTo) {
+        Objects.requireNonNull(keyFrom, "keyFrom cannot be null");
+        Objects.requireNonNull(keyTo, "keyTo cannot be null");
         return new MeteredWindowedKeyValueIterator<>(
             wrapped().fetch(keyBytes(keyFrom), keyBytes(keyTo)),
             fetchSensor,
@@ -260,6 +278,8 @@ public class MeteredSessionStore<K, V>
     @Override
     public KeyValueIterator<Windowed<K>, V> backwardFetch(final K keyFrom,
                                                           final K keyTo) {
+        Objects.requireNonNull(keyFrom, "keyFrom cannot be null");
+        Objects.requireNonNull(keyTo, "keyTo cannot be null");
         return new MeteredWindowedKeyValueIterator<>(
             wrapped().backwardFetch(keyBytes(keyFrom), keyBytes(keyTo)),
             fetchSensor,
@@ -310,6 +330,8 @@ public class MeteredSessionStore<K, V>
                                                          final K keyTo,
                                                          final long earliestSessionEndTime,
                                                          final long latestSessionStartTime) {
+        Objects.requireNonNull(keyFrom, "keyFrom cannot be null");
+        Objects.requireNonNull(keyTo, "keyTo cannot be null");
         final Bytes bytesKeyFrom = keyBytes(keyFrom);
         final Bytes bytesKeyTo = keyBytes(keyTo);
         return new MeteredWindowedKeyValueIterator<>(
@@ -329,6 +351,8 @@ public class MeteredSessionStore<K, V>
                                                                  final K keyTo,
                                                                  final long earliestSessionEndTime,
                                                                  final long latestSessionStartTime) {
+        Objects.requireNonNull(keyFrom, "keyFrom cannot be null");
+        Objects.requireNonNull(keyTo, "keyTo cannot be null");
         final Bytes bytesKeyFrom = keyBytes(keyFrom);
         final Bytes bytesKeyTo = keyBytes(keyTo);
         return new MeteredWindowedKeyValueIterator<>(
@@ -360,7 +384,7 @@ public class MeteredSessionStore<K, V>
     }
 
     private Bytes keyBytes(final K key) {
-        return key == null ? null : Bytes.wrap(serdes.rawKey(key));
+        return Bytes.wrap(serdes.rawKey(key));
     }
 
     private void maybeRecordE2ELatency() {

@@ -126,11 +126,4 @@ public final class ClusterDelta {
         }
         return new ClusterImage(newBrokers);
     }
-
-    @Override
-    public String toString() {
-        return "ClusterDelta(" +
-            "changedBrokers=" + changedBrokers +
-            ')';
-    }
 }

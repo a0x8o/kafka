@@ -52,8 +52,6 @@ class LogCleanerTest {
   val logConfig = LogConfig(logProps)
   val time = new MockTime()
   val throttler = new Throttler(desiredRatePerSec = Double.MaxValue, checkIntervalMs = Long.MaxValue, time = time)
-  val tombstoneRetentionMs = 86400000
-  val largeTimestamp = Long.MaxValue - tombstoneRetentionMs - 1
 
   @AfterEach
   def teardown(): Unit = {
@@ -86,8 +84,8 @@ class LogCleanerTest {
     val segments = log.logSegments.take(3).toSeq
     val stats = new CleanerStats()
     val expectedBytesRead = segments.map(_.size).sum
+    cleaner.cleanSegments(log, segments, map, 0L, stats, new CleanedTransactionMetadata)
     val shouldRemain = LogTestUtils.keysInLog(log).filter(!keys.contains(_))
-    cleaner.cleanSegments(log, segments, map, 0L, stats, new CleanedTransactionMetadata, -1)
     assertEquals(shouldRemain, LogTestUtils.keysInLog(log))
     assertEquals(expectedBytesRead, stats.bytesRead)
   }
@@ -172,7 +170,7 @@ class LogCleanerTest {
     val segments = log.logSegments(0, log.activeSegment.baseOffset).toSeq
     val stats = new CleanerStats()
     cleaner.buildOffsetMap(log, 0, log.activeSegment.baseOffset, offsetMap, stats)
-    cleaner.cleanSegments(log, segments, offsetMap, 0L, stats, new CleanedTransactionMetadata, -1)
+    cleaner.cleanSegments(log, segments, offsetMap, 0L, stats, new CleanedTransactionMetadata)
 
     // Validate based on the file name that log segment file is renamed exactly once for async deletion
     assertEquals(expectedFileName, firstLogFile.file().getPath)
@@ -367,7 +365,7 @@ class LogCleanerTest {
     log.roll()
 
     // cannot remove the marker in this pass because there are still valid records
-    var dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    var dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(1, 3, 2), LogTestUtils.keysInLog(log))
     assertEquals(List(0, 2, 3, 4, 5), offsetsInLog(log))
 
@@ -376,17 +374,17 @@ class LogCleanerTest {
     log.roll()
 
     // the first cleaning preserves the commit marker (at offset 3) since there were still records for the transaction
-    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 1, 3), LogTestUtils.keysInLog(log))
     assertEquals(List(3, 4, 5, 6, 7, 8), offsetsInLog(log))
 
-    // clean again with same timestamp to verify marker is not removed early
-    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    // delete horizon forced to 0 to verify marker is not removed early
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = 0L)._1
     assertEquals(List(2, 1, 3), LogTestUtils.keysInLog(log))
     assertEquals(List(3, 4, 5, 6, 7, 8), offsetsInLog(log))
 
-    // clean again with max timestamp to verify the marker is removed
-    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = Long.MaxValue)._1
+    // clean again with large delete horizon and verify the marker is removed
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 1, 3), LogTestUtils.keysInLog(log))
     assertEquals(List(4, 5, 6, 7, 8), offsetsInLog(log))
   }
@@ -415,12 +413,11 @@ class LogCleanerTest {
     log.appendAsLeader(commitMarker(producerId, producerEpoch), leaderEpoch = 0, origin = AppendOrigin.Coordinator)
     log.roll()
 
-    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(2), LogTestUtils.keysInLog(log))
     assertEquals(List(1, 3, 4), offsetsInLog(log))
 
-    // In the first pass, the deleteHorizon for {Producer2: Commit} is set. In the second pass, it's removed.
-    runTwoPassClean(cleaner, LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(2), LogTestUtils.keysInLog(log))
     assertEquals(List(3, 4), offsetsInLog(log))
   }
@@ -457,14 +454,14 @@ class LogCleanerTest {
 
     // first time through the records are removed
     // Expected State: [{Producer1: EmptyBatch}, {Producer2: EmptyBatch}, {Producer2: Commit}, {2}, {3}, {Producer1: Commit}]
-    var dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    var dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 3), LogTestUtils.keysInLog(log))
     assertEquals(List(4, 5, 6, 7), offsetsInLog(log))
     assertEquals(List(1, 3, 4, 5, 6, 7), lastOffsetsPerBatchInLog(log))
 
     // the empty batch remains if cleaned again because it still holds the last sequence
     // Expected State: [{Producer1: EmptyBatch}, {Producer2: EmptyBatch}, {Producer2: Commit}, {2}, {3}, {Producer1: Commit}]
-    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 3), LogTestUtils.keysInLog(log))
     assertEquals(List(4, 5, 6, 7), offsetsInLog(log))
     assertEquals(List(1, 3, 4, 5, 6, 7), lastOffsetsPerBatchInLog(log))
@@ -478,15 +475,13 @@ class LogCleanerTest {
     log.roll()
 
     // Expected State: [{Producer1: EmptyBatch}, {Producer2: Commit}, {2}, {3}, {Producer1: Commit}, {Producer2: 1}, {Producer2: Commit}]
-    // The deleteHorizon for {Producer2: Commit} is still not set yet.
-    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 3, 1), LogTestUtils.keysInLog(log))
     assertEquals(List(4, 5, 6, 7, 8, 9), offsetsInLog(log))
     assertEquals(List(1, 4, 5, 6, 7, 8, 9), lastOffsetsPerBatchInLog(log))
 
     // Expected State: [{Producer1: EmptyBatch}, {2}, {3}, {Producer1: Commit}, {Producer2: 1}, {Producer2: Commit}]
-    // In the first pass, the deleteHorizon for {Producer2: Commit} is set. In the second pass, it's removed.
-    dirtyOffset = runTwoPassClean(cleaner, LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 3, 1), LogTestUtils.keysInLog(log))
     assertEquals(List(5, 6, 7, 8, 9), offsetsInLog(log))
     assertEquals(List(1, 5, 6, 7, 8, 9), lastOffsetsPerBatchInLog(log))
@@ -511,16 +506,14 @@ class LogCleanerTest {
 
     // first time through the control batch is retained as an empty batch
     // Expected State: [{Producer1: EmptyBatch}], [{2}, {3}]
-    // In the first pass, the deleteHorizon for the commit marker is set. In the second pass, the commit marker is removed
-    // but the empty batch is retained for preserving the producer epoch.
-    var dirtyOffset = runTwoPassClean(cleaner, LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    var dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 3), LogTestUtils.keysInLog(log))
     assertEquals(List(1, 2), offsetsInLog(log))
     assertEquals(List(0, 1, 2), lastOffsetsPerBatchInLog(log))
 
     // the empty control batch does not cause an exception when cleaned
     // Expected State: [{Producer1: EmptyBatch}], [{2}, {3}]
-    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = Long.MaxValue)._1
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(2, 3), LogTestUtils.keysInLog(log))
     assertEquals(List(1, 2), offsetsInLog(log))
     assertEquals(List(0, 1, 2), lastOffsetsPerBatchInLog(log))
@@ -544,7 +537,7 @@ class LogCleanerTest {
     log.roll()
 
     // Both the record and the marker should remain after cleaning
-    runTwoPassClean(cleaner, LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(0, 1), offsetsInLog(log))
     assertEquals(List(0, 1), lastOffsetsPerBatchInLog(log))
   }
@@ -569,12 +562,12 @@ class LogCleanerTest {
     // Both the batch and the marker should remain after cleaning. The batch is retained
     // because it is the last entry for this producerId. The marker is retained because
     // there are still batches remaining from this transaction.
-    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(1), offsetsInLog(log))
     assertEquals(List(0, 1), lastOffsetsPerBatchInLog(log))
 
     // The empty batch and the marker is still retained after a second cleaning.
-    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = Long.MaxValue)
+    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(1), offsetsInLog(log))
     assertEquals(List(0, 1), lastOffsetsPerBatchInLog(log))
   }
@@ -598,13 +591,13 @@ class LogCleanerTest {
     log.appendAsLeader(commitMarker(producerId, producerEpoch), leaderEpoch = 0, origin = AppendOrigin.Coordinator)
     log.roll()
 
-    // Aborted records are removed, but the abort marker is still preserved.
-    val dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    // delete horizon set to 0 to verify marker is not removed early
+    val dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = 0L)._1
     assertEquals(List(3), LogTestUtils.keysInLog(log))
     assertEquals(List(3, 4, 5), offsetsInLog(log))
 
-    // In the first pass, the delete horizon for the abort marker is set. In the second pass, the abort marker is removed.
-    runTwoPassClean(cleaner, LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    // clean again with large delete horizon and verify the marker is removed
+    cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(3), LogTestUtils.keysInLog(log))
     assertEquals(List(4, 5), offsetsInLog(log))
   }
@@ -640,12 +633,12 @@ class LogCleanerTest {
 
     // Both transactional batches will be cleaned. The last one will remain in the log
     // as an empty batch in order to preserve the producer sequence number and epoch
-    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(1, 3, 4, 5), offsetsInLog(log))
     assertEquals(List(1, 2, 3, 4, 5), lastOffsetsPerBatchInLog(log))
 
-    // In the first pass, the delete horizon for the first marker is set. In the second pass, the first marker is removed.
-    runTwoPassClean(cleaner, LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    // On the second round of cleaning, the marker from the first transaction should be removed.
+    cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)
     assertEquals(List(3, 4, 5), offsetsInLog(log))
     assertEquals(List(2, 3, 4, 5), lastOffsetsPerBatchInLog(log))
   }
@@ -677,14 +670,14 @@ class LogCleanerTest {
     assertAbortedTransactionIndexed()
 
     // first time through the records are removed
-    var dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    var dirtyOffset = cleaner.doClean(LogToClean(tp, log, 0L, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertAbortedTransactionIndexed()
     assertEquals(List(), LogTestUtils.keysInLog(log))
     assertEquals(List(2), offsetsInLog(log)) // abort marker is retained
     assertEquals(List(1, 2), lastOffsetsPerBatchInLog(log)) // empty batch is retained
 
     // the empty batch remains if cleaned again because it still holds the last sequence
-    dirtyOffset = runTwoPassClean(cleaner, LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertAbortedTransactionIndexed()
     assertEquals(List(), LogTestUtils.keysInLog(log))
     assertEquals(List(2), offsetsInLog(log)) // abort marker is still retained
@@ -694,14 +687,13 @@ class LogCleanerTest {
     appendProducer(Seq(1))
     log.roll()
 
-    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)._1
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertAbortedTransactionIndexed()
     assertEquals(List(1), LogTestUtils.keysInLog(log))
     assertEquals(List(2, 3), offsetsInLog(log)) // abort marker is not yet gone because we read the empty batch
     assertEquals(List(2, 3), lastOffsetsPerBatchInLog(log)) // but we do not preserve the empty batch
 
-    // In the first pass, the delete horizon for the abort marker is set. In the second pass, the abort marker is removed.
-    dirtyOffset = runTwoPassClean(cleaner, LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), currentTime = largeTimestamp)
+    dirtyOffset = cleaner.doClean(LogToClean(tp, log, dirtyOffset, log.activeSegment.baseOffset), deleteHorizonMs = Long.MaxValue)._1
     assertEquals(List(1), LogTestUtils.keysInLog(log))
     assertEquals(List(3), offsetsInLog(log)) // abort marker is gone
     assertEquals(List(3), lastOffsetsPerBatchInLog(log))
@@ -736,7 +728,7 @@ class LogCleanerTest {
 
     // clean the log
     val stats = new CleanerStats()
-    cleaner.cleanSegments(log, Seq(log.logSegments.head), map, 0L, stats, new CleanedTransactionMetadata, -1)
+    cleaner.cleanSegments(log, Seq(log.logSegments.head), map, 0L, stats, new CleanedTransactionMetadata)
     val shouldRemain = LogTestUtils.keysInLog(log).filter(!keys.contains(_))
     assertEquals(shouldRemain, LogTestUtils.keysInLog(log))
   }
@@ -749,7 +741,7 @@ class LogCleanerTest {
     val (log, offsetMap) = createLogWithMessagesLargerThanMaxSize(largeMessageSize = 1024 * 1024)
 
     val cleaner = makeCleaner(Int.MaxValue, maxMessageSize=1024)
-    cleaner.cleanSegments(log, Seq(log.logSegments.head), offsetMap, 0L, new CleanerStats, new CleanedTransactionMetadata, -1)
+    cleaner.cleanSegments(log, Seq(log.logSegments.head), offsetMap, 0L, new CleanerStats, new CleanedTransactionMetadata)
     val shouldRemain = LogTestUtils.keysInLog(log).filter(k => !offsetMap.map.containsKey(k.toString))
     assertEquals(shouldRemain, LogTestUtils.keysInLog(log))
   }
@@ -768,7 +760,7 @@ class LogCleanerTest {
 
     val cleaner = makeCleaner(Int.MaxValue, maxMessageSize=1024)
     assertThrows(classOf[CorruptRecordException], () =>
-      cleaner.cleanSegments(log, Seq(log.logSegments.head), offsetMap, 0L, new CleanerStats, new CleanedTransactionMetadata, -1)
+      cleaner.cleanSegments(log, Seq(log.logSegments.head), offsetMap, 0L, new CleanerStats, new CleanedTransactionMetadata)
     )
   }
 
@@ -785,7 +777,7 @@ class LogCleanerTest {
 
     val cleaner = makeCleaner(Int.MaxValue, maxMessageSize=1024)
     assertThrows(classOf[CorruptRecordException], () =>
-      cleaner.cleanSegments(log, Seq(log.logSegments.head), offsetMap, 0L, new CleanerStats, new CleanedTransactionMetadata, -1)
+      cleaner.cleanSegments(log, Seq(log.logSegments.head), offsetMap, 0L, new CleanerStats, new CleanedTransactionMetadata)
     )
   }
 
@@ -1120,7 +1112,7 @@ class LogCleanerTest {
     keys.foreach(k => map.put(key(k), Long.MaxValue))
     assertThrows(classOf[LogCleaningAbortedException], () =>
       cleaner.cleanSegments(log, log.logSegments.take(3).toSeq, map, 0L, new CleanerStats(),
-        new CleanedTransactionMetadata, -1)
+        new CleanedTransactionMetadata)
     )
   }
 
@@ -1380,7 +1372,7 @@ class LogCleanerTest {
     // Try to clean segment with offset overflow. This will trigger log split and the cleaning itself must abort.
     assertThrows(classOf[LogCleaningAbortedException], () =>
       cleaner.cleanSegments(log, Seq(segmentWithOverflow), offsetMap, 0L, new CleanerStats(),
-        new CleanedTransactionMetadata, -1)
+        new CleanedTransactionMetadata)
     )
     assertEquals(numSegmentsInitial + 1, log.logSegments.size)
     assertEquals(allKeys, LogTestUtils.keysInLog(log))
@@ -1389,7 +1381,7 @@ class LogCleanerTest {
     // Clean each segment now that split is complete.
     for (segmentToClean <- log.logSegments)
       cleaner.cleanSegments(log, List(segmentToClean), offsetMap, 0L, new CleanerStats(),
-        new CleanedTransactionMetadata, -1)
+        new CleanedTransactionMetadata)
     assertEquals(expectedKeysAfterCleaning, LogTestUtils.keysInLog(log))
     assertFalse(LogTestUtils.hasOffsetOverflow(log))
     log.close()
@@ -1430,7 +1422,7 @@ class LogCleanerTest {
 
     // clean the log
     cleaner.cleanSegments(log, log.logSegments.take(9).toSeq, offsetMap, 0L, new CleanerStats(),
-      new CleanedTransactionMetadata, -1)
+      new CleanedTransactionMetadata)
     // clear scheduler so that async deletes don't run
     time.scheduler.clear()
     var cleanedKeys = LogTestUtils.keysInLog(log)
@@ -1446,7 +1438,7 @@ class LogCleanerTest {
 
     // clean again
     cleaner.cleanSegments(log, log.logSegments.take(9).toSeq, offsetMap, 0L, new CleanerStats(),
-      new CleanedTransactionMetadata, -1)
+      new CleanedTransactionMetadata)
     // clear scheduler so that async deletes don't run
     time.scheduler.clear()
     cleanedKeys = LogTestUtils.keysInLog(log)
@@ -1463,7 +1455,7 @@ class LogCleanerTest {
 
     // clean again
     cleaner.cleanSegments(log, log.logSegments.take(9).toSeq, offsetMap, 0L, new CleanerStats(),
-      new CleanedTransactionMetadata, -1)
+      new CleanedTransactionMetadata)
     // clear scheduler so that async deletes don't run
     time.scheduler.clear()
     cleanedKeys = LogTestUtils.keysInLog(log)
@@ -1485,7 +1477,7 @@ class LogCleanerTest {
     for (k <- 1 until messageCount by 2)
       offsetMap.put(key(k), Long.MaxValue)
     cleaner.cleanSegments(log, log.logSegments.take(9).toSeq, offsetMap, 0L, new CleanerStats(),
-      new CleanedTransactionMetadata, -1)
+      new CleanedTransactionMetadata)
     // clear scheduler so that async deletes don't run
     time.scheduler.clear()
     cleanedKeys = LogTestUtils.keysInLog(log)
@@ -1503,7 +1495,7 @@ class LogCleanerTest {
     for (k <- 1 until messageCount by 2)
       offsetMap.put(key(k), Long.MaxValue)
     cleaner.cleanSegments(log, log.logSegments.take(9).toSeq, offsetMap, 0L, new CleanerStats(),
-      new CleanedTransactionMetadata, -1)
+      new CleanedTransactionMetadata)
     // clear scheduler so that async deletes don't run
     time.scheduler.clear()
     cleanedKeys = LogTestUtils.keysInLog(log)
@@ -1521,7 +1513,7 @@ class LogCleanerTest {
     for (k <- 1 until messageCount by 2)
       offsetMap.put(key(k), Long.MaxValue)
     cleaner.cleanSegments(log, log.logSegments.take(9).toSeq, offsetMap, 0L, new CleanerStats(),
-      new CleanedTransactionMetadata, -1)
+      new CleanedTransactionMetadata)
     // clear scheduler so that async deletes don't run
     time.scheduler.clear()
     cleanedKeys = LogTestUtils.keysInLog(log)
@@ -1662,7 +1654,6 @@ class LogCleanerTest {
                                           key = "0".getBytes,
                                           timestamp = time.milliseconds() - logConfig.deleteRetentionMs - 10000), leaderEpoch = 0)
     log.roll()
-
     cleaner.clean(LogToClean(new TopicPartition("test", 0), log, 1, log.activeSegment.baseOffset))
     assertEquals(1, log.logSegments.head.log.batches.iterator.next().lastOffset,
       "The tombstone should be retained.")
@@ -1813,6 +1804,7 @@ class LogCleanerTest {
   private def appendTransactionalAsLeader(log: UnifiedLog,
                                           producerId: Long,
                                           producerEpoch: Short,
+                                          leaderEpoch: Int = 0,
                                           origin: AppendOrigin = AppendOrigin.Client): Seq[Int] => LogAppendInfo = {
     appendIdempotentAsLeader(log, producerId, producerEpoch, isTransactional = true, origin = origin)
   }
@@ -1861,19 +1853,6 @@ class LogCleanerTest {
 
   private def recoverAndCheck(config: LogConfig, expectedKeys: Iterable[Long]): UnifiedLog = {
     LogTestUtils.recoverAndCheck(dir, config, expectedKeys, new BrokerTopicStats(), time, time.scheduler)
-  }
-
-  /**
-   * We need to run a two pass clean to perform the following steps to stimulate a proper clean:
-   *  1. On the first run, set the delete horizon in the batches with tombstone or markers with empty txn records.
-   *  2. For the second pass, we will advance the current time by tombstoneRetentionMs, which will cause the
-   *     tombstones to expire, leading to their prompt removal from the log.
-   * Returns the first dirty offset in the log as a result of the second cleaning.
-   */
-  private def runTwoPassClean(cleaner: Cleaner, logToClean: LogToClean, currentTime: Long,
-                              tombstoneRetentionMs: Long = 86400000) : Long = {
-    cleaner.doClean(logToClean, currentTime)
-    cleaner.doClean(logToClean, currentTime + tombstoneRetentionMs + 1)._1
   }
 }
 

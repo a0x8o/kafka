@@ -130,13 +130,13 @@ class DumpLogSegmentsTest {
     def verifyRecordsInOutput(checkKeysAndValues: Boolean, args: Array[String]): Unit = {
       def isBatch(index: Int): Boolean = {
         var i = 0
-        batches.zipWithIndex.foreach { case (batch, _) =>
+        batches.zipWithIndex.foreach { case (batch, batchIndex) =>
           if (i == index)
             return true
 
           i += 1
 
-          batch.records.indices.foreach { _ =>
+          batch.records.indices.foreach { recordIndex =>
             if (i == index)
               return false
             i += 1
@@ -207,7 +207,8 @@ class DumpLogSegmentsTest {
   def testDumpTimeIndexErrors(): Unit = {
     addSimpleRecords()
     val errors = new TimeIndexDumpErrors
-    DumpLogSegments.dumpTimeIndex(new File(timeIndexFilePath), false, true, errors)
+    DumpLogSegments.dumpTimeIndex(new File(timeIndexFilePath), indexSanityOnly = false, verifyOnly = true, errors,
+      Int.MaxValue)
     assertEquals(Map.empty, errors.misMatchesForTimeIndexFilesMap)
     assertEquals(Map.empty, errors.outOfOrderTimestamp)
     assertEquals(Map.empty, errors.shallowOffsetNotFound)

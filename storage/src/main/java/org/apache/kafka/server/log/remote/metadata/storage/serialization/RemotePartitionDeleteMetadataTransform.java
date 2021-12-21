@@ -37,8 +37,8 @@ public final class RemotePartitionDeleteMetadataTransform implements RemoteLogMe
 
     private RemotePartitionDeleteMetadataRecord.TopicIdPartitionEntry createTopicIdPartitionEntry(TopicIdPartition topicIdPartition) {
         return new RemotePartitionDeleteMetadataRecord.TopicIdPartitionEntry()
-                .setName(topicIdPartition.topic())
-                .setPartition(topicIdPartition.partition())
+                .setName(topicIdPartition.topicPartition().topic())
+                .setPartition(topicIdPartition.topicPartition().partition())
                 .setId(topicIdPartition.topicId());
     }
 

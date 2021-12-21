@@ -313,7 +313,7 @@ public class DefaultSslEngineFactoryTest {
         return TestUtils.tempFile(pem).getAbsolutePath();
     }
 
-    private Password pemAsConfigValue(String... pemValues) {
+    private Password pemAsConfigValue(String... pemValues)  throws Exception {
         StringBuilder builder = new StringBuilder();
         for (String pem : pemValues) {
             builder.append(pem);
