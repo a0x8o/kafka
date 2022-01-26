@@ -16,10 +16,9 @@
  */
 package org.apache.kafka.streams.errors;
 
-import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.clients.consumer.InvalidOffsetException;
 import org.apache.kafka.streams.processor.TaskId;
 
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -32,15 +31,20 @@ import java.util.Set;
  */
 public class TaskCorruptedException extends StreamsException {
 
-    private final Map<TaskId, Set<TopicPartition>> taskWithChangelogs;
+    private final Set<TaskId> corruptedTasks;
 
-    public TaskCorruptedException(final Map<TaskId, Set<TopicPartition>> taskWithChangelogs) {
-        super("Tasks with changelogs " + taskWithChangelogs + " are corrupted and hence needs to be re-initialized");
-
-        this.taskWithChangelogs = taskWithChangelogs;
+    public TaskCorruptedException(final Set<TaskId> corruptedTasks) {
+        super("Tasks " + corruptedTasks + " are corrupted and hence needs to be re-initialized");
+        this.corruptedTasks = corruptedTasks;
     }
 
-    public Map<TaskId, Set<TopicPartition>> corruptedTaskWithChangelogs() {
-        return taskWithChangelogs;
+    public TaskCorruptedException(final Set<TaskId> corruptedTasks,
+                                  final InvalidOffsetException e) {
+        super("Tasks " + corruptedTasks + " are corrupted and hence needs to be re-initialized", e);
+        this.corruptedTasks = corruptedTasks;
+    }
+
+    public Set<TaskId> corruptedTasks() {
+        return corruptedTasks;
     }
 }

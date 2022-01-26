@@ -18,11 +18,11 @@ package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.streams.processor.internals.SerdeGetter;
 
 import java.nio.ByteBuffer;
-import java.util.Objects;
 
-public class ChangedDeserializer<T> implements Deserializer<Change<T>>, WrappingNullableDeserializer<Change<T>, T> {
+public class ChangedDeserializer<T> implements Deserializer<Change<T>>, WrappingNullableDeserializer<Change<T>, Void, T> {
 
     private static final int NEWFLAG_SIZE = 1;
 
@@ -36,10 +36,11 @@ public class ChangedDeserializer<T> implements Deserializer<Change<T>>, Wrapping
         return inner;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public void setIfUnset(final Deserializer<T> defaultDeserializer) {
+    public void setIfUnset(final SerdeGetter getter) {
         if (inner == null) {
-            inner = Objects.requireNonNull(defaultDeserializer, "defaultDeserializer cannot be null");
+            inner = (Deserializer<T>) getter.valueSerde().deserializer();
         }
     }
 

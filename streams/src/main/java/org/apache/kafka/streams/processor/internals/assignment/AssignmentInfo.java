@@ -21,6 +21,7 @@ import org.apache.kafka.common.utils.ByteBufferInputStream;
 import org.apache.kafka.streams.errors.TaskAssignmentException;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.state.HostInfo;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.kafka.streams.processor.internals.assignment.ConsumerProtocolUtils.readTaskIdFrom;
+import static org.apache.kafka.streams.processor.internals.assignment.ConsumerProtocolUtils.writeTaskIdTo;
 import static org.apache.kafka.streams.processor.internals.assignment.StreamsAssignmentProtocolVersions.LATEST_SUPPORTED_VERSION;
 import static org.apache.kafka.streams.processor.internals.assignment.StreamsAssignmentProtocolVersions.UNKNOWN;
 
@@ -48,11 +51,12 @@ public class AssignmentInfo {
 
     private final int usedVersion;
     private final int commonlySupportedVersion;
-    private int errCode;
     private List<TaskId> activeTasks;
     private Map<TaskId, Set<TopicPartition>> standbyTasks;
     private Map<HostInfo, Set<TopicPartition>> partitionsByHost;
     private Map<HostInfo, Set<TopicPartition>> standbyPartitionsByHost;
+    private int errCode;
+    private Long nextRebalanceMs = Long.MAX_VALUE;
 
     // used for decoding and "future consumer" assignments during version probing
     public AssignmentInfo(final int version,
@@ -96,6 +100,10 @@ public class AssignmentInfo {
         }
     }
 
+    public void setNextRebalanceTime(final long nextRebalanceTimeMs) {
+        this.nextRebalanceMs = nextRebalanceTimeMs;
+    }
+
     public int version() {
         return usedVersion;
     }
@@ -122,6 +130,10 @@ public class AssignmentInfo {
 
     public Map<HostInfo, Set<TopicPartition>> standbyPartitionByHost() {
         return standbyPartitionsByHost;
+    }
+
+    public long nextRebalanceMs() {
+        return nextRebalanceMs;
     }
 
     /**
@@ -169,6 +181,17 @@ public class AssignmentInfo {
                     encodeActiveAndStandbyHostPartitions(out);
                     out.writeInt(errCode);
                     break;
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                    out.writeInt(usedVersion);
+                    out.writeInt(commonlySupportedVersion);
+                    encodeActiveAndStandbyTaskAssignment(out);
+                    encodeActiveAndStandbyHostPartitions(out);
+                    out.writeInt(errCode);
+                    out.writeLong(nextRebalanceMs);
+                    break;
                 default:
                     throw new IllegalStateException("Unknown metadata version: " + usedVersion
                             + "; latest commonly supported version: " + commonlySupportedVersion);
@@ -187,14 +210,14 @@ public class AssignmentInfo {
         // encode active tasks
         out.writeInt(activeTasks.size());
         for (final TaskId id : activeTasks) {
-            id.writeTo(out);
+            writeTaskIdTo(id, out, usedVersion);
         }
 
         // encode standby tasks
         out.writeInt(standbyTasks.size());
         for (final Map.Entry<TaskId, Set<TopicPartition>> entry : standbyTasks.entrySet()) {
             final TaskId id = entry.getKey();
-            id.writeTo(out);
+            writeTaskIdTo(id, out, usedVersion);
 
             final Set<TopicPartition> partitions = entry.getValue();
             writeTopicPartitions(out, partitions);
@@ -334,6 +357,18 @@ public class AssignmentInfo {
                     decodeActiveAndStandbyHostPartitions(assignmentInfo, in);
                     assignmentInfo.errCode = in.readInt();
                     break;
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                    commonlySupportedVersion = in.readInt();
+                    assignmentInfo = new AssignmentInfo(usedVersion, commonlySupportedVersion);
+                    decodeActiveTasks(assignmentInfo, in);
+                    decodeStandbyTasks(assignmentInfo, in);
+                    decodeActiveAndStandbyHostPartitions(assignmentInfo, in);
+                    assignmentInfo.errCode = in.readInt();
+                    assignmentInfo.nextRebalanceMs = in.readLong();
+                    break;
                 default:
                     final TaskAssignmentException fatalException = new TaskAssignmentException("Unable to decode assignment data: " +
                         "used version: " + usedVersion + "; latest supported version: " + LATEST_SUPPORTED_VERSION);
@@ -352,7 +387,7 @@ public class AssignmentInfo {
         final int count = in.readInt();
         assignmentInfo.activeTasks = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            assignmentInfo.activeTasks.add(TaskId.readFrom(in));
+            assignmentInfo.activeTasks.add(readTaskIdFrom(in, assignmentInfo.usedVersion));
         }
     }
 
@@ -361,7 +396,7 @@ public class AssignmentInfo {
         final int count = in.readInt();
         assignmentInfo.standbyTasks = new HashMap<>(count);
         for (int i = 0; i < count; i++) {
-            final TaskId id = TaskId.readFrom(in);
+            final TaskId id = readTaskIdFrom(in, assignmentInfo.usedVersion);
             assignmentInfo.standbyTasks.put(id, readTopicPartitions(in));
         }
     }

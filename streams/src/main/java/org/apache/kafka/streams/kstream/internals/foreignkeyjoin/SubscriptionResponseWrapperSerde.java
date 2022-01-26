@@ -22,9 +22,9 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.kstream.internals.WrappingNullableDeserializer;
 import org.apache.kafka.streams.kstream.internals.WrappingNullableSerializer;
+import org.apache.kafka.streams.processor.internals.SerdeGetter;
 
 import java.nio.ByteBuffer;
-import java.util.Objects;
 
 public class SubscriptionResponseWrapperSerde<V> implements Serde<SubscriptionResponseWrapper<V>> {
     private final SubscriptionResponseWrapperSerializer<V> serializer;
@@ -46,7 +46,7 @@ public class SubscriptionResponseWrapperSerde<V> implements Serde<SubscriptionRe
     }
 
     private static final class SubscriptionResponseWrapperSerializer<V>
-        implements Serializer<SubscriptionResponseWrapper<V>>, WrappingNullableSerializer<SubscriptionResponseWrapper<V>, V> {
+        implements Serializer<SubscriptionResponseWrapper<V>>, WrappingNullableSerializer<SubscriptionResponseWrapper<V>, Void, V> {
 
         private Serializer<V> serializer;
 
@@ -54,10 +54,11 @@ public class SubscriptionResponseWrapperSerde<V> implements Serde<SubscriptionRe
             this.serializer = serializer;
         }
 
+        @SuppressWarnings("unchecked")
         @Override
-        public void setIfUnset(final Serializer<V> defaultSerializer) {
+        public void setIfUnset(final SerdeGetter getter) {
             if (serializer == null) {
-                serializer = Objects.requireNonNull(defaultSerializer, "defaultSerializer cannot be null");
+                serializer = (Serializer<V>) getter.valueSerde().serializer();
             }
         }
 
@@ -94,7 +95,7 @@ public class SubscriptionResponseWrapperSerde<V> implements Serde<SubscriptionRe
     }
 
     private static final class SubscriptionResponseWrapperDeserializer<V>
-        implements Deserializer<SubscriptionResponseWrapper<V>>, WrappingNullableDeserializer<SubscriptionResponseWrapper<V>, V> {
+        implements Deserializer<SubscriptionResponseWrapper<V>>, WrappingNullableDeserializer<SubscriptionResponseWrapper<V>, Void, V> {
 
         private Deserializer<V> deserializer;
 
@@ -102,10 +103,11 @@ public class SubscriptionResponseWrapperSerde<V> implements Serde<SubscriptionRe
             this.deserializer = deserializer;
         }
 
+        @SuppressWarnings("unchecked")
         @Override
-        public void setIfUnset(final Deserializer<V> defaultDeserializer) {
+        public void setIfUnset(final SerdeGetter getter) {
             if (deserializer == null) {
-                deserializer = Objects.requireNonNull(defaultDeserializer, "defaultDeserializer cannot be null");
+                deserializer = (Deserializer<V>) getter.valueSerde().deserializer();
             }
         }
 

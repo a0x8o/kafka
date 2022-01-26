@@ -20,27 +20,30 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.Bytes;
-import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.api.ProcessorContext;
 
 import java.nio.ByteBuffer;
+import java.util.function.Supplier;
 
 /**
  * Factory for creating CombinedKey serializers / deserializers.
  */
 public class CombinedKeySchema<KO, K> {
-    private final String primaryKeySerdeTopic;
-    private final String foreignKeySerdeTopic;
+    private final Supplier<String> undecoratedPrimaryKeySerdeTopicSupplier;
+    private final Supplier<String> undecoratedForeignKeySerdeTopicSupplier;
+    private String primaryKeySerdeTopic;
+    private String foreignKeySerdeTopic;
     private Serializer<K> primaryKeySerializer;
     private Deserializer<K> primaryKeyDeserializer;
     private Serializer<KO> foreignKeySerializer;
     private Deserializer<KO> foreignKeyDeserializer;
 
-    public CombinedKeySchema(final String foreignKeySerdeTopic,
+    public CombinedKeySchema(final Supplier<String> foreignKeySerdeTopicSupplier,
                              final Serde<KO> foreignKeySerde,
-                             final String primaryKeySerdeTopic,
+                             final Supplier<String> primaryKeySerdeTopicSupplier,
                              final Serde<K> primaryKeySerde) {
-        this.primaryKeySerdeTopic = primaryKeySerdeTopic;
-        this.foreignKeySerdeTopic = foreignKeySerdeTopic;
+        undecoratedPrimaryKeySerdeTopicSupplier = primaryKeySerdeTopicSupplier;
+        undecoratedForeignKeySerdeTopicSupplier = foreignKeySerdeTopicSupplier;
         primaryKeySerializer = primaryKeySerde == null ? null : primaryKeySerde.serializer();
         primaryKeyDeserializer = primaryKeySerde == null ? null : primaryKeySerde.deserializer();
         foreignKeyDeserializer = foreignKeySerde == null ? null : foreignKeySerde.deserializer();
@@ -48,7 +51,9 @@ public class CombinedKeySchema<KO, K> {
     }
 
     @SuppressWarnings("unchecked")
-    public void init(final ProcessorContext context) {
+    public void init(final ProcessorContext<?, ?> context) {
+        primaryKeySerdeTopic = undecoratedPrimaryKeySerdeTopicSupplier.get();
+        foreignKeySerdeTopic = undecoratedForeignKeySerdeTopicSupplier.get();
         primaryKeySerializer = primaryKeySerializer == null ? (Serializer<K>) context.keySerde().serializer() : primaryKeySerializer;
         primaryKeyDeserializer = primaryKeyDeserializer == null ? (Deserializer<K>) context.keySerde().deserializer() : primaryKeyDeserializer;
         foreignKeySerializer = foreignKeySerializer == null ? (Serializer<KO>) context.keySerde().serializer() : foreignKeySerializer;

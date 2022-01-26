@@ -23,18 +23,19 @@ import org.apache.kafka.streams.kstream.Window;
 import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.kstream.internals.TimeWindow;
 import org.apache.kafka.streams.state.StateSerdes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static org.apache.kafka.streams.state.StateSerdes.TIMESTAMP_SIZE;
 
 public class WindowKeySchema implements RocksDBSegmentedBytesStore.KeySchema {
 
     private static final Logger LOG = LoggerFactory.getLogger(WindowKeySchema.class);
 
     private static final int SEQNUM_SIZE = 4;
-    private static final int TIMESTAMP_SIZE = 8;
     private static final int SUFFIX_SIZE = TIMESTAMP_SIZE + SEQNUM_SIZE;
     private static final byte[] MIN_SUFFIX = new byte[SUFFIX_SIZE];
 
@@ -93,8 +94,9 @@ public class WindowKeySchema implements RocksDBSegmentedBytesStore.KeySchema {
     @Override
     public <S extends Segment> List<S> segmentsToSearch(final Segments<S> segments,
                                                         final long from,
-                                                        final long to) {
-        return segments.segments(from, to);
+                                                        final long to,
+                                                        final boolean forward) {
+        return segments.segments(from, to, forward);
     }
 
     /**

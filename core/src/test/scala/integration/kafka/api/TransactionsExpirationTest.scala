@@ -26,9 +26,11 @@ import kafka.utils.TestUtils.consumeRecords
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.errors.InvalidPidMappingException
-import org.junit.{After, Before, Test}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, TestInfo}
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.Seq
 
 // Test class that uses a very small transaction timeout to trigger InvalidPidMapping errors
@@ -42,23 +44,23 @@ class TransactionsExpirationTest extends KafkaServerTestHarness {
   var consumer: KafkaConsumer[Array[Byte], Array[Byte]] = _
 
   override def generateConfigs: Seq[KafkaConfig] = {
-    TestUtils.createBrokerConfigs(3, zkConnect).map(KafkaConfig.fromProps(_, serverProps()))
+    TestUtils.createBrokerConfigs(3, zkConnectOrNull).map(KafkaConfig.fromProps(_, serverProps()))
   }
 
-  @Before
-  override def setUp(): Unit = {
-    super.setUp()
+  @BeforeEach
+  override def setUp(testInfo: TestInfo): Unit = {
+    super.setUp(testInfo)
 
-    producer = TestUtils.createTransactionalProducer("transactionalProducer", servers)
-    consumer = TestUtils.createConsumer(TestUtils.getBrokerListStrFromServers(servers),
+    producer = TestUtils.createTransactionalProducer("transactionalProducer", brokers)
+    consumer = TestUtils.createConsumer(TestUtils.getBrokerListStrFromServers(brokers),
       enableAutoCommit = false,
       readCommitted = true)
 
-    TestUtils.createTopic(zkClient, topic1, numPartitions, 3, servers, new Properties())
-    TestUtils.createTopic(zkClient, topic2, numPartitions, 3, servers, new Properties())
+    createTopic(topic1, numPartitions, 3)
+    createTopic(topic2, numPartitions, 3)
   }
 
-  @After
+  @AfterEach
   override def tearDown(): Unit = {
     producer.close()
     consumer.close()
@@ -66,8 +68,9 @@ class TransactionsExpirationTest extends KafkaServerTestHarness {
     super.tearDown()
   }
 
-  @Test
-  def testBumpTransactionalEpochAfterInvalidProducerIdMapping(): Unit = {
+  @ParameterizedTest
+  @ValueSource(strings = Array("zk", "kraft"))
+  def testBumpTransactionalEpochAfterInvalidProducerIdMapping(quorum: String): Unit = {
     producer.initTransactions()
 
     // Start and then abort a transaction to allow the transactional ID to expire
@@ -101,7 +104,8 @@ class TransactionsExpirationTest extends KafkaServerTestHarness {
       TestUtils.assertCommittedAndGetValue(record)
     }
   }
-  private def serverProps() = {
+
+  private def serverProps(): Properties = {
     val serverProps = new Properties()
     serverProps.put(KafkaConfig.AutoCreateTopicsEnableProp, false.toString)
     // Set a smaller value for the number of partitions for the __consumer_offsets topic

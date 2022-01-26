@@ -55,6 +55,7 @@ public class KStreamGlobalKTableLeftJoinTest {
     private TopologyTestDriver driver;
     private StreamsBuilder builder;
 
+    @SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
     @Before
     public void setUp() {
 
@@ -87,7 +88,7 @@ public class KStreamGlobalKTableLeftJoinTest {
         driver.close();
     }
 
-    private void pushToStream(final int messageCount, final String valuePrefix, final boolean includeForeignKey) {
+    private void pushToStream(final int messageCount, final String valuePrefix, final boolean includeForeignKey, final boolean includeNullKey) {
         final TestInputTopic<Integer, String> inputTopic =
             driver.createInputTopic(streamTopic, new IntegerSerializer(), new StringSerializer(), Instant.ofEpochMilli(0L), Duration.ofMillis(1L));
         for (int i = 0; i < messageCount; i++) {
@@ -95,7 +96,11 @@ public class KStreamGlobalKTableLeftJoinTest {
             if (includeForeignKey) {
                 value = value + ",FKey" + expectedKeys[i];
             }
-            inputTopic.pipeInput(expectedKeys[i], value);
+            Integer key = expectedKeys[i];
+            if (includeNullKey && i == 0) {
+                key = null;
+            }
+            inputTopic.pipeInput(key, value);
         }
     }
 
@@ -128,7 +133,7 @@ public class KStreamGlobalKTableLeftJoinTest {
 
         // push two items to the primary stream. the globalTable is empty
 
-        pushToStream(2, "X", true);
+        pushToStream(2, "X", true, false);
         processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "X0,FKey0+null", 0),
                 new KeyValueTimestamp<>(1, "X1,FKey1+null", 1));
     }
@@ -138,7 +143,7 @@ public class KStreamGlobalKTableLeftJoinTest {
 
         // push two items to the primary stream. the globalTable is empty
 
-        pushToStream(2, "X", true);
+        pushToStream(2, "X", true, false);
         processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "X0,FKey0+null", 0),
                 new KeyValueTimestamp<>(1, "X1,FKey1+null", 1));
 
@@ -149,7 +154,7 @@ public class KStreamGlobalKTableLeftJoinTest {
 
         // push all four items to the primary stream. this should produce four items.
 
-        pushToStream(4, "X", true);
+        pushToStream(4, "X", true, false);
         processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "X0,FKey0+Y0", 0),
                 new KeyValueTimestamp<>(1, "X1,FKey1+Y1", 1),
                 new KeyValueTimestamp<>(2, "X2,FKey2+null", 2),
@@ -162,7 +167,7 @@ public class KStreamGlobalKTableLeftJoinTest {
 
         // push all four items to the primary stream. this should produce four items.
 
-        pushToStream(4, "X", true);
+        pushToStream(4, "X", true, false);
         processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "X0,FKey0+YY0", 0),
                 new KeyValueTimestamp<>(1, "X1,FKey1+YY1", 1),
                 new KeyValueTimestamp<>(2, "X2,FKey2+YY2", 2),
@@ -184,7 +189,7 @@ public class KStreamGlobalKTableLeftJoinTest {
 
         // push all four items to the primary stream. this should produce four items.
 
-        pushToStream(4, "X", true);
+        pushToStream(4, "X", true, false);
         processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "X0,FKey0+Y0", 0),
                 new KeyValueTimestamp<>(1, "X1,FKey1+Y1", 1),
                 new KeyValueTimestamp<>(2, "X2,FKey2+null", 2),
@@ -202,7 +207,7 @@ public class KStreamGlobalKTableLeftJoinTest {
 
         // push all four items to the primary stream. this should produce four items.
 
-        pushToStream(4, "X", true);
+        pushToStream(4, "X", true, false);
         processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "X0,FKey0+Y0", 0),
                 new KeyValueTimestamp<>(1, "X1,FKey1+Y1", 1),
                 new KeyValueTimestamp<>(2, "X2,FKey2+Y2", 2),
@@ -215,7 +220,7 @@ public class KStreamGlobalKTableLeftJoinTest {
 
         // push all four items to the primary stream. this should produce four items.
 
-        pushToStream(4, "XX", true);
+        pushToStream(4, "XX", true, false);
         processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "XX0,FKey0+null", 0),
                 new KeyValueTimestamp<>(1, "XX1,FKey1+null", 1),
                 new KeyValueTimestamp<>(2, "XX2,FKey2+Y2", 2),
@@ -223,7 +228,7 @@ public class KStreamGlobalKTableLeftJoinTest {
     }
 
     @Test
-    public void shouldJoinOnNullKeyMapperValues() {
+    public void shouldNotJoinOnNullKeyMapperValues() {
 
         // push all items to the globalTable. this should not produce any item
 
@@ -231,13 +236,25 @@ public class KStreamGlobalKTableLeftJoinTest {
         processor.checkAndClearProcessResult(EMPTY);
 
         // push all four items to the primary stream with no foreign key, resulting in null keyMapper values.
-        // this should produce four items.
+        // this should not produce any item.
 
-        pushToStream(4, "XXX", false);
-        processor.checkAndClearProcessResult(new KeyValueTimestamp<>(0, "XXX0+null", 0),
-                new KeyValueTimestamp<>(1, "XXX1+null", 1),
-                new KeyValueTimestamp<>(2, "XXX2+null", 2),
-                new KeyValueTimestamp<>(3, "XXX3+null", 3));
+        pushToStream(4, "XXX", false, false);
+        processor.checkAndClearProcessResult(EMPTY);
     }
 
+    @Test
+    public void shouldJoinOnNullKeyWithNonNullKeyMapperValues() {
+        // push four items to the globalTable. this should not produce any item.
+
+        pushToGlobalTable(4, "Y");
+        processor.checkAndClearProcessResult(EMPTY);
+
+        // push all four items to the primary stream. this should produce four items.
+
+        pushToStream(4, "X", true, true);
+        processor.checkAndClearProcessResult(new KeyValueTimestamp<>(null, "X0,FKey0+Y0", 0),
+                new KeyValueTimestamp<>(1, "X1,FKey1+Y1", 1),
+                new KeyValueTimestamp<>(2, "X2,FKey2+Y2", 2),
+                new KeyValueTimestamp<>(3, "X3,FKey3+Y3", 3));
+    }
 }

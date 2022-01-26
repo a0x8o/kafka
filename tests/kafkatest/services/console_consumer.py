@@ -13,15 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import itertools
 import os
 
+from ducktape.cluster.remoteaccount import RemoteCommandError
 from ducktape.services.background_thread import BackgroundThreadService
 from ducktape.utils.util import wait_until
 
 from kafkatest.directory_layout.kafka_path import KafkaPathResolverMixin
 from kafkatest.services.monitor.jmx import JmxMixin, JmxTool
-from kafkatest.version import DEV_BRANCH, LATEST_0_8_2, LATEST_0_9, LATEST_0_10_0, V_0_9_0_0, V_0_10_0_0, V_0_11_0_0, V_2_0_0
+from kafkatest.version import DEV_BRANCH, LATEST_0_8_2, LATEST_0_9, LATEST_0_10_0, V_0_10_0_0, V_0_11_0_0, V_2_0_0
+from kafkatest.services.kafka.util import fix_opts_for_new_jvm
 
 """
 The console consumer is a tool that reads data from Kafka and outputs it to standard output.
@@ -150,7 +151,9 @@ class ConsoleConsumer(KafkaPathResolverMixin, JmxMixin, BackgroundThreadService)
     def start_cmd(self, node):
         """Return the start command appropriate for the given node."""
         args = self.args.copy()
-        args['zk_connect'] = self.kafka.zk_connect_setting()
+        args['broker_list'] = self.kafka.bootstrap_servers(self.security_config.security_protocol)
+        if not self.new_consumer:
+            args['zk_connect'] = self.kafka.zk_connect_setting()
         args['stdout'] = ConsoleConsumer.STDOUT_CAPTURE
         args['stderr'] = ConsoleConsumer.STDERR_CAPTURE
         args['log_dir'] = ConsoleConsumer.LOG_DIR
@@ -159,14 +162,14 @@ class ConsoleConsumer(KafkaPathResolverMixin, JmxMixin, BackgroundThreadService)
         args['stdout'] = ConsoleConsumer.STDOUT_CAPTURE
         args['jmx_port'] = self.jmx_port
         args['console_consumer'] = self.path.script("kafka-console-consumer.sh", node)
-        args['broker_list'] = self.kafka.bootstrap_servers(self.security_config.security_protocol)
 
         if self.kafka_opts_override:
             args['kafka_opts'] = "\"%s\"" % self.kafka_opts_override
         else:
             args['kafka_opts'] = self.security_config.kafka_opts
 
-        cmd = "export JMX_PORT=%(jmx_port)s; " \
+        cmd = fix_opts_for_new_jvm(node)
+        cmd += "export JMX_PORT=%(jmx_port)s; " \
               "export LOG_DIR=%(log_dir)s; " \
               "export KAFKA_LOG4J_OPTS=\"-Dlog4j.configuration=file:%(log4j_config)s\"; " \
               "export KAFKA_OPTS=%(kafka_opts)s; " \
@@ -175,7 +178,7 @@ class ConsoleConsumer(KafkaPathResolverMixin, JmxMixin, BackgroundThreadService)
               "--consumer.config %(config_file)s " % args
 
         if self.new_consumer:
-            assert node.version >= V_0_9_0_0, \
+            assert node.version.consumer_supports_bootstrap_server(), \
                 "new_consumer is only supported if version >= 0.9.0.0, version %s" % str(node.version)
             if node.version <= LATEST_0_10_0:
                 cmd += " --new-consumer"
@@ -320,3 +323,18 @@ class ConsoleConsumer(KafkaPathResolverMixin, JmxMixin, BackgroundThreadService)
 
     def java_class_name(self):
         return "ConsoleConsumer"
+
+    def has_log_message(self, node, message):
+        try:
+            node.account.ssh("grep '%s' %s" % (message, ConsoleConsumer.LOG_FILE))
+        except RemoteCommandError:
+            return False
+        return True
+
+    def wait_for_offset_reset(self, node, topic, num_partitions):
+        for partition in range(num_partitions):
+            message = "Resetting offset for partition %s-%d" % (topic, partition)
+            wait_until(lambda: self.has_log_message(node, message),
+                       timeout_sec=60,
+                       err_msg="Offset not reset for partition %s-%d" % (topic, partition))
+

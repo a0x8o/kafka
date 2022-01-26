@@ -41,6 +41,7 @@ public class KStreamSelectKeyTest {
     private final String topicName = "topic_key_select";
     private final Properties props = StreamsTestUtils.getStreamsConfig(Serdes.String(), Serdes.Integer());
 
+    @SuppressWarnings("deprecation") // Old PAPI. Needs to be migrated.
     @Test
     public void testSelectKey() {
         final StreamsBuilder builder = new StreamsBuilder();
@@ -68,9 +69,9 @@ public class KStreamSelectKeyTest {
             }
         }
 
-        assertEquals(3, supplier.theCapturedProcessor().processed.size());
+        assertEquals(3, supplier.theCapturedProcessor().processed().size());
         for (int i = 0; i < expected.length; i++) {
-            assertEquals(expected[i], supplier.theCapturedProcessor().processed.get(i));
+            assertEquals(expected[i], supplier.theCapturedProcessor().processed().get(i));
         }
 
     }

@@ -17,7 +17,8 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.streams.processor.internals.SerdeGetter;
 
-public interface WrappingNullableSerializer<Outer, Inner> extends Serializer<Outer> {
-    void setIfUnset(final Serializer<Inner> defaultSerializer);
+public interface WrappingNullableSerializer<Outer, InnerK, InnerV> extends Serializer<Outer> {
+    void setIfUnset(final SerdeGetter getter);
 }

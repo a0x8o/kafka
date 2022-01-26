@@ -11,7 +11,10 @@ Running tests using docker
 Docker containers can be used for running kafka system tests locally.
 * Requirements
   - Docker 1.12.3 (or higher) is installed and running on the machine.
-  - Test require that Kafka, including system test libs, is built. This can be done by running ./gradlew clean systemTestLibs
+  - Test requires that Kafka, including system test libs, is built. This can be done by running
+```
+./gradlew clean systemTestLibs
+```
 * Run all tests
 ```
 bash tests/docker/run_tests.sh
@@ -36,10 +39,52 @@ TC_PATHS="tests/kafkatest/tests/client/pluggable_test.py::PluggableConsumerTest"
 ```
 TC_PATHS="tests/kafkatest/tests/client/pluggable_test.py::PluggableConsumerTest.test_start_stop" bash tests/docker/run_tests.sh
 ```
+* Run a specific test method with specific parameters
+```
+TC_PATHS="tests/kafkatest/tests/streams/streams_upgrade_test.py::StreamsUpgradeTest.test_metadata_upgrade" _DUCKTAPE_OPTIONS='--parameters '\''{"from_version":"0.10.1.1","to_version":"2.6.0-SNAPSHOT"}'\' bash tests/docker/run_tests.sh
+```
 * Run tests with a different JVM
 ```
 bash tests/docker/ducker-ak up -j 'openjdk:11'; tests/docker/run_tests.sh
 ```
+* Rebuild first and then run tests
+```
+REBUILD="t" bash tests/docker/run_tests.sh
+```
+* Debug tests in VS Code:
+  - Run test with `--debug` flag (can be before or after file name):
+    ```
+    tests/docker/ducker-ak up; tests/docker/ducker-ak test tests/kafkatest/tests/core/security_test.py --debug
+    ```
+  - Test will run in debug mode and wait for a debugger to attach. 
+  - Launch VS Code debugger with `"attach"` request - here's an example:
+    ```json
+    {
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Attach to Ducker",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "justMyCode": false,
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "."
+                }
+            ]
+        }
+      ]
+    }
+    ```
+  - To pass `--debug` flag to ducktape itself, use `--`:
+    ```
+    tests/docker/ducker-ak test tests/kafkatest/tests/core/security_test.py --debug -- --debug
+    ```
 
 * Notes
   - The scripts to run tests creates and destroys docker network named *knw*.
@@ -396,9 +441,9 @@ https://cwiki.apache.org/confluence/display/KAFKA/tutorial+-+set+up+and+run+Kafk
 * Install system test dependencies, including ducktape, a command-line tool and library for testing distributed systems. We recommend to use virtual env for system test development
 
         $ cd kafka/tests
-        $ virtualenv venv
+        $ virtualenv -p python3 venv
         $ . ./venv/bin/activate
-        $ python setup.py develop
+        $ python3 setup.py develop
         $ cd ..  # back to base kafka directory
 
 * Run the bootstrap script to set up Vagrant for testing
@@ -474,7 +519,7 @@ the test driver machine.
 
 * Start by making sure you're up to date, and install git and ducktape:
 
-        $ sudo apt-get update && sudo apt-get -y upgrade && sudo apt-get install -y python-pip git
+        $ sudo apt-get update && sudo apt-get -y upgrade && sudo apt-get install -y python3-pip git
         $ pip install ducktape
 
 * Get Kafka:
@@ -539,8 +584,10 @@ Where are the unit tests?
 * The kafkatest unit tests are located under kafka/tests/unit
 
 How do I run the unit tests?
-* cd kafka/tests # The base system test directory
-* python setup.py test
+```bash
+$ cd kafka/tests # The base system test directory
+$ python3 setup.py test
+```
 
 How can I add a unit test?
 * Follow the naming conventions - module name starts with "check", class name begins with "Check", test method name begins with "check"

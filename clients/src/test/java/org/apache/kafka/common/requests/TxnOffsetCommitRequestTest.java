@@ -22,8 +22,8 @@ import org.apache.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommi
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.TxnOffsetCommitRequest.CommittedOffset;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TxnOffsetCommitRequestTest extends OffsetCommitRequestTest {
 
@@ -40,36 +40,35 @@ public class TxnOffsetCommitRequestTest extends OffsetCommitRequestTest {
     private static int producerId = 10;
     private static short producerEpoch = 1;
     private static int generationId = 5;
+    private static Map<TopicPartition, CommittedOffset> offsets = new HashMap<>();
+    private static TxnOffsetCommitRequest.Builder builder;
+    private static TxnOffsetCommitRequest.Builder builderWithGroupMetadata;
 
-    @Before
+    @BeforeEach
     @Override
     public void setUp() {
         super.setUp();
-    }
-
-    @Test
-    @Override
-    public void testConstructor() {
-        Map<TopicPartition, CommittedOffset> offsets = new HashMap<>();
+        offsets.clear();
         offsets.put(new TopicPartition(topicOne, partitionOne),
-                            new CommittedOffset(
-                                offset,
-                                metadata,
-                                Optional.of((int) leaderEpoch)));
+            new CommittedOffset(
+                offset,
+                metadata,
+                Optional.of((int) leaderEpoch)));
         offsets.put(new TopicPartition(topicTwo, partitionTwo),
-                            new CommittedOffset(
-                                offset,
-                                metadata,
-                                Optional.of((int) leaderEpoch)));
+            new CommittedOffset(
+                offset,
+                metadata,
+                Optional.of((int) leaderEpoch)));
 
-        TxnOffsetCommitRequest.Builder builder = new TxnOffsetCommitRequest.Builder(
+        builder = new TxnOffsetCommitRequest.Builder(
             transactionalId,
             groupId,
             producerId,
             producerEpoch,
-            offsets);
+            offsets
+        );
 
-        TxnOffsetCommitRequest.Builder builderWithGroupMetadata = new TxnOffsetCommitRequest.Builder(
+        builderWithGroupMetadata = new TxnOffsetCommitRequest.Builder(
             transactionalId,
             groupId,
             producerId,
@@ -77,7 +76,13 @@ public class TxnOffsetCommitRequestTest extends OffsetCommitRequestTest {
             offsets,
             memberId,
             generationId,
-            Optional.of(groupInstanceId));
+            Optional.of(groupInstanceId)
+        );
+    }
+
+    @Test
+    @Override
+    public void testConstructor() {
 
         Map<TopicPartition, Errors> errorsMap = new HashMap<>();
         errorsMap.put(new TopicPartition(topicOne, partitionOne), Errors.NOT_COORDINATOR);
@@ -104,7 +109,7 @@ public class TxnOffsetCommitRequestTest extends OffsetCommitRequestTest {
                 ))
         );
 
-        for (short version = 0; version <= ApiKeys.TXN_OFFSET_COMMIT.latestVersion(); version++) {
+        for (short version : ApiKeys.TXN_OFFSET_COMMIT.allVersions()) {
             final TxnOffsetCommitRequest request;
             if (version < 3) {
                 request = builder.build(version);

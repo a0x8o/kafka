@@ -20,6 +20,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.runtime.TestSourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -57,6 +58,9 @@ public class MonitorableSourceConnector extends TestSourceConnector {
         commonConfigs = props;
         log.info("Started {} connector {}", this.getClass().getSimpleName(), connectorName);
         connectorHandle.recordConnectorStart();
+        if (Boolean.parseBoolean(props.getOrDefault("connector.start.inject.error", "false"))) {
+            throw new RuntimeException("Injecting errors during connector start");
+        }
     }
 
     @Override
@@ -120,6 +124,9 @@ public class MonitorableSourceConnector extends TestSourceConnector {
             log.info("Started {} task {} with properties {}", this.getClass().getSimpleName(), taskId, props);
             throttler = new ThroughputThrottler(throughput, System.currentTimeMillis());
             taskHandle.recordTaskStart();
+            if (Boolean.parseBoolean(props.getOrDefault("task-" + taskId + ".start.inject.error", "false"))) {
+                throw new RuntimeException("Injecting errors during task start");
+            }
         }
 
         @Override
@@ -129,6 +136,7 @@ public class MonitorableSourceConnector extends TestSourceConnector {
                     throttler.throttle();
                 }
                 taskHandle.record(batchSize);
+                log.info("Returning batch of {} records", batchSize);
                 return LongStream.range(0, batchSize)
                         .mapToObj(i -> new SourceRecord(
                                 Collections.singletonMap("task.id", taskId),
@@ -138,7 +146,9 @@ public class MonitorableSourceConnector extends TestSourceConnector {
                                 Schema.STRING_SCHEMA,
                                 "key-" + taskId + "-" + seqno,
                                 Schema.STRING_SCHEMA,
-                                "value-" + taskId + "-" + seqno))
+                                "value-" + taskId + "-" + seqno,
+                                null,
+                                new ConnectHeaders().addLong("header-" + seqno, seqno)))
                         .collect(Collectors.toList());
             }
             return null;

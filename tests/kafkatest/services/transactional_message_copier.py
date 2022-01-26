@@ -47,7 +47,8 @@ class TransactionalMessageCopier(KafkaPathResolverMixin, BackgroundThreadService
 
     def __init__(self, context, num_nodes, kafka, transactional_id, consumer_group,
                  input_topic, input_partition, output_topic, max_messages=-1,
-                 transaction_size=1000, transaction_timeout=None, enable_random_aborts=True, use_group_metadata=False, group_mode=False):
+                 transaction_size=1000, transaction_timeout=None, enable_random_aborts=True,
+                 use_group_metadata=False, group_mode=False):
         super(TransactionalMessageCopier, self).__init__(context, num_nodes)
         self.kafka = kafka
         self.transactional_id = transactional_id
@@ -158,12 +159,16 @@ class TransactionalMessageCopier(KafkaPathResolverMixin, BackgroundThreadService
     def alive(self, node):
         return len(self.pids(node)) > 0
 
+    def start_node(self, node):
+        BackgroundThreadService.start_node(self, node)
+        wait_until(lambda: self.alive(node), timeout_sec=60, err_msg="Node %s: Message Copier failed to start" % str(node.account))
+
     def kill_node(self, node, clean_shutdown=True):
         pids = self.pids(node)
         sig = signal.SIGTERM if clean_shutdown else signal.SIGKILL
         for pid in pids:
             node.account.signal(pid, sig)
-            wait_until(lambda: len(self.pids(node)) == 0, timeout_sec=60, err_msg="Message Copier failed to stop")
+        wait_until(lambda: len(self.pids(node)) == 0, timeout_sec=60, err_msg="Node %s: Message Copier failed to stop" % str(node.account))
 
     def stop_node(self, node, clean_shutdown=True):
         self.kill_node(node, clean_shutdown)

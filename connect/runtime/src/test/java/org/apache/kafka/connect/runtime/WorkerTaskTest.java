@@ -26,7 +26,6 @@ import org.apache.kafka.connect.storage.StatusBackingStore;
 import org.apache.kafka.connect.util.ConnectorTaskId;
 import org.apache.kafka.common.utils.MockTime;
 import org.easymock.EasyMock;
-import org.easymock.IAnswer;
 import org.easymock.Mock;
 import org.junit.After;
 import org.junit.Before;
@@ -93,11 +92,15 @@ public class WorkerTaskTest {
                 .withArgs(taskId, statusListener, TargetState.STARTED, loader, metrics,
                         retryWithToleranceOperator, Time.SYSTEM, statusBackingStore)
                 .addMockedMethod("initialize")
+                .addMockedMethod("initializeAndStart")
                 .addMockedMethod("execute")
                 .addMockedMethod("close")
                 .createStrictMock();
 
         workerTask.initialize(TASK_CONFIG);
+        expectLastCall();
+
+        workerTask.initializeAndStart();
         expectLastCall();
 
         workerTask.execute();
@@ -108,9 +111,6 @@ public class WorkerTaskTest {
 
         workerTask.close();
         expectLastCall();
-
-        workerTask.releaseResources();
-        EasyMock.expectLastCall();
 
         statusListener.onShutdown(taskId);
         expectLastCall();
@@ -153,9 +153,6 @@ public class WorkerTaskTest {
         workerTask.close();
         EasyMock.expectLastCall();
 
-        workerTask.releaseResources();
-        EasyMock.expectLastCall();
-
         replay(workerTask);
 
         workerTask.initialize(TASK_CONFIG);
@@ -186,31 +183,29 @@ public class WorkerTaskTest {
                 .withArgs(taskId, statusListener, TargetState.STARTED, loader, metrics,
                         retryWithToleranceOperator, Time.SYSTEM, statusBackingStore)
                 .addMockedMethod("initialize")
+                .addMockedMethod("initializeAndStart")
                 .addMockedMethod("execute")
                 .addMockedMethod("close")
                 .createStrictMock();
 
         final CountDownLatch stopped = new CountDownLatch(1);
-        final Thread thread = new Thread() {
-            @Override
-            public void run() {
-                try {
-                    stopped.await();
-                } catch (Exception e) {
-                }
+        final Thread thread = new Thread(() -> {
+            try {
+                stopped.await();
+            } catch (Exception e) {
             }
-        };
+        });
 
         workerTask.initialize(TASK_CONFIG);
         EasyMock.expectLastCall();
 
+        workerTask.initializeAndStart();
+        EasyMock.expectLastCall();
+
         workerTask.execute();
-        expectLastCall().andAnswer(new IAnswer<Void>() {
-            @Override
-            public Void answer() throws Throwable {
-                thread.start();
-                return null;
-            }
+        expectLastCall().andAnswer(() -> {
+            thread.start();
+            return null;
         });
 
         statusListener.onStartup(taskId);
@@ -218,9 +213,6 @@ public class WorkerTaskTest {
 
         workerTask.close();
         expectLastCall();
-
-        workerTask.releaseResources();
-        EasyMock.expectLastCall();
 
         // there should be no call to onShutdown()
 
