@@ -21,6 +21,13 @@ import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
+import org.apache.kafka.streams.processor.StateStoreContext;
+import org.apache.kafka.streams.processor.internals.StoreToProcessorContextAdapter;
+import org.apache.kafka.streams.query.Position;
+import org.apache.kafka.streams.query.PositionBound;
+import org.apache.kafka.streams.query.Query;
+import org.apache.kafka.streams.query.QueryConfig;
+import org.apache.kafka.streams.query.QueryResult;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.slf4j.Logger;
@@ -39,8 +46,9 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
 
     private final String name;
     private final NavigableMap<Bytes, byte[]> map = new TreeMap<>();
+    private final Position position = Position.emptyPosition();
     private volatile boolean open = false;
-    private long size = 0L; // SkipListMap#size is O(N) so we just do our best to track it
+    private StateStoreContext context;
 
     public InMemoryKeyValueStore(final String name) {
         this.name = name;
@@ -55,13 +63,19 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
     @Override
     public void init(final ProcessorContext context,
                      final StateStore root) {
-        size = 0;
         if (root != null) {
             // register the store
             context.register(root, (key, value) -> put(Bytes.wrap(key), value));
         }
 
         open = true;
+    }
+
+    @Override
+    public void init(final StateStoreContext context,
+                     final StateStore root) {
+        init(StoreToProcessorContextAdapter.adapt(context), root);
+        this.context = context;
     }
 
     @Override
@@ -74,6 +88,25 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
         return open;
     }
 
+    public Position getPosition() {
+        return position;
+    }
+
+    @Override
+    public <R> QueryResult<R> query(final Query<R> query,
+                                    final PositionBound positionBound,
+                                    final QueryConfig config) {
+
+        return StoreQueryUtils.handleBasicQueries(
+            query,
+            positionBound,
+            config,
+            this,
+            position,
+            context
+        );
+    }
+
     @Override
     public synchronized byte[] get(final Bytes key) {
         return map.get(key);
@@ -81,11 +114,7 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
 
     @Override
     public synchronized void put(final Bytes key, final byte[] value) {
-        if (value == null) {
-            size -= map.remove(key) == null ? 0 : 1;
-        } else {
-            size += map.put(key, value) == null ? 1 : 0;
-        }
+        putInternal(key, value);
     }
 
     @Override
@@ -97,10 +126,21 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
         return originalValue;
     }
 
+    // the unlocked implementation of put method, to avoid multiple lock/unlock cost in `putAll` method
+    private void putInternal(final Bytes key, final byte[] value) {
+        if (value == null) {
+            map.remove(key);
+        } else {
+            map.put(key, value);
+        }
+
+        StoreQueryUtils.updatePosition(position, context);
+    }
+
     @Override
-    public void putAll(final List<KeyValue<Bytes, byte[]>> entries) {
+    public synchronized void putAll(final List<KeyValue<Bytes, byte[]>> entries) {
         for (final KeyValue<Bytes, byte[]> entry : entries) {
-            put(entry.key, entry.value);
+            putInternal(entry.key, entry.value);
         }
     }
 
@@ -118,9 +158,7 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
 
     @Override
     public synchronized byte[] delete(final Bytes key) {
-        final byte[] oldValue = map.remove(key);
-        size -= oldValue == null ? 0 : 1;
-        return oldValue;
+        return map.remove(key);
     }
 
     @Override
@@ -169,7 +207,7 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
 
     @Override
     public long approximateNumEntries() {
-        return size;
+        return map.size();
     }
 
     @Override
@@ -180,7 +218,6 @@ public class InMemoryKeyValueStore implements KeyValueStore<Bytes, byte[]> {
     @Override
     public void close() {
         map.clear();
-        size = 0;
         open = false;
     }
 
