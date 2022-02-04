@@ -62,8 +62,6 @@ object LogLoader extends Logging {
  *                 populated
  * @param logStartOffsetCheckpoint The checkpoint of the log start offset
  * @param recoveryPointCheckpoint The checkpoint of the offset at which to begin the recovery
- * @param maxProducerIdExpirationMs The maximum amount of time to wait before a producer id is
- *                                  considered expired
  * @param leaderEpochCache An optional LeaderEpochFileCache instance to be updated during recovery
  * @param producerStateManager The ProducerStateManager instance to be updated during recovery
  */
@@ -78,7 +76,6 @@ class LogLoader(
   segments: LogSegments,
   logStartOffsetCheckpoint: Long,
   recoveryPointCheckpoint: Long,
-  maxProducerIdExpirationMs: Int,
   leaderEpochCache: Option[LeaderEpochFileCache],
   producerStateManager: ProducerStateManager
 ) extends Logging {
@@ -326,8 +323,9 @@ class LogLoader(
         try segment.sanityCheck(timeIndexFileNewlyCreated)
         catch {
           case _: NoSuchFileException =>
-            error(s"Could not find offset index file corresponding to log file" +
-              s" ${segment.log.file.getAbsolutePath}, recovering segment and rebuilding index files...")
+            if (hadCleanShutdown || segment.baseOffset < recoveryPointCheckpoint)
+              error(s"Could not find offset index file corresponding to log file" +
+                s" ${segment.log.file.getAbsolutePath}, recovering segment and rebuilding index files...")
             recoverSegment(segment)
           case e: CorruptIndexException =>
             warn(s"Found a corrupted index file corresponding to log file" +
@@ -353,7 +351,8 @@ class LogLoader(
     val producerStateManager = new ProducerStateManager(
       topicPartition,
       dir,
-      maxProducerIdExpirationMs,
+      this.producerStateManager.maxTransactionTimeoutMs,
+      this.producerStateManager.maxProducerIdExpirationMs,
       time)
     UnifiedLog.rebuildProducerState(
       producerStateManager,
