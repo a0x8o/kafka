@@ -67,6 +67,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import static org.apache.kafka.streams.internals.StreamsConfigUtils.eosEnabled;
 import static org.apache.kafka.streams.processor.internals.ClientUtils.getConsumerClientId;
 import static org.apache.kafka.streams.processor.internals.ClientUtils.getRestoreConsumerClientId;
 import static org.apache.kafka.streams.processor.internals.ClientUtils.getSharedAdminClientId;
@@ -314,7 +315,6 @@ public class StreamThread extends Thread {
     // These are used to signal from outside the stream thread, but the variables themselves are internal to the thread
     private final AtomicLong cacheResizeSize = new AtomicLong(-1L);
     private final AtomicBoolean leaveGroupRequested = new AtomicBoolean(false);
-    private final AtomicLong maxBufferSizeBytes = new AtomicLong(-1L);
     private final boolean eosEnabled;
 
     public static StreamThread create(final TopologyMetadata topologyMetadata,
@@ -327,7 +327,6 @@ public class StreamThread extends Thread {
                                       final Time time,
                                       final StreamsMetadataState streamsMetadataState,
                                       final long cacheSizeBytes,
-                                      final long maxBufferSizeBytes,
                                       final StateDirectory stateDirectory,
                                       final StateRestoreListener userStateRestoreListener,
                                       final int threadIdx,
@@ -391,8 +390,7 @@ public class StreamThread extends Thread {
             standbyTaskCreator,
             topologyMetadata,
             adminClient,
-            stateDirectory,
-            processingMode(config)
+            stateDirectory
         );
         referenceContainer.taskManager = taskManager;
 
@@ -430,49 +428,10 @@ public class StreamThread extends Thread {
             referenceContainer.nonFatalExceptionsToHandle,
             shutdownErrorHook,
             streamsUncaughtExceptionHandler,
-            cache::resize,
-            maxBufferSizeBytes
+            cache::resize
         );
 
         return streamThread.updateThreadMetadata(getSharedAdminClientId(clientId));
-    }
-
-    public enum ProcessingMode {
-        AT_LEAST_ONCE("AT_LEAST_ONCE"),
-
-        EXACTLY_ONCE_ALPHA("EXACTLY_ONCE_ALPHA"),
-
-        EXACTLY_ONCE_V2("EXACTLY_ONCE_V2");
-
-        public final String name;
-
-        ProcessingMode(final String name) {
-            this.name = name;
-        }
-    }
-
-    // Note: the below two methods are static methods here instead of methods on StreamsConfig because it's a public API
-
-    @SuppressWarnings("deprecation")
-    public static ProcessingMode processingMode(final StreamsConfig config) {
-        if (StreamsConfig.EXACTLY_ONCE.equals(config.getString(StreamsConfig.PROCESSING_GUARANTEE_CONFIG))) {
-            return StreamThread.ProcessingMode.EXACTLY_ONCE_ALPHA;
-        } else if (StreamsConfig.EXACTLY_ONCE_BETA.equals(config.getString(StreamsConfig.PROCESSING_GUARANTEE_CONFIG))) {
-            return StreamThread.ProcessingMode.EXACTLY_ONCE_V2;
-        } else if (StreamsConfig.EXACTLY_ONCE_V2.equals(config.getString(StreamsConfig.PROCESSING_GUARANTEE_CONFIG))) {
-            return StreamThread.ProcessingMode.EXACTLY_ONCE_V2;
-        } else {
-            return StreamThread.ProcessingMode.AT_LEAST_ONCE;
-        }
-    }
-
-    public static boolean eosEnabled(final StreamsConfig config) {
-        return eosEnabled(processingMode(config));
-    }
-
-    public static boolean eosEnabled(final ProcessingMode processingMode) {
-        return processingMode == ProcessingMode.EXACTLY_ONCE_ALPHA ||
-            processingMode == ProcessingMode.EXACTLY_ONCE_V2;
     }
 
     public StreamThread(final Time time,
@@ -492,8 +451,7 @@ public class StreamThread extends Thread {
                         final Queue<StreamsException> nonFatalExceptionsToHandle,
                         final Runnable shutdownErrorHook,
                         final BiConsumer<Throwable, Boolean> streamsUncaughtExceptionHandler,
-                        final java.util.function.Consumer<Long> cacheResizer,
-                        final long maxBufferSizeBytes) {
+                        final java.util.function.Consumer<Long> cacheResizer) {
         super(threadId);
         this.stateLock = new Object();
         this.adminClient = adminClient;
@@ -561,7 +519,6 @@ public class StreamThread extends Thread {
 
         this.numIterations = 1;
         this.eosEnabled = eosEnabled(config);
-        this.maxBufferSizeBytes.set(maxBufferSizeBytes);
     }
 
     private static final class InternalConsumerConfig extends ConsumerConfig {
@@ -589,7 +546,8 @@ public class StreamThread extends Thread {
             cleanRun = runLoop();
         } catch (final Throwable e) {
             failedStreamThreadSensor.record();
-            this.streamsUncaughtExceptionHandler.accept(e, false);
+            requestLeaveGroupDuringShutdown();
+            streamsUncaughtExceptionHandler.accept(e, false);
         } finally {
             completeShutdown(cleanRun);
         }
@@ -742,17 +700,8 @@ public class StreamThread extends Thread {
         }
     }
 
-    public void resizeCacheAndBufferMemory(final long cacheSize, final long maxBufferSize) {
-        cacheResizeSize.set(cacheSize);
-        maxBufferSizeBytes.set(maxBufferSize);
-    }
-
-    public long getCacheSize() {
-        return cacheResizeSize.get();
-    }
-
-    public long getMaxBufferSize() {
-        return maxBufferSizeBytes.get();
+    public void resizeCache(final long size) {
+        cacheResizeSize.set(size);
     }
 
     /**
@@ -827,10 +776,6 @@ public class StreamThread extends Thread {
 
                     totalProcessed += processed;
                     totalRecordsProcessedSinceLastSummary += processed;
-                    final long bufferSize = taskManager.getInputBufferSizeInBytes();
-                    if (bufferSize <= maxBufferSizeBytes.get()) {
-                        mainConsumer.resume(mainConsumer.paused());
-                    }
                 }
 
                 log.debug("Processed {} records with {} iterations; invoking punctuators if necessary",
@@ -950,8 +895,7 @@ public class StreamThread extends Thread {
         }
     }
 
-    // Visible for testing
-    long pollPhase() {
+    private long pollPhase() {
         final ConsumerRecords<byte[], byte[]> records;
         log.debug("Invoking poll on main Consumer");
 
@@ -989,24 +933,14 @@ public class StreamThread extends Thread {
                 .ifPresent(t -> taskManager.updateTaskEndMetadata(topicPartition, t.offset()));
         }
 
-        log.debug("Main Consumer poll completed in {} ms and fetched {} records", pollLatency, numRecords);
+        log.debug("Main Consumer poll completed in {} ms and fetched {} records from partitions {}",
+            pollLatency, numRecords, records.partitions());
 
         pollSensor.record(pollLatency, now);
 
         if (!records.isEmpty()) {
             pollRecordsSensor.record(numRecords, now);
             taskManager.addRecordsToTasks(records);
-            // Check buffer size after adding records to tasks
-            final long bufferSize = taskManager.getInputBufferSizeInBytes();
-            // Pausing partitions as the buffer size now exceeds max buffer size
-            if (bufferSize > maxBufferSizeBytes.get()) {
-                log.info("Buffered records size {} bytes exceeds {}. Pausing the consumer", bufferSize, maxBufferSizeBytes.get());
-                // Only non-empty partitions are paused here. Reason is that, if a task has multiple partitions with
-                // some of them empty, then in that case pausing even empty partitions would sacrifice ordered processing
-                // and even lead to temporal deadlock. More explanation can be found here:
-                // https://issues.apache.org/jira/browse/KAFKA-13152?focusedCommentId=17400647&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-17400647
-                mainConsumer.pause(taskManager.nonEmptyPartitions());
-            }
         }
 
         while (!nonFatalExceptionsToHandle.isEmpty()) {
@@ -1316,7 +1250,7 @@ public class StreamThread extends Thread {
     }
 
     public void requestLeaveGroupDuringShutdown() {
-        this.leaveGroupRequested.set(true);
+        leaveGroupRequested.set(true);
     }
 
     public Map<MetricName, Metric> producerMetrics() {
