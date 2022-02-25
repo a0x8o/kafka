@@ -56,6 +56,7 @@ import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.internals.ClientUtils;
 import org.apache.kafka.streams.processor.internals.DefaultKafkaClientSupplier;
 import org.apache.kafka.streams.processor.internals.GlobalStreamThread;
+import org.apache.kafka.streams.processor.internals.GlobalStreamThread.State;
 import org.apache.kafka.streams.processor.internals.StateDirectory;
 import org.apache.kafka.streams.processor.internals.StreamThread;
 import org.apache.kafka.streams.processor.internals.StreamsMetadataState;
@@ -162,7 +163,7 @@ public class KafkaStreams implements AutoCloseable {
     // usage only and should not be exposed to users at all.
     private final Time time;
     private final Logger log;
-    private final String clientId;
+    protected final String clientId;
     private final Metrics metrics;
     protected final StreamsConfig applicationConfigs;
     protected final List<StreamThread> threads;
@@ -679,8 +680,10 @@ public class KafkaStreams implements AutoCloseable {
                     if (newState == GlobalStreamThread.State.RUNNING) {
                         maybeSetRunning();
                     } else if (newState == GlobalStreamThread.State.DEAD) {
-                        log.error("Global thread has died. The streams application or client will now close to ERROR.");
-                        closeToError();
+                        if (state != State.PENDING_SHUTDOWN) {
+                            log.error("Global thread has died. The streams application or client will now close to ERROR.");
+                            closeToError();
+                        }
                     }
                 }
             }
@@ -900,6 +903,7 @@ public class KafkaStreams implements AutoCloseable {
         }
         final LogContext logContext = new LogContext(String.format("stream-client [%s] ", clientId));
         this.log = logContext.logger(getClass());
+        topologyMetadata.setLog(logContext);
 
         // use client id instead of thread client id since this admin client may be shared among threads
         this.clientSupplier = clientSupplier;
