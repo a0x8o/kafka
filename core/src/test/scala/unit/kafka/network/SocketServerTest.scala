@@ -478,6 +478,10 @@ class SocketServerTest {
       processRequest(overrideServer.dataPlaneRequestChannel, request0)
       assertTrue(openChannel(request0, overrideServer).nonEmpty, "Channel not open")
       assertEquals(openChannel(request0, overrideServer), openOrClosingChannel(request0, overrideServer))
+      // Receive response to make sure activity on socket server processor thread quiesces, otherwise
+      // it may continue after the mock time sleep, so there would be events that would mark the
+      // connection as "up-to-date" after the sleep and prevent connection from being idle.
+      receiveResponse(socket0)
       TestUtils.waitUntilTrue(() => !openChannel(request0, overrideServer).get.isMuted, "Failed to unmute channel")
       time.sleep(idleTimeMs + 1)
       TestUtils.waitUntilTrue(() => openOrClosingChannel(request0, overrideServer).isEmpty, "Failed to close idle channel")
@@ -1125,12 +1129,12 @@ class SocketServerTest {
 
       val requestMetrics = channel.metrics(request.header.apiKey.name)
       def totalTimeHistCount(): Long = requestMetrics.totalTimeHist.count
+      val expectedTotalTimeCount = totalTimeHistCount() + 1
       val send = new NetworkSend(request.context.connectionId, ByteBufferSend.sizePrefixed(ByteBuffer.allocate(responseBufferSize)))
       val headerLog = new ObjectNode(JsonNodeFactory.instance)
       headerLog.set("response", new TextNode("someResponse"))
       channel.sendResponse(new RequestChannel.SendResponse(request, send, Some(headerLog), None))
 
-      val expectedTotalTimeCount = totalTimeHistCount() + 1
       TestUtils.waitUntilTrue(() => totalTimeHistCount() == expectedTotalTimeCount,
         s"request metrics not updated, expected: $expectedTotalTimeCount, actual: ${totalTimeHistCount()}")
 
