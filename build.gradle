@@ -154,8 +154,8 @@ allprojects {
 
 def determineCommitId() {
   def takeFromHash = 16
-  if (project.hasProperty('commitId2')) {
-    commitId2.take(takeFromHash)
+  if (project.hasProperty('commitId')) {
+    commitId.take(takeFromHash)
   } else if (file("$rootDir/.git/HEAD").exists()) {
     def headRef = file("$rootDir/.git/HEAD").text
     if (headRef.contains('ref: ')) {
@@ -1136,6 +1136,8 @@ project(':metadata') {
     compileOnly libs.log4j
     testImplementation libs.junitJupiter
     testImplementation libs.hamcrest
+    testImplementation libs.mockitoCore
+    testImplementation libs.mockitoInline
     testImplementation libs.slf4jlog4j
     testImplementation project(':clients').sourceSets.test.output
     testImplementation project(':raft').sourceSets.test.output
