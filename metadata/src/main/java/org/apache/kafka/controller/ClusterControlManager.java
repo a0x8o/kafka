@@ -18,6 +18,7 @@
 package org.apache.kafka.controller;
 
 import org.apache.kafka.common.Endpoint;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.DuplicateBrokerRegistrationException;
 import org.apache.kafka.common.errors.InconsistentClusterIdException;
 import org.apache.kafka.common.errors.StaleBrokerEpochException;
@@ -38,6 +39,9 @@ import org.apache.kafka.metadata.BrokerRegistration;
 import org.apache.kafka.metadata.BrokerRegistrationReply;
 import org.apache.kafka.metadata.FinalizedControllerFeatures;
 import org.apache.kafka.metadata.VersionRange;
+import org.apache.kafka.metadata.placement.ReplicaPlacer;
+import org.apache.kafka.metadata.placement.StripedReplicaPlacer;
+import org.apache.kafka.metadata.placement.UsableBroker;
 import org.apache.kafka.server.common.ApiMessageAndVersion;
 import org.apache.kafka.timeline.SnapshotRegistry;
 import org.apache.kafka.timeline.TimelineHashMap;
@@ -51,10 +55,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.kafka.common.metadata.MetadataRecordType.REGISTER_BROKER_RECORD;
 
 
@@ -64,6 +71,76 @@ import static org.apache.kafka.common.metadata.MetadataRecordType.REGISTER_BROKE
  * brokers being fenced or unfenced, and broker feature versions.
  */
 public class ClusterControlManager {
+    final static long DEFAULT_SESSION_TIMEOUT_NS = NANOSECONDS.convert(18, TimeUnit.SECONDS);
+
+    static class Builder {
+        private LogContext logContext = null;
+        private String clusterId = null;
+        private Time time = Time.SYSTEM;
+        private SnapshotRegistry snapshotRegistry = null;
+        private long sessionTimeoutNs = DEFAULT_SESSION_TIMEOUT_NS;
+        private ReplicaPlacer replicaPlacer = null;
+        private ControllerMetrics controllerMetrics = null;
+
+        Builder setLogContext(LogContext logContext) {
+            this.logContext = logContext;
+            return this;
+        }
+
+        Builder setClusterId(String clusterId) {
+            this.clusterId = clusterId;
+            return this;
+        }
+
+        Builder setTime(Time time) {
+            this.time = time;
+            return this;
+        }
+
+        Builder setSnapshotRegistry(SnapshotRegistry snapshotRegistry) {
+            this.snapshotRegistry = snapshotRegistry;
+            return this;
+        }
+
+        Builder setSessionTimeoutNs(long sessionTimeoutNs) {
+            this.sessionTimeoutNs = sessionTimeoutNs;
+            return this;
+        }
+
+        Builder setReplicaPlacer(ReplicaPlacer replicaPlacer) {
+            this.replicaPlacer = replicaPlacer;
+            return this;
+        }
+
+        Builder setControllerMetrics(ControllerMetrics controllerMetrics) {
+            this.controllerMetrics = controllerMetrics;
+            return this;
+        }
+
+        ClusterControlManager build() {
+            if (logContext == null) logContext = new LogContext();
+            if (clusterId == null) {
+                clusterId = Uuid.randomUuid().toString();
+            }
+            if (snapshotRegistry == null) {
+                snapshotRegistry = new SnapshotRegistry(logContext);
+            }
+            if (replicaPlacer == null) {
+                replicaPlacer = new StripedReplicaPlacer(new Random());
+            }
+            if (controllerMetrics == null) {
+                throw new RuntimeException("You must specify controllerMetrics");
+            }
+            return new ClusterControlManager(logContext,
+                clusterId,
+                time,
+                snapshotRegistry,
+                sessionTimeoutNs,
+                replicaPlacer,
+                controllerMetrics);
+        }
+    }
+
     class ReadyBrokersFuture {
         private final CompletableFuture<Void> future;
         private final int minBrokers;
@@ -138,13 +215,15 @@ public class ClusterControlManager {
      */
     private Optional<ReadyBrokersFuture> readyBrokersFuture;
 
-    ClusterControlManager(LogContext logContext,
-                          String clusterId,
-                          Time time,
-                          SnapshotRegistry snapshotRegistry,
-                          long sessionTimeoutNs,
-                          ReplicaPlacer replicaPlacer,
-                          ControllerMetrics metrics) {
+    private ClusterControlManager(
+        LogContext logContext,
+        String clusterId,
+        Time time,
+        SnapshotRegistry snapshotRegistry,
+        long sessionTimeoutNs,
+        ReplicaPlacer replicaPlacer,
+        ControllerMetrics metrics
+    ) {
         this.logContext = logContext;
         this.clusterId = clusterId;
         this.log = logContext.logger(ClusterControlManager.class);
@@ -155,6 +234,10 @@ public class ClusterControlManager {
         this.heartbeatManager = null;
         this.readyBrokersFuture = Optional.empty();
         this.controllerMetrics = metrics;
+    }
+
+    ReplicaPlacer replicaPlacer() {
+        return replicaPlacer;
     }
 
     /**
@@ -219,7 +302,6 @@ public class ClusterControlManager {
                 if (!existing.incarnationId().equals(request.incarnationId())) {
                     // Remove any existing session for the old broker incarnation.
                     heartbeatManager.remove(brokerId);
-                    existing = null;
                 }
             }
         }
@@ -251,11 +333,7 @@ public class ClusterControlManager {
                 setMaxSupportedVersion(feature.maxSupportedVersion()));
         }
 
-        if (existing == null) {
-            heartbeatManager.touch(brokerId, true, -1);
-        } else {
-            heartbeatManager.touch(brokerId, existing.fenced(), -1);
-        }
+        heartbeatManager.register(brokerId, record.fenced());
 
         List<ApiMessageAndVersion> records = new ArrayList<>();
         records.add(new ApiMessageAndVersion(record,
@@ -283,6 +361,10 @@ public class ClusterControlManager {
                     record.incarnationId(), listeners, features,
                     Optional.ofNullable(record.rack()), record.fenced()));
         updateMetrics(prevRegistration, brokerRegistrations.get(brokerId));
+        if (heartbeatManager != null) {
+            if (prevRegistration != null) heartbeatManager.remove(brokerId);
+            heartbeatManager.register(brokerId, record.fenced());
+        }
         if (prevRegistration == null) {
             log.info("Registered new broker: {}", record);
         } else if (prevRegistration.incarnationId().equals(record.incarnationId())) {
@@ -302,6 +384,7 @@ public class ClusterControlManager {
             throw new RuntimeException(String.format("Unable to replay %s: no broker " +
                 "registration with that epoch found", record.toString()));
         } else {
+            if (heartbeatManager != null) heartbeatManager.remove(brokerId);
             brokerRegistrations.remove(brokerId);
             updateMetrics(registration, brokerRegistrations.get(brokerId));
             log.info("Unregistered broker: {}", record);
@@ -318,6 +401,7 @@ public class ClusterControlManager {
             throw new RuntimeException(String.format("Unable to replay %s: no broker " +
                 "registration with that epoch found", record.toString()));
         } else {
+            if (heartbeatManager != null) heartbeatManager.register(brokerId, true);
             brokerRegistrations.put(brokerId, registration.cloneWithFencing(true));
             updateMetrics(registration, brokerRegistrations.get(brokerId));
             log.info("Fenced broker: {}", record);
@@ -334,6 +418,7 @@ public class ClusterControlManager {
             throw new RuntimeException(String.format("Unable to replay %s: no broker " +
                 "registration with that epoch found", record.toString()));
         } else {
+            if (heartbeatManager != null) heartbeatManager.register(brokerId, false);
             brokerRegistrations.put(brokerId, registration.cloneWithFencing(false));
             updateMetrics(registration, brokerRegistrations.get(brokerId));
             log.info("Unfenced broker: {}", record);
@@ -370,15 +455,12 @@ public class ClusterControlManager {
         }
     }
 
-
-    public List<List<Integer>> placeReplicas(int startPartition,
-                                             int numPartitions,
-                                             short numReplicas) {
+    Iterator<UsableBroker> usableBrokers() {
         if (heartbeatManager == null) {
             throw new RuntimeException("ClusterControlManager is not active.");
         }
-        return heartbeatManager.placeReplicas(startPartition, numPartitions, numReplicas,
-            id -> brokerRegistrations.get(id).rack(), replicaPlacer);
+        return heartbeatManager.usableBrokers(
+            id -> brokerRegistrations.get(id).rack());
     }
 
     public boolean unfenced(int brokerId) {
