@@ -34,9 +34,9 @@ import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.TimeWindowedDeserializer;
 import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.kstream.internals.TimeWindow;
-import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.api.Processor;
+import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.MockStreamsMetrics;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
@@ -101,13 +101,13 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
     private final static String TOPIC = "topic";
     private static final String CACHE_NAMESPACE = "0_0-store-name";
 
+    private ThreadCache cache;
     private InternalMockProcessorContext context;
-    private RocksDBTimeOrderedSegmentedBytesStore bytesStore;
+    private TimeFirstWindowKeySchema baseKeySchema;
     private WindowStore<Bytes, byte[]> underlyingStore;
     private TimeOrderedCachingWindowStore cachingStore;
+    private RocksDBTimeOrderedWindowSegmentedBytesStore bytesStore;
     private CacheFlushListenerStub<Windowed<String>, String> cacheListener;
-    private ThreadCache cache;
-    private TimeFirstWindowKeySchema baseKeySchema;
 
     @Parameter
     public boolean hasIndex;
@@ -123,7 +123,7 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
     @Before
     public void setUp() {
         baseKeySchema = new TimeFirstWindowKeySchema();
-        bytesStore = new RocksDBTimeOrderedSegmentedBytesStore("test", "metrics-scope", 100, SEGMENT_INTERVAL, hasIndex);
+        bytesStore = new RocksDBTimeOrderedWindowSegmentedBytesStore("test", "metrics-scope", 100, SEGMENT_INTERVAL, hasIndex);
         underlyingStore = new RocksDBTimeOrderedWindowStore(bytesStore, false, WINDOW_SIZE);
         final TimeWindowedDeserializer<String> keyDeserializer = new TimeWindowedDeserializer<>(new StringDeserializer(), WINDOW_SIZE);
         keyDeserializer.setIsChangelogTopic(true);
@@ -151,10 +151,10 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
 
         EasyMock.reset(inner);
         EasyMock.expect(inner.name()).andStubReturn("store");
-        inner.init((ProcessorContext) context, outer);
+        inner.init((org.apache.kafka.streams.processor.ProcessorContext) context, outer);
         EasyMock.expectLastCall();
         EasyMock.replay(inner);
-        outer.init((ProcessorContext) context, outer);
+        outer.init((org.apache.kafka.streams.processor.ProcessorContext) context, outer);
         EasyMock.verify(inner);
     }
 
@@ -206,13 +206,11 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
         builder.stream(TOPIC,
             Consumed.with(Serdes.String(), Serdes.String()))
             .process(() -> new Processor<String, String, String, String>() {
-                private WindowStore<String, ValueAndTimestamp<String>> store;
                 private int numRecordsProcessed;
-                private org.apache.kafka.streams.processor.api.ProcessorContext<String, String> context;
+                private WindowStore<String, ValueAndTimestamp<String>> store;
 
                 @Override
-                public void init(final org.apache.kafka.streams.processor.api.ProcessorContext<String, String> processorContext) {
-                    this.context = processorContext;
+                public void init(final ProcessorContext<String, String> processorContext) {
                     this.store = processorContext.getStateStore("store-name");
                     int count = 0;
 
@@ -242,14 +240,8 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
                     store.put(record.value(), ValueAndTimestamp.make(record.value(), record.timestamp()), record.timestamp());
 
                     numRecordsProcessed++;
-
-                    context.forward(record);
                 }
 
-
-                @Override
-                public void close() {
-                }
             }, "store-name");
 
         final Properties streamsConfiguration = new Properties();
@@ -723,7 +715,7 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
     }
 
     @Test
-    public void shouldForwardOldValuesWhenDisabled() {
+    public void shouldNotForwardOldValuesWhenDisabled() {
         final Windowed<String> windowedKey =
             new Windowed<>("1", new TimeWindow(DEFAULT_TIMESTAMP, DEFAULT_TIMESTAMP + WINDOW_SIZE));
         cachingStore.put(bytesKey("1"), bytesValue("a"), DEFAULT_TIMESTAMP);
@@ -890,7 +882,6 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
     public void shouldSkipNonExistBaseKeyInCache() {
         cachingStore.put(bytesKey("aa"), bytesValue("0002"), 0);
 
-        final SegmentedCacheFunction baseCacheFunction = new SegmentedCacheFunction(new TimeFirstWindowKeySchema(), SEGMENT_INTERVAL);
         final SegmentedCacheFunction indexCacheFunction = new SegmentedCacheFunction(new KeyFirstWindowKeySchema(), SEGMENT_INTERVAL);
 
         final Bytes key = bytesKey("a");
