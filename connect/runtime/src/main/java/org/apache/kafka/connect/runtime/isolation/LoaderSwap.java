@@ -14,31 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.connect.runtime.rest.resources;
+package org.apache.kafka.connect.runtime.isolation;
 
-import io.swagger.v3.oas.annotations.Operation;
-import org.apache.kafka.connect.runtime.Herder;
-import org.apache.kafka.connect.runtime.rest.entities.ServerInfo;
+/**
+ * Helper for having {@code Plugins} use a given classloader within a try-with-resources statement.
+ * See {@link Plugins#withClassLoader(ClassLoader)}.
+ */
+public class LoaderSwap implements AutoCloseable {
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+    private final ClassLoader savedLoader;
 
-@Path("/")
-@Produces(MediaType.APPLICATION_JSON)
-public class RootResource {
-
-    private final Herder herder;
-
-    public RootResource(Herder herder) {
-        this.herder = herder;
+    public LoaderSwap(ClassLoader savedLoader) {
+        this.savedLoader = savedLoader;
     }
 
-    @GET
-    @Path("/")
-    @Operation(summary = "Get details about this Connect worker and the id of the Kafka cluster it is connected to")
-    public ServerInfo serverInfo() {
-        return new ServerInfo(herder.kafkaClusterId());
+    @Override
+    public void close() {
+        Plugins.compareAndSwapLoaders(savedLoader);
     }
+
 }
