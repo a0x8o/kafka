@@ -757,7 +757,7 @@ public class StreamThreadTest {
             topologyMetadata,
             null,
             null,
-            config
+            null
         ) {
             @Override
             int commit(final Collection<Task> tasksToCommit) {
@@ -841,6 +841,7 @@ public class StreamThreadTest {
         expect(activeTaskCreator.producerClientIds()).andStubReturn(Collections.singleton("producerClientId"));
 
         final StandbyTaskCreator standbyTaskCreator = mock(StandbyTaskCreator.class);
+        expect(standbyTaskCreator.createTasks(anyObject())).andStubReturn(Collections.emptySet());
 
         EasyMock.replay(consumer, consumerGroupMetadata, task, activeTaskCreator, standbyTaskCreator);
 
@@ -859,7 +860,7 @@ public class StreamThreadTest {
             topologyMetadata,
             null,
             null,
-            config
+            null
         ) {
             @Override
             int commit(final Collection<Task> tasksToCommit) {
