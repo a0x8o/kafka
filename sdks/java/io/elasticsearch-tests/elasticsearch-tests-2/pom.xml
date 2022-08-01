@@ -31,7 +31,7 @@
   <description>Tests of ElasticsearchIO on Elasticsearch 2.x</description>
 
   <properties>
-    <elasticsearch.version>2.4.1</elasticsearch.version>
+    <elasticsearch.version>6.8.17</elasticsearch.version>
   </properties>
 
   <dependencies>
