@@ -19,27 +19,20 @@ package org.apache.kafka.server.fault;
 
 
 /**
- * Handle a server fault.
+ * An exception thrown by a fault handler.
  */
-public interface FaultHandler {
-    /**
-     * Handle a fault.
-     *
-     * @param failureMessage        The failure message to log.
-     *
-     * @return                      The fault exception.
-     */
-    default RuntimeException handleFault(String failureMessage) {
-        return handleFault(failureMessage, null);
+public class FaultHandlerException extends RuntimeException {
+    public FaultHandlerException(String failureMessage, Throwable cause) {
+        super(failureMessage, cause);
+        // If a cause exception was provided, set our the stack trace its stack trace. This is
+        // useful in junit tests where a limited number of stack frames are printed, and usually
+        // the stack frames of cause exceptions get trimmed.
+        if (cause != null) {
+            setStackTrace(cause.getStackTrace());
+        }
     }
 
-    /**
-     * Handle a fault.
-     *
-     * @param failureMessage        The failure message to log.
-     * @param cause                 The exception that caused the problem, or null.
-     *
-     * @return                      The fault exception.
-     */
-    RuntimeException handleFault(String failureMessage, Throwable cause);
+    public FaultHandlerException(String failureMessage) {
+        this(failureMessage, null);
+    }
 }
