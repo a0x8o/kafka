@@ -175,8 +175,18 @@ public class DefaultStateUpdater implements StateUpdater {
                     throw new IllegalStateException("Task " + taskId + " is corrupted but is not updating. " + BUG_ERROR_MESSAGE);
                 }
                 corruptedTasks.add(corruptedTask);
+                removeCheckpointForCorruptedTask(corruptedTask);
             }
             addToExceptionsAndFailedTasksThenRemoveFromUpdatingTasks(new ExceptionAndTasks(corruptedTasks, taskCorruptedException));
+        }
+
+        // TODO: we can let the exception encode the actual corrupted changelog partitions and only
+        //       mark those instead of marking all changelogs
+        private void removeCheckpointForCorruptedTask(final Task task) {
+            task.markChangelogAsCorrupted(task.changelogPartitions());
+
+            // we need to enforce a checkpoint that removes the corrupted partitions
+            task.maybeCheckpoint(true);
         }
 
         private void handleStreamsException(final StreamsException streamsException) {
@@ -277,8 +287,6 @@ public class DefaultStateUpdater implements StateUpdater {
             if (updatingTasks.containsKey(taskId)) {
                 task = updatingTasks.get(taskId);
                 task.maybeCheckpoint(true);
-                final Collection<TopicPartition> changelogPartitions = task.changelogPartitions();
-                changelogReader.unregister(changelogPartitions);
                 removedTasks.add(task);
                 updatingTasks.remove(taskId);
                 transitToUpdateStandbysIfOnlyStandbysLeft();
@@ -286,8 +294,6 @@ public class DefaultStateUpdater implements StateUpdater {
                     + " task " + task.id() + " was removed from the updating tasks and added to the removed tasks.");
             } else if (pausedTasks.containsKey(taskId)) {
                 task = pausedTasks.get(taskId);
-                final Collection<TopicPartition> changelogPartitions = task.changelogPartitions();
-                changelogReader.unregister(changelogPartitions);
                 removedTasks.add(task);
                 pausedTasks.remove(taskId);
                 log.debug((task.isActive() ? "Active" : "Standby")
