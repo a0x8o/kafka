@@ -29,7 +29,7 @@
   <description>Parent for Beam SDK Hadoop IO which reads data from any source which implements Hadoop Input Format.</description>
 
   <properties>
-    <log4j.core.version>2.6.2</log4j.core.version>
+    <log4j.core.version>2.17.1</log4j.core.version>
   </properties>
 
   <modules>
