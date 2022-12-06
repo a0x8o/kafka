@@ -102,7 +102,7 @@
     <docker.repository>apache/drill</docker.repository>
     <antlr.version>4.8-1</antlr.version>
     <lowestMavenVersion>3.3.3</lowestMavenVersion>
-    <commons.net.version>3.6</commons.net.version>
+    <commons.net.version>3.9.0</commons.net.version>
     <commons.validator.version>1.6</commons.validator.version>
     <commons.text.version>1.6</commons.text.version>
     <protobuf.version>3.6.1</protobuf.version>
