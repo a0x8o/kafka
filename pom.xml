@@ -110,7 +110,7 @@
     <joda.version>2.10.5</joda.version>
     <javax.el.version>3.0.0</javax.el.version>
     <surefire.version>3.0.0-M4</surefire.version>
-    <commons.compress.version>1.19</commons.compress.version>
+    <commons.compress.version>1.21</commons.compress.version>
     <commons.dbcp2.version>2.7.0</commons.dbcp2.version>
   </properties>
 
