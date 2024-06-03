@@ -31,7 +31,7 @@
   <name>Packaging and Distribution Assembly</name>
 
   <properties>
-    <aws.java.sdk.version>1.11.375</aws.java.sdk.version>
+    <aws.java.sdk.version>1.12.261</aws.java.sdk.version>
   </properties>
 
   <dependencies>
