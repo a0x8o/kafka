@@ -120,7 +120,7 @@
     <guava.version>19.0</guava.version>
     <transport.netty4.client.version>5.0.0</transport.netty4.client.version>
     <netty.transport.native.epoll.version>4.1.0.CR3</netty.transport.native.epoll.version>
-    <elasticsearch.version>5.0.0</elasticsearch.version>
+    <elasticsearch.version>6.8.17</elasticsearch.version>
     <cassandra.driver.mapping.version>3.1.1</cassandra.driver.mapping.version>
     <cassandra.all.verison>3.9</cassandra.all.verison>
     <cassandra.driver.core.version>3.1.1</cassandra.driver.core.version>
