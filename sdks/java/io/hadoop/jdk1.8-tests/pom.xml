@@ -122,7 +122,7 @@
     <netty.transport.native.epoll.version>4.1.0.CR3</netty.transport.native.epoll.version>
     <elasticsearch.version>5.0.0</elasticsearch.version>
     <cassandra.driver.mapping.version>3.1.1</cassandra.driver.mapping.version>
-    <cassandra.all.verison>3.9</cassandra.all.verison>
+    <cassandra.all.verison>3.11.12</cassandra.all.verison>
     <cassandra.driver.core.version>3.1.1</cassandra.driver.core.version>
     <commons.io.version>2.4</commons.io.version>
   </properties>
